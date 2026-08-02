@@ -16,23 +16,28 @@ const PLA_DENSITY = 1.24e-3 // g/mm³
 /** Beyond this width-to-length ratio, magnets line up along the long axis instead of on a ring. */
 const ELONGATED_RATIO = 1.35
 
-interface Circle {
+export interface Circle {
   x: number
   y: number
   r: number
+}
+
+/** Whether magnets sit on a ring, rather than in a row down the long axis. */
+export function magnetsRing(width: number, length: number): boolean {
+  return Math.max(width, length) / Math.min(width, length) <= ELONGATED_RATIO
 }
 
 /**
  * Magnet centres. Round-ish footprints get a ring so the pull is even; long ones
  * get a row down the major axis, which is where the material actually is.
  */
-function magnetPositions(count: number, halfWidth: number, halfLength: number, clear: number): Circle[] {
+export function magnetPositions(count: number, halfWidth: number, halfLength: number, clear: number): Circle[] {
   if (count <= 0) return []
   if (count === 1) return [{ x: 0, y: 0, r: 0 }]
 
   const long = Math.max(halfWidth, halfLength)
   const short = Math.min(halfWidth, halfLength)
-  if (long / short > ELONGATED_RATIO) {
+  if (!magnetsRing(halfWidth, halfLength)) {
     const reach = Math.max(long - clear, 0)
     const alongX = halfWidth >= halfLength
     return Array.from({ length: count }, (_, i) => {
@@ -46,6 +51,55 @@ function magnetPositions(count: number, halfWidth: number, halfLength: number, c
     const a = Math.PI / 2 + (2 * Math.PI * i) / count
     return { x: radius * Math.cos(a), y: radius * Math.sin(a), r: radius }
   })
+}
+
+const TAU = 2 * Math.PI
+/** Shortest angle between two bearings, ignoring which way round. */
+function angleBetween(a: number, b: number): number {
+  return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
+}
+
+/**
+ * Rib bearings, phased to run through as many bosses as the counts allow.
+ *
+ * A rib and a boss on the same bearing merge into one connected feature, which
+ * is worth more than it looks: the boss gets a gusset at its root, where the
+ * bending moment from a magnet being peeled off a tray is highest; the slicer
+ * gets one connected perimeter network per layer instead of isolated islands;
+ * and the clear floor collects into a few wide gaps rather than twice as many
+ * narrow ones, which is what lets the marking stay large.
+ *
+ * Bracing the span *between* bosses would be the alternative, but a boss is a
+ * 7mm inclusion in a plate tens of millimetres across — it barely supports the
+ * membrane around it, so the phase makes almost no difference to floor
+ * stiffness either way. That leaves the reasons above, and they all point one
+ * direction.
+ *
+ * Counts that share no factor cannot all line up: three ribs against four
+ * bosses can only ever hit one. Phases are drawn from the boss bearings
+ * themselves so the alignment is exact rather than nearly, and the one that
+ * lands closest to the rest wins. A single central magnet has no bearing at
+ * all, and every rib meets it at the centre regardless.
+ */
+export function ribAngles(count: number, magnets: Circle[]): number[] {
+  if (count <= 0) return []
+  const spacing = TAU / count
+  const spokes = (phase: number) => Array.from({ length: count }, (_, i) => phase + spacing * i)
+
+  const bosses = magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6).map((m) => Math.atan2(m.y, m.x))
+  if (bosses.length === 0) return spokes(Math.PI / 2)
+
+  let best = bosses[0]
+  let closest = Infinity
+  for (const phase of bosses) {
+    const arranged = spokes(phase)
+    const missed = bosses.reduce((total, boss) => total + Math.min(...arranged.map((s) => angleBetween(s, boss))), 0)
+    if (missed < closest) {
+      closest = missed
+      best = phase
+    }
+  }
+  return spokes(best)
 }
 
 function boxHitsCircle(cx: number, cy: number, hw: number, hh: number, c: Circle, pad: number): boolean {
@@ -112,12 +166,26 @@ function fitLabel(
   return undefined
 }
 
-/** Directions the label may sit along: between the ribs first, then the diagonals. */
-function labelAngles(ribAngles: number[]): number[] {
-  const gap = ribAngles.length > 0 ? Math.PI / ribAngles.length : 0
-  const between = ribAngles.map((a) => a + gap)
+/**
+ * Directions the label may sit along, widest gap first.
+ *
+ * Bisecting the ribs alone used to work only because the ribs and the bosses
+ * shared a bearing; now that the spokes deliberately run between the bosses, a
+ * rib bisector aims straight at one. So the candidates come from the gaps
+ * between every solid thing on the floor. The diagonals stay behind them for a
+ * floor with nothing on it at all.
+ */
+function labelAngles(spokes: number[], magnets: Circle[]): number[] {
+  const bosses = magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6).map((m) => Math.atan2(m.y, m.x))
+  const solid = [...spokes, ...bosses].map((a) => ((a % TAU) + TAU) % TAU).sort((a, b) => a - b)
+  const gaps = solid
+    .map((angle, i) => {
+      const next = i + 1 < solid.length ? solid[i + 1] : solid[0] + TAU
+      return { middle: (angle + next) / 2, span: next - angle }
+    })
+    .sort((a, b) => b.span - a.span)
   const fallback = Array.from({ length: 8 }, (_, i) => (Math.PI / 4) * i)
-  return [...between, ...fallback]
+  return [...gaps.map((gap) => gap.middle), ...fallback]
 }
 
 export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Font): BuildResult {
@@ -170,6 +238,15 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const bossRadius = pocketRadius + config.magnets.bossWall
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN)
 
+    /*
+     * The boss carries the pocket the full depth of the well, and the pocket is cut
+     * only as deep as the magnet is thick — measured down from the top. So the
+     * magnet always finishes flush with the top of the boss, and a thinner one is
+     * packed out from underneath with solid material rather than left sitting at
+     * the bottom of an open tube.
+     */
+    const seatedThickness = Math.min(config.magnets.thickness, wellDepth)
+
     if (hollow && magnets.length > 0) {
       // Bosses carry the pockets up through the well so magnets seat against the floor.
       const bossDisc = section(CrossSection.circle(bossRadius, config.segments))
@@ -179,19 +256,16 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       }
     }
 
-    // Ribs are single spokes from the centre outwards, the first at 12 o'clock so a
-    // ring of bosses has one to sit on. Intersecting the well stops them at the wall.
-    const ribAngles =
-      hollow && config.ribs.count > 0
-        ? Array.from({ length: config.ribs.count }, (_, i) => Math.PI / 2 + (2 * Math.PI * i) / config.ribs.count)
-        : []
+    // Single spokes from the centre outwards, phased to run between the bosses.
+    // Intersecting the well stops them at the wall.
+    const spokeAngles = hollow ? ribAngles(config.ribs.count, magnets) : []
     const ribHeight = Math.min(config.ribs.height, wellDepth)
-    if (ribAngles.length > 0 && ribHeight > 0) {
+    if (spokeAngles.length > 0 && ribHeight > 0) {
       const reach = wellReach + config.wallThickness
       const bar = section(CrossSection.square([reach, config.ribs.thickness], true))
       const spoke = section(bar.translate([reach / 2, 0]))
-      let spokes = section(spoke.rotate((ribAngles[0] * 180) / Math.PI))
-      for (const a of ribAngles.slice(1)) spokes = section(spokes.add(section(spoke.rotate((a * 180) / Math.PI))))
+      let spokes = section(spoke.rotate((spokeAngles[0] * 180) / Math.PI))
+      for (const a of spokeAngles.slice(1)) spokes = section(spokes.add(section(spoke.rotate((a * 180) / Math.PI))))
       // Ribs run a little way into the wall. Stopping them exactly on the well
       // boundary would leave the two surfaces tangent, which welds into a pinched
       // vertex in any tool that merges by position.
@@ -210,7 +284,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
         const contours = room.toPolygons()
         const obstacles = [
           ...magnets.map((m) => ({ x: m.x, y: m.y, r: bossRadius })),
-          ...ribObstacles(ribAngles, wellReach, config.ribs.thickness),
+          ...ribObstacles(spokeAngles, wellReach, config.ribs.thickness),
         ]
         const fit = fitLabel(
           polygonsWidth(polys),
@@ -218,7 +292,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
           wellReach,
           (x, y) => pointInContours(contours, x, y),
           obstacles,
-          labelAngles(ribAngles),
+          labelAngles(spokeAngles, magnets),
         )
         if (fit) {
           const scaled: Polygon[] = polys.map((p) => p.map(([x, y]): [number, number] => [x * fit.scale, y * fit.scale]))
@@ -233,10 +307,10 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     // A well loads magnets from above and floors them on the wall thickness; a solid
     // base takes them from underneath, so the pocket opens at the build plate.
     if (magnets.length > 0) {
-      const depth = hollow ? wellDepth + 1 : Math.min(config.magnets.depth, config.height - 0.4)
+      const depth = hollow ? seatedThickness + 1 : Math.min(config.magnets.thickness, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))
       const drill = solidOf(pocketDisc.extrude(depth + 0.001))
-      const z = hollow ? config.floorThickness : -0.001
+      const z = hollow ? config.height - seatedThickness : -0.001
       for (const m of magnets) {
         solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, z]))))
       }

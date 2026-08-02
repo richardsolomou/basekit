@@ -82,7 +82,3 @@ export function to3mf(meshes: { mesh: MeshLike; name: string }[]): Uint8Array {
     '3D': { '3dmodel.model': enc.encode(modelXml(meshes)) },
   })
 }
-
-export function toZip(files: Record<string, Uint8Array>): Uint8Array {
-  return zipSync(files)
-}

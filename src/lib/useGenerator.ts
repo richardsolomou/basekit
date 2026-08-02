@@ -1,76 +1,62 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { BaseConfig, BaseStats } from '@/geometry/types'
+import type { BaseConfig } from '@/geometry/types'
 import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
-export interface PackPart {
-  name: string
-  mesh: MeshData
-  stats: BaseStats
-}
-
-interface Preview {
-  mesh: MeshData
-  stats: BaseStats
-}
-
 /**
- * Owns the geometry worker. Previews are debounced and superseded — dragging a
- * slider only ever renders the newest config.
+ * Owns the geometry worker. Previews supersede one another: dragging a dimension
+ * only ever renders the newest config, and every reply is a finished preview, so
+ * nothing here reports a pending state.
  */
 export function useGenerator(config: BaseConfig) {
   const worker = useRef<Worker>(null)
   const nextId = useRef(0)
   const latestPreview = useRef(0)
-  const packResolvers = useRef(new Map<number, (parts: PackPart[]) => void>())
+  const building = useRef(false)
+  const queued = useRef<BaseConfig>(undefined)
 
-  const [preview, setPreview] = useState<Preview>()
+  const [preview, setPreview] = useState<MeshData>()
   const [error, setError] = useState<string>()
-  const [busy, setBusy] = useState(true)
+
+  /** Sends one config and remembers it is the one whose reply matters. */
+  const send = useCallback((next: BaseConfig) => {
+    const id = ++nextId.current
+    latestPreview.current = id
+    building.current = true
+    worker.current?.postMessage({ id, config: next } satisfies WorkerRequest)
+  }, [])
+
+  /** Called on every reply: start the newest config that arrived while busy. */
+  const drain = useCallback(() => {
+    building.current = false
+    const next = queued.current
+    queued.current = undefined
+    if (next) send(next)
+  }, [send])
 
   useEffect(() => {
     const instance = new Worker(new URL('../worker/base.worker.ts', import.meta.url), { type: 'module' })
     worker.current = instance
     instance.onmessage = (event: MessageEvent<WorkerReply>) => {
       const reply = event.data
+      if (reply.id !== latestPreview.current) return // a newer config is already in flight
       if (reply.kind === 'error') {
-        if (reply.id === latestPreview.current) {
-          setError(reply.message)
-          setBusy(false)
-        }
-        packResolvers.current.get(reply.id)?.([])
-        packResolvers.current.delete(reply.id)
-        return
-      }
-      if (reply.kind === 'preview') {
-        if (reply.id !== latestPreview.current) return // a newer config is already in flight
-        setPreview({ mesh: reply.mesh, stats: reply.stats })
+        setError(reply.message)
+      } else {
+        setPreview(reply.mesh)
         setError(undefined)
-        setBusy(false)
-        return
       }
-      packResolvers.current.get(reply.id)?.(reply.parts)
-      packResolvers.current.delete(reply.id)
+      drain()
     }
     return () => instance.terminate()
-  }, [])
+  }, [drain])
 
+  // No debounce: a build is started the moment the worker is free, and while it is
+  // busy only the newest config is held. Waiting for changes to stop meant nothing
+  // rendered at all until a drag ended.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const id = ++nextId.current
-      latestPreview.current = id
-      setBusy(true)
-      worker.current?.postMessage({ id, kind: 'preview', config } satisfies WorkerRequest)
-    }, 60)
-    return () => clearTimeout(timer)
-  }, [config])
+    if (building.current) queued.current = config
+    else send(config)
+  }, [config, send])
 
-  const buildPack = useCallback((configs: BaseConfig[]) => {
-    const id = ++nextId.current
-    return new Promise<PackPart[]>((resolve) => {
-      packResolvers.current.set(id, resolve)
-      worker.current?.postMessage({ id, kind: 'pack', configs } satisfies WorkerRequest)
-    })
-  }, [])
-
-  return { preview, error, busy, buildPack }
+  return { preview, error }
 }

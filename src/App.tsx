@@ -1,20 +1,32 @@
-import { Box, Download, Package } from 'lucide-react'
+import { Box, Download, PanelLeft } from 'lucide-react'
 import { useState } from 'react'
-import { Choice, Drawer, Field, gridColumns, Section } from '@/components/controls'
+import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
+import { Accordion } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
-import { to3mf, toStl, toZip } from '@/geometry/exporters'
+import { to3mf, toStl } from '@/geometry/exporters'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
-import { DEFAULT_PRESET, DEFAULT_SIZE, presetFor, resized, segmentsFor, SIZES_BY_SHAPE, type SizePreset } from '@/geometry/presets'
+import {
+  DEFAULT_PRESET,
+  DEFAULT_SIZE,
+  MAGNET_CHOICES,
+  presetFor,
+  resized,
+  RIB_CHOICES,
+  SIZES_BY_SHAPE,
+  type SizePreset,
+} from '@/geometry/presets'
 import type { BaseConfig, EdgeProfile, ShapeKind, Underside } from '@/geometry/types'
 import { asMeshLike, download } from '@/lib/download'
-import { cn } from '@/lib/utils'
 import { useGenerator } from '@/lib/useGenerator'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -36,8 +48,9 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
   { value: 'solid', label: 'Solid' },
 ]
 
-const MAGNET_COUNTS = [0, 1, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
-const RIB_COUNTS = [0, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
+const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
+const MAGNET_COUNTS = counts(MAGNET_CHOICES)
+const RIB_COUNTS = counts(RIB_CHOICES)
 const QUALITY_STEPS = [96, 160, 256]
 
 /**
@@ -51,191 +64,143 @@ function chordError(width: number, segments: number): number {
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
-  const [packLabels, setPackLabels] = useState<string[]>(['25', '32', '40'])
-  const [packing, setPacking] = useState(false)
-  const { preview, error, busy, buildPack } = useGenerator(config)
+  // Tailwind's `md`, the width at which the panel stops needing to slide in.
+  const docked = useMediaQuery('(min-width: 48rem)')
+  const { preview, error } = useGenerator(config)
 
   const patch = (changes: Partial<BaseConfig>) => setConfig((current) => ({ ...current, ...changes }))
-  const stats = preview?.stats
   const { width, length } = footprint(config)
   const elongated = isElongated(config.shape)
   const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
-  const selectedPack = sizes.filter((s) => packLabels.includes(s.label))
-  const markingText = config.label.text?.trim() || defaultLabel(config)
+  const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
 
-  const loadPreset = (size: SizePreset) => {
-    setConfig(presetFor(size))
-    // A different family has different labels, so start its pack from the loaded size.
-    setPackLabels((current) => (sizes.some((s) => s.label === size.label) ? current : [size.label]))
-  }
+  const loadPreset = (size: SizePreset) => setConfig(presetFor(size))
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
   const changeShape = (shape: ShapeKind) => {
     if (shape === config.shape) return
     const target = DEFAULT_SIZE[shape]
     setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
-    setPackLabels([target.label])
   }
 
   const exportStl = () => {
     if (!preview) return
     const name = `${baseName(config)}.stl`
-    download(name, toStl(asMeshLike(preview.mesh), name))
+    download(name, toStl(asMeshLike(preview), name))
   }
 
   const export3mf = () => {
     if (!preview) return
     const name = baseName(config)
-    download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(preview.mesh), name }]))
+    download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(preview), name }]))
   }
 
-  const exportPack = async () => {
-    if (selectedPack.length === 0) return
-    setPacking(true)
-    try {
-      // Every size in the pack keeps the current settings, so a pack stays consistent.
-      const parts = await buildPack(
-        selectedPack.map((size) => ({
-          ...config,
-          shape: size.shape,
-          width: size.width,
-          length: size.length ?? size.width,
-          segments: segmentsFor(Math.max(size.width, size.length ?? size.width)),
-          label: { ...config.label, text: undefined },
-        })),
-      )
-      const files: Record<string, Uint8Array> = {}
-      for (const part of parts) files[`${part.name}.stl`] = toStl(asMeshLike(part.mesh), part.name)
-      download(`bases-${selectedPack.length}-pack.zip`, toZip(files))
-    } finally {
-      setPacking(false)
-    }
-  }
-
-  return (
-    <div className="flex h-full flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-sm font-medium tracking-[0.18em] uppercase">BaseSmith</h1>
-          <p className="readout hidden text-xs text-muted-foreground sm:block">tabletop bases · magnets · embossed size</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={exportStl} disabled={!preview}>
-            <Download />
-            Save STL
-          </Button>
-          <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview}>
-            <Box />
-            Save 3MF
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="w-80 shrink-0 overflow-y-auto border-r border-border bg-card/40">
-          <Section title="Footprint">
-            <Choice value={config.shape} options={SHAPES} onChange={changeShape} />
-            <ToggleGroup
-              variant="outline"
-              size="sm"
-              spacing={1}
-              value={[`${width}x${length}`]}
-              onValueChange={(next: string[]) => {
-                const picked = sizes.find((s) => `${s.width}x${s.length ?? s.width}` === next[0])
-                if (picked) loadPreset(picked)
-              }}
-              className={cn('grid w-full', gridColumns(sizes.length))}
-            >
-              {sizes.map((size) => (
-                <ToggleGroupItem
-                  key={size.label}
-                  value={`${size.width}x${size.length ?? size.width}`}
-                  title={size.use}
-                  className="readout min-w-0 text-xs"
-                >
-                  {size.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            <Field
-              label={elongated ? 'Width' : 'Across'}
-              value={config.width}
+  const panel = (
+    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      {/* Sections number themselves off this counter, in the order they appear. */}
+      <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Footprint">
+          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
+          <SizeSelect
+            value={standard?.label ?? null}
+            options={sizes.map((size) => ({ value: size.label, use: size.use }))}
+            onChange={(label) => {
+              const size = sizes.find((s) => s.label === label)
+              if (size) loadPreset(size)
+            }}
+          />
+          <Dimension
+            label={elongated ? 'Width' : 'Across'}
+            value={config.width}
+            min={15}
+            max={180}
+            step={0.5}
+            onChange={(w) => setConfig(resized(config, w, config.length))}
+          />
+          {elongated && (
+            <Dimension
+              label="Depth"
+              value={config.length}
               min={15}
               max={180}
               step={0.5}
-              onChange={(w) => setConfig(resized(config, w, config.length))}
+              onChange={(l) => setConfig(resized(config, config.width, l))}
             />
-            {elongated && (
-              <Field
-                label="Depth"
-                value={config.length}
-                min={15}
-                max={180}
-                step={0.5}
-                onChange={(l) => setConfig(resized(config, config.width, l))}
-              />
-            )}
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              A preset loads sensible magnets and ribs for that size. Hover a size to see what it is for.
-            </p>
-          </Section>
+          )}
+        </Section>
 
-          <Section
-            title="Magnets"
-            aside={
-              <span className="readout text-xs text-muted-foreground">
-                Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket
-              </span>
-            }
-          >
-            <Choice
-              value={config.magnets.count}
-              options={MAGNET_COUNTS}
-              onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
-            />
-            <Field
-              label="Magnet Ø"
-              value={config.magnets.diameter}
-              min={2}
-              max={12}
-              step={0.5}
-              disabled={config.magnets.count === 0}
-              onChange={(diameter) => patch({ magnets: { ...config.magnets, diameter } })}
-            />
-          </Section>
+        <Section
+          title="Magnets"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket
+            </span>
+          }
+        >
+          <Choice
+            label="Magnets per base"
+            hideLabel
+            value={config.magnets.count}
+            options={MAGNET_COUNTS}
+            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+          />
+          <Dimension
+            label="Magnet Ø"
+            value={config.magnets.diameter}
+            min={2}
+            max={12}
+            step={0.5}
+            disabled={config.magnets.count === 0}
+            onChange={(diameter) => patch({ magnets: { ...config.magnets, diameter } })}
+          />
+          <Dimension
+            label="Magnet thickness"
+            value={config.magnets.thickness}
+            min={0.5}
+            // A well seats the magnet on its floor, so it can be no thicker than the
+            // well is deep or it would stand proud of the top face.
+            max={hollow ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)}
+            step={0.5}
+            disabled={config.magnets.count === 0}
+            onChange={(thickness) => patch({ magnets: { ...config.magnets, thickness } })}
+          />
+        </Section>
 
-          <Section title="Marking">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="marking" className="text-sm font-normal text-foreground/85">
-                Emboss the size inside
-              </Label>
-              <Switch
-                id="marking"
-                aria-label="Emboss the size inside"
-                checked={config.label.enabled}
-                onCheckedChange={(enabled) => patch({ label: { ...config.label, enabled } })}
-              />
-            </div>
+        <Section title="Marking">
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="marking-enabled" className="font-normal">
+              Emboss the size inside
+            </FieldLabel>
+            <Switch
+              id="marking-enabled"
+              aria-label="Emboss the size inside"
+              checked={config.label.enabled}
+              onCheckedChange={(enabled) => patch({ label: { ...config.label, enabled } })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="marking-text" className="sr-only">
+              Marking text
+            </FieldLabel>
             <Input
-              aria-label="Marking text"
+              id="marking-text"
               value={config.label.text ?? ''}
               placeholder={defaultLabel(config)}
               disabled={!config.label.enabled || !hollow}
               onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
               className="readout"
             />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {hollow
-                ? `“${markingText}” sits on the well floor — hidden once based, obvious in the slicer.`
-                : 'A solid base has no well to emboss. Switch the underside back to a well under Profile.'}
-            </p>
-          </Section>
+            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside back under Profile.</FieldDescription>}
+          </Field>
+        </Section>
 
-          <Drawer title="Profile" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
+        {/* Folds are independent: opening the profile should not shut the tolerances. */}
+        <Accordion multiple className="border-b border-border">
+          <Fold title="Profile" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
             <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
-            <Field label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
-            <Field
+            <Dimension label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
+            <Dimension
               label="Wall"
               value={config.wallThickness}
               min={1}
@@ -243,16 +208,20 @@ export function App() {
               step={0.1}
               onChange={(wallThickness) => patch({ wallThickness })}
             />
-            <Field
-              label={hollow ? 'Floor under magnet' : 'Pocket depth'}
-              value={hollow ? config.floorThickness : config.magnets.depth}
-              min={hollow ? 0.4 : 1}
-              max={hollow ? Math.max(0.5, config.height - 0.5) : Math.max(1.5, config.height - 0.5)}
-              step={0.1}
-              onChange={(v) => (hollow ? patch({ floorThickness: v }) : patch({ magnets: { ...config.magnets, depth: v } }))}
-            />
+            {/* Only a well has a floor over the table; a solid base's pocket opens
+                straight onto the build plate. */}
+            {hollow && (
+              <Dimension
+                label="Floor under magnet"
+                value={config.floorThickness}
+                min={0.4}
+                max={Math.max(0.5, config.height - 0.5)}
+                step={0.1}
+                onChange={(floorThickness) => patch({ floorThickness })}
+              />
+            )}
             <Choice label="Bottom edge" value={config.profile} options={PROFILES} onChange={(profile) => patch({ profile })} />
-            <Field
+            <Dimension
               label="Edge size"
               value={config.profileSize}
               min={0}
@@ -262,7 +231,7 @@ export function App() {
               onChange={(profileSize) => patch({ profileSize })}
             />
             {config.shape === 'rect' && (
-              <Field
+              <Dimension
                 label="Corner radius"
                 value={config.cornerRadius}
                 min={0}
@@ -272,13 +241,19 @@ export function App() {
               />
             )}
             {config.shape === 'polygon' && (
-              <Field label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
+              <Dimension label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
             )}
-          </Drawer>
+          </Fold>
 
-          <Drawer title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
-            <Choice value={config.ribs.count} options={RIB_COUNTS} onChange={(count) => patch({ ribs: { ...config.ribs, count } })} />
-            <Field
+          <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
+            <Choice
+              label="Spokes"
+              hideLabel
+              value={config.ribs.count}
+              options={RIB_COUNTS}
+              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+            />
+            <Dimension
               label="Thickness"
               value={config.ribs.thickness}
               min={0.8}
@@ -287,7 +262,7 @@ export function App() {
               disabled={config.ribs.count === 0}
               onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
             />
-            <Field
+            <Dimension
               label="Height"
               value={config.ribs.height}
               min={0.4}
@@ -296,13 +271,10 @@ export function App() {
               disabled={config.ribs.count === 0}
               onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
             />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Spokes brace the floor and give basing material something to key into.
-            </p>
-          </Drawer>
+          </Fold>
 
-          <Drawer title="Tolerances" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
-            <Field
+          <Fold title="Tolerances" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
+            <Dimension
               label="Magnet fit clearance"
               value={config.magnets.clearance}
               min={0}
@@ -310,7 +282,7 @@ export function App() {
               step={0.05}
               onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
             />
-            <Field
+            <Dimension
               label="Wall around pocket"
               value={config.magnets.bossWall}
               min={0.4}
@@ -318,7 +290,7 @@ export function App() {
               step={0.1}
               onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
             />
-            <Field
+            <Dimension
               label="Marking height"
               value={config.label.height}
               min={2}
@@ -327,7 +299,7 @@ export function App() {
               disabled={!config.label.enabled}
               onChange={(height) => patch({ label: { ...config.label, height } })}
             />
-            <Field
+            <Dimension
               label="Marking emboss"
               value={config.label.emboss}
               min={0.2}
@@ -348,36 +320,55 @@ export function App() {
               }))}
               onChange={(segments) => patch({ segments })}
             />
-          </Drawer>
+          </Fold>
+        </Accordion>
+      </aside>
+    </ScrollArea>
+  )
 
-          <Drawer title="Pack" summary={`${selectedPack.length} sizes`}>
-            <ToggleGroup
-              variant="outline"
-              size="sm"
-              spacing={1}
-              multiple
-              value={packLabels}
-              onValueChange={(next: string[]) => setPackLabels(next)}
-              className={cn('grid w-full', gridColumns(sizes.length))}
-            >
-              {sizes.map((size) => (
-                <ToggleGroupItem key={size.label} value={size.label} className="readout min-w-0 text-xs">
-                  {size.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Every size gets the settings above, with its own number embossed.
-            </p>
-            <Button variant="outline" className="w-full" onClick={exportPack} disabled={packing || selectedPack.length === 0}>
-              <Package />
-              {packing ? 'Building pack…' : `Save ${selectedPack.length} STLs as zip`}
-            </Button>
-          </Drawer>
-        </aside>
+  return (
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-3">
+          {/* Same panel, same order; on a narrow screen it slides in from the left
+              instead of standing beside the sheet. */}
+          {!docked && (
+            <Sheet>
+              <SheetTrigger render={<Button size="icon-sm" variant="outline" aria-label="Base settings" />}>
+                <PanelLeft />
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 max-w-[85vw] gap-0 p-0">
+                {/* A header row of its own, so the close button has somewhere to sit
+                    that is not on top of the first section heading. */}
+                <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">
+                  <SheetTitle className="note">Base settings</SheetTitle>
+                </SheetHeader>
+                <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
+              </SheetContent>
+            </Sheet>
+          )}
+          <h1 className="text-sm font-medium tracking-[0.18em] uppercase">
+            Base<span className="text-measure">Smith</span>
+          </h1>
+        </div>
+        <ButtonGroup>
+          {/* The labels fold away on a phone; the icons and the names still read out. */}
+          <Button size="sm" onClick={exportStl} disabled={!preview}>
+            <Download />
+            <span className="max-sm:sr-only">Save STL</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview}>
+            <Box />
+            <span className="max-sm:sr-only">Save 3MF</span>
+          </Button>
+        </ButtonGroup>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {docked && panel}
 
         <main className="relative min-w-0 flex-1">
-          <Viewer mesh={preview?.mesh} width={width} length={length} height={config.height} round={!elongated} />
+          <Viewer mesh={preview} width={width} length={length} height={config.height} round={!elongated} />
           {error && (
             <div
               role="alert"
@@ -386,7 +377,7 @@ export function App() {
               {error}. Showing the last base that built.
             </div>
           )}
-          <TitleBlock config={config} stats={stats} status={error ? 'blocked' : busy ? 'solving' : 'ready'} name={baseName(config)} />
+          <TitleBlock config={config} status={error ? 'blocked' : 'ready'} name={baseName(config)} />
         </main>
       </div>
     </div>
