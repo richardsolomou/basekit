@@ -1,0 +1,23 @@
+## Problem
+
+<!-- Who is affected, what is wrong or missing, and why does it matter? -->
+
+<!-- Closes #ISSUE_NUMBER -->
+
+## Changes
+
+<!-- Describe the important behavior and design changes, not a file-by-file diff. Include screenshots for UI changes. -->
+
+## Risk
+
+<!-- What could break, and how can the change be rolled back? Use "Low" with a short reason for trivial changes. -->
+
+## Verification
+
+<!-- List only checks and manual testing you actually performed. -->
+
+## Checklist
+
+- [ ] Tests cover new or changed behavior where practical.
+- [ ] Geometry changes are checked against a real export, not just the preview.
+- [ ] User-facing behavior is documented in the README.

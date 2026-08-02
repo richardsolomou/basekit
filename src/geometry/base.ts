@@ -1,6 +1,6 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
-import { baseOutline, defaultLabel, footprint } from './outline'
+import { baseOutline, defaultLabel } from './outline'
 import { profileSteps } from './profile'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseConfig, BaseStats } from './types'
@@ -56,6 +56,7 @@ function boxHitsCircle(cx: number, cy: number, hw: number, hh: number, c: Circle
 
 /** Approximates each rib spoke as overlapping discs, so label fitting only sees circles. */
 function ribObstacles(angles: number[], length: number, thickness: number): Circle[] {
+  if (!Number.isFinite(length) || length <= 0) return []
   const step = Math.max(0.4, thickness / 2)
   return angles.flatMap((a) => {
     const discs: Circle[] = []
@@ -132,10 +133,8 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
   const solidOf = (m: Manifold) => own(m)
 
   try {
-    const { width, length } = footprint(config)
     const hollow = config.underside === 'well'
     const wellDepth = config.height - config.floorThickness
-    if (Math.min(width, length) <= 2 * config.wallThickness + 2) throw new Error('Walls leave no room inside — thin the wall')
     if (hollow && wellDepth < 0.2) throw new Error('No room left for a well — thin the floor')
 
     const outline = section(baseOutline(wasm, config))
@@ -151,7 +150,11 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     }
     let solid = solidOf(Manifold.hull(points))
 
+    // A footprint narrower than twice the wall offsets away to nothing. Its bounds
+    // come back infinite, which would send everything downstream to NaN.
     const wellOutline = section(outline.offset(-config.wallThickness, 'Miter', 2, config.segments))
+    if (wellOutline.isEmpty()) throw new Error('Walls leave no room inside — thin the wall')
+
     const wellBounds = wellOutline.bounds()
     const halfWidth = (wellBounds.max[0] - wellBounds.min[0]) / 2
     const halfLength = (wellBounds.max[1] - wellBounds.min[1]) / 2

@@ -266,6 +266,14 @@ describe('buildBase', () => {
     expect(() => build({ ...preset(ROUND_SIZES[0]), wallThickness: 20 })).toThrow(/no room inside/)
   })
 
+  it('rejects a wall thicker than a narrow polygon can carry', () => {
+    // A triangle's inradius is far under its bounding box, so a wall the round
+    // sizes shrug off offsets this one away to nothing. That used to leave the
+    // well bounds infinite and hang the build allocating rib obstacles.
+    const config = { ...preset(POLYGON_SIZES[0]), sides: 3, width: 15, length: 15, wallThickness: 6 }
+    expect(() => build(config)).toThrow(/no room inside/)
+  })
+
   it('rejects a floor that leaves no well', () => {
     expect(() => build({ ...preset(ROUND_32), floorThickness: 4 })).toThrow(/No room left for a well/)
   })

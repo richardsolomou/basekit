@@ -51,15 +51,23 @@ Files are named for what they are: `base-round-28.5mm.stl`, `base-oval-60x35mm.s
 ## Development
 
 ```bash
-pnpm test         # geometry tests, no browser needed
-pnpm check        # format, lint, typecheck, test, build
-pnpm samples out  # write one STL per round preset to ./out
+pnpm test              # geometry tests, no browser needed
+pnpm check             # format, lint, typecheck, test, build
+pnpm test:e2e          # build, then drive the real app with Playwright
+pnpm test:e2e:install  # one-off, fetches Chromium
+pnpm samples out       # write one STL per round preset to ./out
 pnpm samples out oval
 ```
 
-`src/geometry` is plain TypeScript with no DOM dependency, so the builder is testable in Node and reusable from a CLI.
+`src/geometry` is plain TypeScript with no DOM dependency, so the builder is testable in Node, reusable from a CLI, and identical to what the browser runs.
 
 The body is lofted as a convex hull of the footprint offset at each height of the edge profile. That is exact for every shape here, since all of them are convex — a concave footprint would need a different approach.
+
+## Deployment
+
+Static assets, nothing else. There is no backend, no database and no secret: geometry is built in a web worker, and exports are assembled in the browser. Manifold ships the single-threaded WASM build, so no cross-origin isolation headers are needed either.
+
+`wrangler.jsonc` describes the deploy for Cloudflare, which builds the repo with `pnpm build` and serves `dist/`.
 
 ## Not included
 
