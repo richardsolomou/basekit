@@ -1,34 +1,34 @@
-import { useState, type ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { useId, type ReactNode } from 'react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 
 export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className="border-t border-rule px-5 py-4">
-      <header className="mb-3 flex items-baseline justify-between">
+    <section className="space-y-3 border-t border-border px-5 py-4">
+      <header className="flex items-baseline justify-between">
         <h2 className="note">{title}</h2>
         {aside}
       </header>
-      <div className="space-y-3">{children}</div>
+      {children}
     </section>
   )
 }
 
-/** Keeps the fiddly settings out of the way until they are wanted. */
+/** Keeps the fiddly settings out of the way, with their current value on the closed row. */
 export function Drawer({ title, children, summary }: { title: string; children: ReactNode; summary?: string }) {
-  const [open, setOpen] = useState(false)
   return (
-    <section className="border-t border-rule">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-baseline gap-2 px-5 py-3 text-left hover:bg-plate/60"
-      >
-        <span className={`readout text-xs transition-transform ${open ? 'rotate-90 text-measure' : 'text-dim'}`}>›</span>
+    <Collapsible className="group border-t border-border">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-5 py-3 text-left outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50">
+        <ChevronRight className="size-3 text-muted-foreground transition-transform group-has-data-[panel-open]:rotate-90 group-has-data-[panel-open]:text-primary" />
         <span className="note">{title}</span>
-        {summary && !open && <span className="readout ml-auto text-xs text-dim">{summary}</span>}
-      </button>
-      {open && <div className="space-y-3 px-5 pb-4">{children}</div>}
-    </section>
+        {summary && <span className="readout ml-auto text-xs text-muted-foreground group-has-data-[panel-open]:hidden">{summary}</span>}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3 px-5 pb-4">{children}</CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -44,24 +44,29 @@ interface FieldProps {
 }
 
 export function Field({ label, value, min, max, step, unit = 'mm', disabled, onChange }: FieldProps) {
+  const id = useId()
   return (
-    <div className={disabled ? 'opacity-40' : ''}>
-      <div className="flex items-baseline justify-between text-sm">
-        <span className="text-bone/85">{label}</span>
+    <div className={cn('space-y-1.5', disabled && 'opacity-40')}>
+      <div className="flex items-baseline justify-between">
+        <Label htmlFor={id} className="text-sm font-normal text-foreground/85">
+          {label}
+        </Label>
         <span className="readout text-xs text-measure">
           {value.toFixed(step < 0.1 ? 2 : 1)}
-          <span className="text-dim">{unit}</span>
+          <span className="text-muted-foreground">{unit}</span>
         </span>
       </div>
-      <input
-        type="range"
+      <Slider
+        id={id}
         aria-label={`${label} in ${unit}`}
+        // Must be an array: the thumb count is taken from its length, and a bare
+        // number falls back to [min, max] and renders two of them.
+        value={[value]}
         min={min}
         max={max}
         step={step}
-        value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.currentTarget.valueAsNumber)}
+        onValueChange={(next) => onChange(Array.isArray(next) ? next[0] : next)}
       />
     </div>
   )
@@ -70,46 +75,55 @@ export function Field({ label, value, min, max, step, unit = 'mm', disabled, onC
 interface ChoiceProps<T extends string | number> {
   label?: string
   value: T
-  options: readonly { value: T; label: string }[]
+  options: readonly { value: T; label: string; hint?: string }[]
   onChange: (value: T) => void
+  className?: string
 }
 
-export function Choice<T extends string | number>({ label, value, options, onChange }: ChoiceProps<T>) {
+// Spelled out so Tailwind's scanner sees the class names; a template string would
+// be invisible to it.
+const COLUMNS: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+  6: 'grid-cols-6',
+}
+
+/**
+ * Chip groups lay out on a grid rather than wrapping, so a trailing item never
+ * stretches across a row on its own. Prefers the widest split that comes out even.
+ */
+export function gridColumns(count: number): string {
+  return COLUMNS[[6, 5, 4, 3].find((n) => count % n === 0) ?? Math.min(count, 4)] ?? COLUMNS[4]
+}
+
+/**
+ * Single-select toggle group. Values travel as strings because the group works in
+ * strings, and are mapped back through the options so numbers survive the trip.
+ */
+export function Choice<T extends string | number>({ label, value, options, onChange, className }: ChoiceProps<T>) {
   return (
-    <div>
-      {label && <span className="mb-1.5 block text-sm text-bone/85">{label}</span>}
-      <div className="flex flex-wrap gap-px bg-rule/60 p-px">
+    <div className="space-y-1.5">
+      {label && <Label className="text-sm font-normal text-foreground/85">{label}</Label>}
+      <ToggleGroup
+        variant="outline"
+        size="sm"
+        spacing={1}
+        value={[String(value)]}
+        // Clicking the active item clears the group; keep the current value instead.
+        onValueChange={(next) => {
+          const picked = options.find((option) => String(option.value) === next[0])
+          if (picked) onChange(picked.value)
+        }}
+        className={cn('grid w-full', gridColumns(options.length), className)}
+      >
         {options.map((option) => (
-          <button
-            key={String(option.value)}
-            type="button"
-            aria-pressed={option.value === value}
-            onClick={() => onChange(option.value)}
-            className={`flex-1 px-2 py-1.5 text-xs whitespace-nowrap transition-colors ${
-              option.value === value ? 'bg-measure/15 text-measure' : 'bg-plate text-dim hover:text-bone'
-            }`}
-          >
+          <ToggleGroupItem key={String(option.value)} value={String(option.value)} title={option.hint} className="readout min-w-0 text-xs">
             {option.label}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
     </div>
-  )
-}
-
-export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between text-sm text-bone/85"
-    >
-      {label}
-      <span className={`h-3.5 w-7 border transition-colors ${checked ? 'border-measure bg-measure/25' : 'border-rule bg-plate'}`}>
-        <span className={`block h-full w-1/2 transition-transform ${checked ? 'translate-x-full bg-measure' : 'bg-rule'}`} />
-      </span>
-    </button>
   )
 }

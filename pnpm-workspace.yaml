@@ -1,1 +1,5 @@
+# New releases have to sit for a week before they can be installed, so a
+# compromised publish has time to be noticed. It only applies when resolving
+# something new — an install against this lockfile is unaffected. To take a
+# fresher release deliberately: pnpm add --config.minimumReleaseAge=0 <pkg>
 minimumReleaseAge: 10080

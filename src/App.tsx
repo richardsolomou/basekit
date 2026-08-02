@@ -1,11 +1,19 @@
+import { Box, Download, Package } from 'lucide-react'
 import { useState } from 'react'
-import { Choice, Drawer, Field, Section, Toggle } from '@/components/controls'
+import { Choice, Drawer, Field, gridColumns, Section } from '@/components/controls'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl, toZip } from '@/geometry/exporters'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import { DEFAULT_PRESET, DEFAULT_SIZE, presetFor, resized, segmentsFor, SIZES_BY_SHAPE, type SizePreset } from '@/geometry/presets'
 import type { BaseConfig, EdgeProfile, ShapeKind, Underside } from '@/geometry/types'
 import { asMeshLike, download } from '@/lib/download'
+import { cn } from '@/lib/utils'
 import { useGenerator } from '@/lib/useGenerator'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
@@ -24,7 +32,7 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 ]
 
 const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Well for basing' },
+  { value: 'well', label: 'Well' },
   { value: 'solid', label: 'Solid' },
 ]
 
@@ -57,6 +65,7 @@ export function App() {
   const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
   const selectedPack = sizes.filter((s) => packLabels.includes(s.label))
+  const markingText = config.label.text?.trim() || defaultLabel(config)
 
   const loadPreset = (size: SizePreset) => {
     setConfig(presetFor(size))
@@ -108,58 +117,53 @@ export function App() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-ink">
-      <header className="flex items-center justify-between border-b border-rule px-5 py-3">
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-baseline gap-3">
           <h1 className="text-sm font-medium tracking-[0.18em] uppercase">BaseSmith</h1>
-          <p className="readout text-xs text-dim">tabletop bases · magnets · embossed size</p>
+          <p className="readout hidden text-xs text-muted-foreground sm:block">tabletop bases · magnets · embossed size</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={exportStl}
-            disabled={!preview}
-            className="border border-measure/60 bg-measure/10 px-3 py-1.5 text-xs tracking-wide text-measure hover:bg-measure/20 disabled:opacity-40"
-          >
+          <Button size="sm" onClick={exportStl} disabled={!preview}>
+            <Download />
             Save STL
-          </button>
-          <button
-            type="button"
-            onClick={export3mf}
-            disabled={!preview}
-            className="border border-rule px-3 py-1.5 text-xs tracking-wide text-dim hover:text-bone disabled:opacity-40"
-          >
+          </Button>
+          <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview}>
+            <Box />
             Save 3MF
-          </button>
+          </Button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-80 shrink-0 overflow-y-auto border-r border-rule bg-plate/40">
+        <aside className="w-80 shrink-0 overflow-y-auto border-r border-border bg-card/40">
           <Section title="Shape">
             <Choice value={config.shape} options={SHAPES} onChange={changeShape} />
           </Section>
 
           <Section title={SIZE_TITLES[config.shape]}>
-            <div className="flex flex-wrap gap-px bg-rule/60 p-px">
-              {sizes.map((size) => {
-                const active = width === size.width && (size.length ?? size.width) === length
-                return (
-                  <button
-                    key={size.label}
-                    type="button"
-                    title={size.use}
-                    aria-pressed={active}
-                    onClick={() => loadPreset(size)}
-                    className={`readout min-w-14 flex-1 px-1 py-1.5 text-xs transition-colors ${
-                      active ? 'bg-measure/15 text-measure' : 'bg-plate text-dim hover:text-bone'
-                    }`}
-                  >
-                    {size.label}
-                  </button>
-                )
-              })}
-            </div>
+            <ToggleGroup
+              variant="outline"
+              size="sm"
+              spacing={1}
+              value={[`${width}x${length}`]}
+              onValueChange={(next: string[]) => {
+                const picked = sizes.find((s) => `${s.width}x${s.length ?? s.width}` === next[0])
+                if (picked) loadPreset(picked)
+              }}
+              className={cn('grid w-full', gridColumns(sizes.length))}
+            >
+              {sizes.map((size) => (
+                <ToggleGroupItem
+                  key={size.label}
+                  value={`${size.width}x${size.length ?? size.width}`}
+                  title={size.use}
+                  className="readout min-w-0 text-xs"
+                >
+                  {size.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
             <Field
               label={elongated ? 'Width' : 'Across'}
               value={config.width}
@@ -178,7 +182,7 @@ export function App() {
                 onChange={(l) => setConfig(resized(config, config.width, l))}
               />
             )}
-            <p className="text-xs leading-relaxed text-dim">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               A preset loads sensible magnets and ribs for that size. Hover a size to see what it is for.
             </p>
           </Section>
@@ -186,7 +190,9 @@ export function App() {
           <Section
             title="Magnets"
             aside={
-              <span className="readout text-xs text-dim">Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket</span>
+              <span className="readout text-xs text-muted-foreground">
+                Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket
+              </span>
             }
           >
             <Choice
@@ -206,22 +212,28 @@ export function App() {
           </Section>
 
           <Section title="Marking">
-            <Toggle
-              label="Emboss the size inside"
-              checked={config.label.enabled}
-              onChange={(enabled) => patch({ label: { ...config.label, enabled } })}
-            />
-            <input
+            <div className="flex items-center justify-between">
+              <Label htmlFor="marking" className="text-sm font-normal text-foreground/85">
+                Emboss the size inside
+              </Label>
+              <Switch
+                id="marking"
+                aria-label="Emboss the size inside"
+                checked={config.label.enabled}
+                onCheckedChange={(enabled) => patch({ label: { ...config.label, enabled } })}
+              />
+            </div>
+            <Input
+              aria-label="Marking text"
               value={config.label.text ?? ''}
               placeholder={defaultLabel(config)}
               disabled={!config.label.enabled || !hollow}
               onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
-              aria-label="Marking text"
-              className="readout w-full border border-rule bg-ink px-2 py-1.5 text-sm text-bone placeholder:text-dim/70 disabled:opacity-40"
+              className="readout"
             />
-            <p className="text-xs leading-relaxed text-dim">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               {hollow
-                ? `“${config.label.text?.trim() || defaultLabel(config)}” sits on the well floor — hidden once based, obvious in the slicer.`
+                ? `“${markingText}” sits on the well floor — hidden once based, obvious in the slicer.`
                 : 'A solid base has no well to emboss. Switch the underside to a well under Body.'}
             </p>
           </Section>
@@ -290,7 +302,9 @@ export function App() {
               disabled={config.ribs.count === 0}
               onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
             />
-            <p className="text-xs leading-relaxed text-dim">Spokes brace the floor and give basing material something to key into.</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Spokes brace the floor and give basing material something to key into.
+            </p>
           </Drawer>
 
           <Drawer title="Fine tuning" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
@@ -342,49 +356,49 @@ export function App() {
           </Drawer>
 
           <Drawer title="Pack" summary={`${selectedPack.length} sizes`}>
-            <div className="flex flex-wrap gap-px bg-rule/60 p-px">
-              {sizes.map((size) => (
-                <button
-                  key={size.label}
-                  type="button"
-                  aria-pressed={packLabels.includes(size.label)}
-                  onClick={() => setPackLabels((c) => (c.includes(size.label) ? c.filter((l) => l !== size.label) : [...c, size.label]))}
-                  className={`readout min-w-14 flex-1 px-1 py-1.5 text-xs transition-colors ${
-                    packLabels.includes(size.label) ? 'bg-measure/15 text-measure' : 'bg-plate text-dim hover:text-bone'
-                  }`}
-                >
-                  {size.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs leading-relaxed text-dim">Every size gets the settings above, with its own number embossed.</p>
-            <button
-              type="button"
-              onClick={exportPack}
-              disabled={packing || selectedPack.length === 0}
-              className="w-full border border-rule px-3 py-2 text-xs tracking-wide text-bone hover:border-measure/60 hover:text-measure disabled:opacity-40"
+            <ToggleGroup
+              variant="outline"
+              size="sm"
+              spacing={1}
+              multiple
+              value={packLabels}
+              onValueChange={(next: string[]) => setPackLabels(next)}
+              className={cn('grid w-full', gridColumns(sizes.length))}
             >
+              {sizes.map((size) => (
+                <ToggleGroupItem key={size.label} value={size.label} className="readout min-w-0 text-xs">
+                  {size.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Every size gets the settings above, with its own number embossed.
+            </p>
+            <Button variant="outline" className="w-full" onClick={exportPack} disabled={packing || selectedPack.length === 0}>
+              <Package />
               {packing ? 'Building pack…' : `Save ${selectedPack.length} STLs as zip`}
-            </button>
+            </Button>
           </Drawer>
         </aside>
 
         <main className="relative min-w-0 flex-1">
           <Viewer mesh={preview?.mesh} width={width} length={length} height={config.height} round={!elongated} />
           {error && (
-            <div className="absolute inset-x-0 bottom-0 border-t border-magnet/50 bg-magnet/10 px-5 py-2 text-xs text-magnet">
+            <div className="absolute inset-x-0 bottom-0 border-t border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive">
               {error}. Showing the last base that built.
             </div>
           )}
         </main>
       </div>
 
-      <footer className="readout flex items-center gap-5 border-t border-rule px-5 py-2 text-xs text-dim">
-        <span className={error ? 'text-magnet' : busy ? 'text-measure' : 'text-dim'}>{error ? 'blocked' : busy ? 'solving' : 'ready'}</span>
+      <footer className="readout flex items-center gap-4 border-t border-border px-5 py-2 text-xs text-muted-foreground">
+        <Badge variant={error ? 'destructive' : 'secondary'} className="readout">
+          {error ? 'blocked' : busy ? 'solving' : 'ready'}
+        </Badge>
         <span>{stats ? `${stats.triangles.toLocaleString()} tris` : '—'}</span>
         <span>{stats ? `${(stats.volume / 1000).toFixed(2)} cm³` : '—'}</span>
         <span>{stats ? `${stats.grams.toFixed(2)} g PLA` : '—'}</span>
-        <span className={stats?.solid ? 'text-measure' : 'text-dim'}>{stats ? (stats.solid ? 'watertight' : 'empty') : '—'}</span>
+        <span className={stats?.solid ? 'text-measure' : ''}>{stats ? (stats.solid ? 'watertight' : 'empty') : '—'}</span>
         <span className="ml-auto">
           {elongated ? `${trimNumber(width)} × ${trimNumber(length)}` : `Ø${trimNumber(width)}`} × {trimNumber(config.height)}mm
         </span>

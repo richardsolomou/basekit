@@ -23,6 +23,14 @@ Read [README.md](README.md) first for what the app does and what the controls me
 - **Worker meshes must be copied before transfer.** `getMesh()` may hand back arrays viewing WASM memory, and transferring that buffer would detach the heap.
 - Flat shading in the preview is deliberate: Manifold shares vertices across hard edges, so averaged normals round off the wall and flatten the embossed number.
 
+## UI
+
+- Components come from shadcn's Base UI registry (`components.json`, style `base-nova`). Add them with `pnpm dlx shadcn@latest add <name>`; treat `src/components/ui/**` as vendored — two lint rules are switched off for that folder so re-adding a component never has to be hand-patched.
+- **The semantic token mapping lives in `src/styles.css`, not in the `shadcn/tailwind.css` import**, which only carries keyframes. Without the `@theme inline` block mapping `--color-background: var(--background)` and friends, utilities like `bg-background` and `border-border` are simply never generated and the app renders unstyled. After touching the theme, check the built CSS actually contains them rather than trusting the page to look right in dev.
+- **`Slider` takes an array**, even for one thumb: the wrapper derives thumb count from the value's length, and a bare number silently falls back to `[min, max]` and renders two.
+- `ToggleGroup` works in strings and hands back an array. `Choice` serialises through the options list so numeric values survive, and ignores an empty array so clicking the active chip cannot clear the selection.
+- Chip groups lay out on a grid via `gridColumns()` rather than wrapping, so a trailing item never stretches across a row alone.
+
 ## Testing notes
 
 - E2E waits on the triangle count changing, not on the status reading "ready" — that is still true from the previous build and makes assertions race.
