@@ -105,8 +105,9 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   const before = await triangles(page)
   for (const control of ['Wall in mm', 'Floor under magnet in mm']) {
     const slider = page.getByLabel(control)
-    await slider.focus()
-    for (let i = 0; i < 60; i++) await page.keyboard.press('ArrowRight')
+    // Setting the value directly beats holding an arrow key: every keypress would
+    // queue its own rebuild, which is slow enough on CI to time the test out.
+    await slider.fill((await slider.getAttribute('max')) ?? '')
   }
   await rebuilt(page, before)
   await expect(footer(page)).not.toContainText('blocked')
