@@ -46,11 +46,16 @@ const SIZE_TITLES: Record<ShapeKind, string> = {
 
 const MAGNET_COUNTS = [0, 1, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const RIB_COUNTS = [0, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
-const QUALITY = [
-  { value: 96, label: 'Draft' },
-  { value: 160, label: 'Normal' },
-  { value: 256, label: 'Fine' },
-]
+const QUALITY_STEPS = [96, 160, 256]
+
+/**
+ * How far a flat segment departs from the true curve, in microns. Naming the tiers
+ * by the error they actually produce beats vague adjectives — and the number moves
+ * with the base, because the same segment count is coarser on a bigger circle.
+ */
+function chordError(width: number, segments: number): number {
+  return (width / 2) * (1 - Math.cos(Math.PI / segments)) * 1000
+}
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
@@ -343,14 +348,12 @@ export function App() {
               onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
             />
             <Choice
-              label="Curve quality"
-              value={
-                QUALITY.reduce(
-                  (best, q) => (Math.abs(q.value - config.segments) < Math.abs(best.value - config.segments) ? q : best),
-                  QUALITY[1],
-                ).value
-              }
-              options={QUALITY}
+              label="Curve tolerance"
+              value={QUALITY_STEPS.reduce((best, q) => (Math.abs(q - config.segments) < Math.abs(best - config.segments) ? q : best), QUALITY_STEPS[1])}
+              options={QUALITY_STEPS.map((segments) => ({
+                value: segments,
+                label: `${Math.max(1, Math.round(chordError(Math.max(width, length), segments)))}µm`,
+              }))}
               onChange={(segments) => patch({ segments })}
             />
           </Drawer>
