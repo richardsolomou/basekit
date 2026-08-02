@@ -2,11 +2,21 @@ import { readFileSync } from 'node:fs'
 import type { Mesh } from 'manifold-3d'
 import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { buildBase } from './base'
+import { buildBase, magnetPositions, ribAngles } from './base'
 import { toStl } from './exporters'
 import { loadManifold } from './manifold'
 import { defaultLabel, trimNumber } from './outline'
-import { OVAL_SIZES, PILL_SIZES, POLYGON_SIZES, presetFor, RECT_SIZES, ROUND_SIZES, type SizePreset } from './presets'
+import {
+  MAGNET_CHOICES,
+  OVAL_SIZES,
+  PILL_SIZES,
+  POLYGON_SIZES,
+  presetFor,
+  RECT_SIZES,
+  RIB_CHOICES,
+  ROUND_SIZES,
+  type SizePreset,
+} from './presets'
 import type { BaseConfig } from './types'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
@@ -94,7 +104,7 @@ describe('buildBase', () => {
     expect(stats.volume).toBeGreaterThan(0)
   })
 
-  it('drills a pocket at every magnet position, open at the top and floored on the wall', () => {
+  it('drills a pocket at every magnet position, open at the top face so the magnet sits flush', () => {
     // Ribs are aimed at the bosses, so they are switched off to isolate the bore.
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 } }
@@ -106,10 +116,23 @@ describe('buildBase', () => {
       const a = Math.PI / 2 + (2 * Math.PI * i) / config.magnets.count
       const pocket = pocketAt(mesh, ringRadius * Math.cos(a), ringRadius * Math.sin(a), pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
-      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.floorThickness, 5)
+      // Cut down from the top face by exactly the magnet's thickness, so the magnet
+      // finishes flush and the material under it is solid.
+      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.height - config.magnets.thickness, 5)
       expect(pocket.maxZ, `pocket ${i} opening`).toBeCloseTo(config.height, 5)
       expect(pocket.maxRadius, `pocket ${i} bore`).toBeCloseTo(pocketRadius, 2)
     }
+  })
+
+  it.each([1, 1.5, 2, 3])('keeps a %dmm magnet flush with the top of its boss', (thickness) => {
+    const base = preset(ROUND_SIZES[4])
+    const config = { ...base, ribs: { ...base.ribs, count: 0 }, magnets: { ...base.magnets, thickness } }
+    const ringRadius = (config.width / 2 - config.wallThickness) / 2
+    const bore = (config.magnets.diameter + config.magnets.clearance) / 2
+
+    const pocket = pocketAt(build(config).mesh, 0, ringRadius, bore)
+    expect(pocket.maxZ).toBeCloseTo(config.height, 5)
+    expect(pocket.maxZ - pocket.minZ).toBeCloseTo(thickness, 5)
   })
 
   it('leaves the centre unbored when magnets are turned off', () => {
@@ -127,7 +150,7 @@ describe('buildBase', () => {
 
   it('opens the pocket at the build plate on a solid base', () => {
     const base = preset(ROUND_32)
-    const config = { ...base, underside: 'solid' as const, magnets: { ...base.magnets, count: 1, depth: 2 } }
+    const config = { ...base, underside: 'solid' as const, magnets: { ...base.magnets, count: 1, thickness: 2 } }
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
     const pocket = pocketAt(build(config).mesh, 0, 0, pocketRadius)
     expect(pocket.minZ).toBeCloseTo(0, 5)
@@ -310,5 +333,78 @@ describe('toStl', () => {
     const stl = toStl(mesh)
     expect(stl.byteLength).toBe(84 + stats.triangles * 50)
     expect(new DataView(stl.buffer).getUint32(80, true)).toBe(stats.triangles)
+  })
+})
+
+describe('rib placement', () => {
+  /** Perpendicular distance from a boss centre to a spoke's axis through the origin. */
+  function clearance(angle: number, boss: { x: number; y: number }): number {
+    return Math.abs(-Math.sin(angle) * boss.x + Math.cos(angle) * boss.y)
+  }
+
+  function layout(size: SizePreset) {
+    const config = presetFor(size)
+    const bossRadius = config.magnets.diameter / 2 + config.magnets.clearance / 2 + config.magnets.bossWall
+    const magnets = magnetPositions(config.magnets.count, config.width / 2, config.length / 2, bossRadius)
+    return {
+      spokes: ribAngles(config.ribs.count, magnets),
+      bosses: magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6),
+    }
+  }
+
+  const sizes: SizePreset[] = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES]
+
+  it.each(sizes.map((size) => [`${size.shape} ${size.label}`, size] as const))('runs a spoke through a boss on a %s', (_name, size) => {
+    const { spokes, bosses } = layout(size)
+    if (bosses.length === 0) return
+    // Coprime counts cannot all line up, but the phase is taken from a boss
+    // bearing, so at least one is always exact rather than merely close.
+    const through = bosses.filter((boss) => spokes.some((angle) => clearance(angle, boss) < 1e-9))
+    expect(through.length).toBeGreaterThan(0)
+  })
+
+  it('lines every spoke up with a boss when the counts match', () => {
+    const magnets = magnetPositions(3, 30, 30, 4)
+    const { length } = magnets
+    expect(length).toBe(3)
+    for (const boss of magnets) {
+      expect(ribAngles(3, magnets).some((angle) => clearance(angle, boss) < 1e-9)).toBe(true)
+    }
+  })
+
+  it('reaches both bosses of a row down a long base', () => {
+    // Elongated footprints put magnets in a line, not a ring: bearings 0 and 180.
+    const magnets = magnetPositions(3, 45, 17.5, 4).filter((m) => Math.hypot(m.x, m.y) > 1e-6)
+    expect(magnets).toHaveLength(2)
+    const spokes = ribAngles(4, magnetPositions(3, 45, 17.5, 4))
+    for (const boss of magnets) {
+      expect(spokes.some((angle) => clearance(angle, boss) < 1e-9)).toBe(true)
+    }
+  })
+
+  it('leaves the spokes upright when the only magnet is central', () => {
+    expect(ribAngles(3, magnetPositions(1, 16, 16, 4))[0]).toBeCloseTo(Math.PI / 2, 6)
+  })
+})
+
+describe('scaling with the footprint', () => {
+  const rounds = ROUND_SIZES.map((size) => presetFor(size))
+
+  it('never reduces the magnet count as the base grows', () => {
+    const counts = rounds.map((c) => c.magnets.count)
+    expect(counts).toStrictEqual([...counts].sort((a, b) => a - b))
+  })
+
+  it('holds a titanic base with more than the four magnets that used to be the ceiling', () => {
+    const biggest = rounds.at(-1)
+    expect(biggest?.magnets.count).toBeGreaterThan(4)
+  })
+
+  it('offers every count a preset can pick', () => {
+    const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map(presetFor)
+    for (const config of all) {
+      expect(MAGNET_CHOICES).toContain(config.magnets.count)
+      expect(RIB_CHOICES).toContain(config.ribs.count)
+    }
   })
 })

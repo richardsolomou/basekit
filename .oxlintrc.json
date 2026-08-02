@@ -29,8 +29,12 @@
     {
       "files": ["src/components/ui/**"],
       "rules": {
+        "jsx-a11y/click-events-have-key-events": "off",
         "jsx-a11y/label-has-associated-control": "off",
-        "react/jsx-no-constructed-context-values": "off"
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        "jsx-a11y/prefer-tag-over-role": "off",
+        "react/jsx-no-constructed-context-values": "off",
+        "react/no-array-index-key": "off"
       }
     }
   ],

@@ -17,7 +17,7 @@ Nothing is uploaded and there is no backend. Geometry is built in a web worker w
 
 | Shape | Sizes                                                                                               |
 | ----- | --------------------------------------------------------------------------------------------------- |
-| Round | 25, 28.5, 32, 40, 50, 60, 65, 80, 100, 130 — the Games Workshop range                               |
+| Round | 25, 28.5, 32, 40, 50, 60, 65, 80, 90, 100, 130, 160 — the Games Workshop range                      |
 | Oval  | 60×35, 75×42, 90×52, 105×70, 120×92, 170×105                                                        |
 | Rank  | 20×20, 25×25, 20×40, 25×50, 40×40, 50×50, 50×100, 60×100 — The Old World, Kings of War, historicals |
 | Pill  | 60×35, 75×42, 90×52, 105×70 — the oval footprints, squared off                                      |
@@ -25,28 +25,30 @@ Nothing is uploaded and there is no backend. Geometry is built in a web worker w
 
 Every shape starts on a sensible size and any footprint from 15–180mm works: **Width** is the X extent, **Depth** the Y extent. Rank sizes read frontage first, the way the rulebooks write them, and a hex takes 3–12 sides so it also covers triangles and octagons.
 
-Presets carry the magnet count, rib count and marking size that suit the footprint. One central magnet up to 40mm, then a ring — or, on a long base like a 60×35, a row down the major axis where the material actually is.
+Presets carry the magnet count, rib count and marking size that suit the footprint. One central magnet up to 40mm, then a spread — roughly one magnet per 31mm of ring or row, so a 60mm takes three, a 100mm six and a 160mm eight, because a titanic base carries a heavy model and gives you the room to hold it.
+
+Every magnet boss ends up on a rib spoke, which braces its root, prints as one connected feature rather than an island, and keeps the clear floor in a few wide pieces for the marking. On a long base like a 60×35 the magnets form a row down the major axis, where the material actually is, rather than a ring.
 
 ## Controls
 
-Three things sit in the open: footprint (shape and size together), magnets, marking. Everything else is behind a drawer.
+Three things sit in the open: footprint (shape and size together), magnets, marking. Everything else is folded away in an accordion.
 
 - **Profile** — well or solid underside, height, wall, floor under the magnet, bottom edge (taper / bevel / round / straight) and its size, corner radius, side count
-- **Bracing** — 0–6 rib spokes, thickness, height
+- **Bracing** — 0–6 rib spokes, thickness, height. They stiffen the thin well floor and give basing material something to key into, and stop short of the rim by default so filler still flows across the whole well; wind the height up to the full well depth if you want them flush
 - **Tolerances** — magnet fit clearance, wall around the pocket, marking height and emboss depth, and the curve tolerance, named by the chord error it produces for the base you are on
-- **Pack** — tick several sizes and save them all as one zip
 
-The viewport is annotated like a drawing: dimension leaders track the part's silhouette as you orbit, and a title block in the corner carries the spec, the mesh stats and the build status.
+The standard sizes live in a select, each entry saying what the size is normally used for. Dimensions themselves are typed rather than dragged along a slider — you can enter 28.5 and get 28.5 — though dragging a field's label scrubs it if you would rather feel your way to a value.
+
+The part is lit from a low angle and casts its own shadows, so the marking and the bracing stay readable even looking straight down into the well. The viewport is annotated like a drawing: dimension leaders track the part's silhouette as you orbit and call out the footprint and height, while a title block in the corner names the file and carries the magnet spec and the marking. Every change rebuilds immediately — a rebuild takes about 15 milliseconds, so there is nothing to wait on and no spinner to watch. The camera holds its distance whatever you build, so a 130mm base visibly dwarfs a 25mm one instead of both filling the frame, and orbit reaches the print surface underneath as well as a plan view of the well. On a phone the controls move into a drawer and the viewport takes the screen.
 
 A solid base takes its magnets from underneath instead of from a well, so the pocket opens at the build plate.
 
-The marking is placed automatically: it takes the centre of the well when that is free, otherwise it moves into the widest gap between the ribs and shrinks until it clears the bosses and the wall.
+The marking is placed automatically: it takes the centre of the well when that is free, otherwise it moves into the widest gap between the ribs and bosses and shrinks until it clears them and the wall.
 
 ## Exports
 
 - **STL** — binary, what every slicer wants.
 - **3MF** — keeps the mesh topology and states millimetres explicitly.
-- **Pack** — a zip of STLs, one per selected size, all sharing the current settings.
 
 Files are named for what they are: `base-round-28.5mm.stl`, `base-oval-60x35mm.stl`.
 

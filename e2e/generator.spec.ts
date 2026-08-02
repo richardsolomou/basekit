@@ -1,20 +1,31 @@
 import { expect, test, type Page } from '@playwright/test'
 
-/** The drawing's title block carries the spec, the stats and the build status. */
+/** The drawing's title block carries the filename, the spec and the status. */
 const footer = (page: Page) => page.locator('footer')
+/** The viewport publishes the triangle count of the mesh it has actually drawn. */
+const drawn = (page: Page) => page.locator('main [data-triangles]')
+/** Footprint and height are read off the dimension leaders drawn on the part. */
+const across = (page: Page) => page.locator('#label-across')
+const tall = (page: Page) => page.locator('#label-height')
 const marking = (page: Page) => page.getByLabel('Marking text')
-const sizeChip = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true }).first()
 const shape = (page: Page, name: string) => page.getByRole('button', { name, exact: true })
 
-/** Geometry is built in a worker, so the readout settles a moment after a click. */
+/** Options read "<size> <what it is for>", so anchor on the figure. */
+const sizeOption = (page: Page, label: string) => page.getByRole('option', { name: new RegExp(`^${label.replaceAll('.', '\\.')}\\b`) })
+
+async function pickSize(page: Page, label: string) {
+  await page.getByRole('combobox', { name: 'Standard size' }).click()
+  await sizeOption(page, label).click()
+}
+
+/** Geometry is built in a worker, so the drawing settles a moment after a click. */
 async function settled(page: Page) {
   await expect(footer(page)).toContainText(/ready/i, { timeout: 15_000 })
-  await expect(footer(page)).toContainText('watertight')
+  await expect.poll(() => triangles(page), { timeout: 15_000 }).toBeGreaterThan(0)
 }
 
 async function triangles(page: Page): Promise<number> {
-  const text = (await footer(page).innerText()).match(/([\d,]+) tris/)
-  return Number(text?.[1].replaceAll(',', '') ?? 0)
+  return Number((await drawn(page).getAttribute('data-triangles')) ?? 0)
 }
 
 /**
@@ -40,21 +51,22 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('builds the default base on load', async ({ page }) => {
-  await expect(footer(page)).toContainText('Ø32')
-  await expect(footer(page)).toContainText('4mm')
-  await expect(footer(page)).not.toContainText('0 tris')
+  await expect(across(page)).toHaveText('Ø32')
+  await expect(tall(page)).toHaveText('4')
+  await expect(footer(page)).toContainText('base-round-32mm')
+  expect(await triangles(page)).toBeGreaterThan(0)
 })
 
 test('keeps a half millimetre size exact', async ({ page }) => {
-  await sizeChip(page, '28.5').click()
+  await pickSize(page, '28.5')
   await settled(page)
-  await expect(footer(page)).toContainText('Ø28.5')
+  await expect(across(page)).toHaveText('Ø28.5')
   // Rounding to 29 anywhere would defeat the whole point of the marking.
   await expect(marking(page)).toHaveAttribute('placeholder', '28.5')
 })
 
 test('names the download after the shape and size', async ({ page }) => {
-  await sizeChip(page, '28.5').click()
+  await pickSize(page, '28.5')
   await settled(page)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save STL' }).click()
@@ -79,9 +91,11 @@ for (const entry of SHAPES) {
     await shape(page, entry.name).click()
     await settled(page)
     await expect(shape(page, entry.name)).toHaveAttribute('aria-pressed', 'true')
-    // The size chips swap to that family's range.
-    await expect(sizeChip(page, entry.chip)).toBeVisible()
-    await expect(footer(page)).toContainText(entry.footprint)
+    // The size list swaps to that family's range.
+    await page.getByRole('combobox', { name: 'Standard size' }).click()
+    await expect(sizeOption(page, entry.chip)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(across(page)).toHaveText(entry.footprint)
     await expect(marking(page)).toHaveAttribute('placeholder', entry.mark)
   })
 }
@@ -89,7 +103,7 @@ for (const entry of SHAPES) {
 test('marks even a cramped rank base', async ({ page }) => {
   await shape(page, 'Rect').click()
   await settled(page)
-  await sizeChip(page, '20×20').click()
+  await pickSize(page, '20×20')
   await settled(page)
   await expect(marking(page)).toHaveAttribute('placeholder', '20x20')
 
@@ -102,24 +116,47 @@ test('marks even a cramped rank base', async ({ page }) => {
 })
 
 test('still builds with the wall and floor wound to their limits', async ({ page }) => {
-  // The sliders are clamped so no combination can reach an unbuildable base; this
-  // guards that clamping, since the geometry does throw outside those bounds.
+  // The dimension fields clamp to their limits, so no combination can reach an
+  // unbuildable base. The geometry does throw outside those bounds, so this guards
+  // the clamping rather than the geometry.
   await page.getByRole('button', { name: 'PROFILE' }).click()
   const before = await triangles(page)
   for (const control of ['Wall in mm', 'Floor under magnet in mm']) {
-    // End jumps the thumb straight to the maximum. Holding an arrow key instead
-    // queues a rebuild per press, which is slow enough on CI to time the test out.
-    await page.getByLabel(control).getByRole('slider').press('End')
+    // Well past the maximum: the field clamps, which is the behaviour being guarded.
+    await page.getByLabel(control).fill('99')
+    await page.getByLabel(control).press('Enter')
   }
   await rebuilt(page, before)
   await expect(footer(page)).not.toContainText(/blocked/i)
 })
 
-test('saves a pack of sizes as one zip', async ({ page }) => {
-  await page.getByRole('button', { name: 'PACK' }).click()
-  const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: /Save \d+ STLs as zip/ }).click()
-  expect((await download).suggestedFilename()).toMatch(/^bases-\d+-pack\.zip$/)
+test('takes an exact typed dimension', async ({ page }) => {
+  // The whole point of a typed field over a slider: 28.5 is reachable.
+  await page.getByLabel('Across in mm').fill('28.5')
+  await page.getByLabel('Across in mm').press('Enter')
+  await settled(page)
+  await expect(across(page)).toHaveText('Ø28.5')
+})
+
+test('clamps a dimension typed past its limit', async ({ page }) => {
+  await page.getByLabel('Across in mm').fill('999')
+  await page.getByLabel('Across in mm').press('Enter')
+  await settled(page)
+  await expect(page.getByLabel('Across in mm')).toHaveValue('180.0')
+})
+
+test('scrubs a dimension by dragging its label', async ({ page }) => {
+  const field = page.getByLabel('Across in mm')
+  const before = await triangles(page)
+  const label = page.getByText('Across', { exact: true })
+  const box = await label.boundingBox()
+  if (!box) throw new Error('no label to drag')
+  await page.mouse.move(box.x + 10, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 90, box.y + box.height / 2, { steps: 10 })
+  await page.mouse.up()
+  await rebuilt(page, before)
+  expect(Number(await field.inputValue())).toBeGreaterThan(32)
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
@@ -128,4 +165,17 @@ test('takes magnets out of the underside of a solid base', async ({ page }) => {
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.
   await expect(page.getByText(/solid base has no well/i)).toBeVisible()
+})
+
+test('moves the controls into a drawer on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  // The docked panel is not rendered at all below `md`, so nothing is duplicated.
+  await expect(page.getByLabel('Across in mm')).toBeHidden()
+
+  await page.getByRole('button', { name: 'Base settings' }).click()
+  const before = await triangles(page)
+  await page.getByLabel('Across in mm').fill('60')
+  await page.getByLabel('Across in mm').press('Enter')
+  await rebuilt(page, before)
+  await expect(across(page)).toHaveText('Ø60')
 })

@@ -1,56 +1,64 @@
 @import 'tailwindcss' source('./');
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource/space-grotesk/400.css';
-@import '@fontsource/space-grotesk/500.css';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
-
-@custom-variant dark (&:is(.dark *));
+@import '@fontsource/barlow-semi-condensed/400.css';
+@import '@fontsource/barlow-semi-condensed/500.css';
+@import '@fontsource/barlow-semi-condensed/600.css';
+@import '@fontsource/azeret-mono/400.css';
+@import '@fontsource/azeret-mono/500.css';
 
 /*
- * A drafting board rather than a dashboard: ink ground, bone-grey part, one cyan
- * for anything that measures. Dark only — the viewport is a lit 3D scene, and
- * light chrome around it fights the model for attention.
+ * Blueprint: a deep navy ground with chalk-white lettering and pale cyan
+ * linework, the way a print reads. Dark, but nothing like a neutral black
+ * dashboard — the sheet is blue and the drawing sits on it.
+ *
+ * There is one theme, so the tokens live on :root with no `dark` class and no
+ * light counterpart. The 3D scene reads the same custom properties.
  */
 :root {
-  --radius: 0.25rem;
-  --background: #0e1418;
-  --foreground: #d8d4cc;
-  --card: #161f27;
-  --card-foreground: #d8d4cc;
-  --popover: #161f27;
-  --popover-foreground: #d8d4cc;
-  --primary: #57d6e3;
-  --primary-foreground: #06171a;
-  --secondary: #1c2831;
-  --secondary-foreground: #d8d4cc;
-  --muted: #1c2831;
-  --muted-foreground: #8a9098;
-  --accent: #22303a;
-  --accent-foreground: #d8d4cc;
-  --destructive: #d98553;
-  --border: #26323d;
-  --input: #26323d;
-  --ring: #57d6e3;
-  --chart-1: #57d6e3;
-  --chart-2: #c98a4b;
-  --chart-3: #8a9098;
-  --chart-4: #6fae6a;
-  --chart-5: #d98553;
+  --radius: 0.125rem;
+
+  --background: oklch(0.2006 0.0338 251.48);
+  --foreground: oklch(0.9428 0.0121 247.95);
+  --card: oklch(0.2434 0.0454 252.39);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.2434 0.0454 252.39);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.7779 0.0972 228.49);
+  --primary-foreground: oklch(0.2082 0.0439 249.08);
+  --secondary: oklch(0.303 0.0587 251.13);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.303 0.0587 251.13);
+  --muted-foreground: oklch(0.72 0.0455 246.33);
+  --accent: oklch(0.3489 0.0673 250.99);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.7149 0.1187 45.3);
+  --destructive-foreground: oklch(0.2082 0.0439 249.08);
+  --border: oklch(0.3794 0.0652 247.12);
+  --input: oklch(0.3794 0.0652 247.12);
+  --ring: oklch(0.7779 0.0972 228.49);
 
   /* Dimension linework and anything reporting a measurement. */
-  --measure: #57d6e3;
+  --measure: oklch(0.8172 0.0911 225.35);
   /* Reserved for magnets, so a copper mark always means the same thing. */
-  --magnet: #c98a4b;
-  /* The printed part itself, in the viewport and in swatches. */
-  --part: #d8d4cc;
+  --magnet: oklch(0.7345 0.1099 64.65);
+  /* The part, drawn as pale stock against the blue. */
+  --part: oklch(0.8503 0.0159 248.02);
+  /* The sheet's ruled grid, a shade above the paper. */
+  --grid-minor: oklch(0.2752 0.0492 251.04);
+  --grid-major: oklch(0.3434 0.0631 248.71);
 }
 
-@theme inline {
-  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+@theme {
+  /* Condensed upright lettering, the way a drawing is annotated, with a blocky
+     mono for anything numeric so figures line up in columns. */
+  --font-sans: 'Barlow Semi Condensed', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Azeret Mono', ui-monospace, monospace;
+}
 
+/* `inline` so the utilities carry the resolved colour rather than a var() hop,
+   which is what lets `bg-primary/8` and friends compute an alpha at all. */
+@theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -66,18 +74,16 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
 
   --color-measure: var(--measure);
   --color-magnet: var(--magnet);
   --color-part: var(--part);
+  --color-grid-minor: var(--grid-minor);
+  --color-grid-major: var(--grid-major);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -99,20 +105,42 @@
   }
 
   body {
-    @apply bg-background font-sans text-foreground antialiased;
-    margin: 0;
+    @apply m-0 bg-background font-sans text-foreground antialiased;
   }
 }
 
-/* Section headings read as notes on a drawing. */
-.note {
-  font-size: 0.6875rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
+/* Headings and captions read as notes lettered onto a drawing. */
+@utility note {
+  @apply font-sans text-[0.6875rem] tracking-[0.14em] text-muted-foreground uppercase;
 }
 
-.readout {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+/*
+ * Panel headings are numbered in sheet order, the way items are called out on a
+ * drawing's schedule. A counter rather than a prop, so the numbering can never
+ * drift out of step with the order things actually appear in.
+ */
+@utility schedule-index {
+  counter-increment: schedule;
+
+  &::before {
+    content: counter(schedule, decimal-leading-zero);
+    margin-inline-end: 0.625rem;
+    color: var(--measure);
+    font-family: var(--font-mono);
+  }
+}
+
+/* Anything reporting a figure, so columns of numbers line up. */
+@utility readout {
+  @apply font-mono tabular-nums;
+}
+
+/* The ruled sheet the part is drawn on. */
+@utility sheet {
+  background-color: var(--card);
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 119px, var(--grid-major) 119px 120px),
+    repeating-linear-gradient(90deg, transparent 0 119px, var(--grid-major) 119px 120px),
+    repeating-linear-gradient(0deg, transparent 0 23px, var(--grid-minor) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, var(--grid-minor) 23px 24px);
 }

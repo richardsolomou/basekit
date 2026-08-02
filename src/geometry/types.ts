@@ -15,8 +15,8 @@ export interface MagnetSpec {
   clearance: number
   /** Wall left around each pocket, forming the boss that carries it. */
   bossWall: number
-  /** Pocket depth for solid bases, where the pocket opens at the bottom face. */
-  depth: number
+  /** How thick the magnet is. The pocket is cut to match, so it seats flush. */
+  thickness: number
 }
 
 export interface RibSpec {

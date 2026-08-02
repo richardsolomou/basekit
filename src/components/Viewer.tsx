@@ -2,23 +2,60 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { trimNumber } from '@/geometry/outline'
+import { cn } from '@/lib/utils'
 import type { MeshData } from '@/worker/protocol'
 
-const INK = 0x0e1418
-const BONE = 0xd8d4cc
-const MEASURE = 0x57d6e3
+const FIELD_OF_VIEW = 38
 
-/** A 1mm grid with every tenth line brought forward, like squared drafting film. */
-function buildGrid(extent: number) {
-  const group = new THREE.Group()
-  const minor = new THREE.GridHelper(extent, extent, 0x1d2731, 0x1d2731)
-  const major = new THREE.GridHelper(extent, extent / 10, 0x2f3f4c, 0x2f3f4c)
-  for (const grid of [minor, major]) {
-    grid.rotation.x = Math.PI / 2
-    grid.position.z = -0.01
-    group.add(grid)
-  }
-  return group
+/**
+ * What the camera frames, in millimetres. The default base is a 32 and the round
+ * range is mostly 25 to 65, so framing for the largest size left the common one
+ * a speck. Anything past about 100mm runs wider than the frame, which is the
+ * viewer's scroll wheel to fix.
+ */
+const REFERENCE_FOOTPRINT = 50
+
+/**
+ * Distance at which the reference footprint fits the *narrower* axis. A phone
+ * held upright has far less horizontal coverage than vertical — the field of
+ * view is vertical — so fitting the height alone put a 60mm base at twice the
+ * width of the screen.
+ */
+function framingDistance(aspect: number): number {
+  const halfHeight = Math.tan(THREE.MathUtils.degToRad(FIELD_OF_VIEW / 2))
+  return ((REFERENCE_FOOTPRINT / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
+}
+
+/** Steep enough to look down into the well, where the marking and bracing are. */
+const VIEW_DIRECTION = new THREE.Vector3(0.39, -0.54, 0.74)
+
+const CORNERS = [
+  'top-0 left-0 border-t border-l',
+  'top-0 right-0 border-t border-r',
+  'bottom-0 left-0 border-b border-l',
+  'bottom-0 right-0 border-b border-r',
+]
+
+/** Far enough that the ortho shadow frustum brackets even a 180mm base. */
+const SHADOW_DISTANCE = 300
+
+const swatch = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+
+/**
+ * Single-sources the palette: the scene reads the same tokens as the chrome.
+ * three.js parses no colour space beyond sRGB and only warns when it meets one,
+ * so the tokens go through a one-pixel canvas — reading the pixel back is the
+ * conversion, since `fillStyle` hands an oklch string straight back. Assigning an
+ * unparseable colour is a no-op, which leaves the fallback painted.
+ */
+function themeColor(name: string, fallback: string): THREE.Color {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  if (!swatch) return new THREE.Color(fallback)
+  swatch.fillStyle = fallback
+  swatch.fillStyle = value
+  swatch.fillRect(0, 0, 1, 1)
+  const [r, g, b] = swatch.getImageData(0, 0, 1, 1).data
+  return new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace)
 }
 
 interface Props {
@@ -33,46 +70,95 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const overlay = useRef<SVGSVGElement>(null)
   const part = useRef<THREE.Group>(null)
-  const view = useRef<{ camera: THREE.PerspectiveCamera; controls: OrbitControls }>(null)
+  const shadowLight = useRef<THREE.DirectionalLight>(null)
+  const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
 
   useEffect(() => {
     const container = host.current
     if (!container) return
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    // Transparent so the paper and its printed grid show through from CSS.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // Both the light and the part are fixed; only the camera moves. Redrawing the
+    // shadow map every frame cost more than the scene itself, so it is redrawn
+    // once per geometry swap instead.
+    renderer.shadowMap.autoUpdate = false
+    shadowsDirty.current = renderer
     container.append(renderer.domElement)
 
     const world = new THREE.Scene()
-    world.background = new THREE.Color(INK)
 
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 2000)
+    const camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW, 1, 0.5, 2000)
     camera.up.set(0, 0, 1)
-    camera.position.set(40, -55, 35) // replaced by the framing effect; keeps frame one valid
+    camera.position.copy(VIEW_DIRECTION.clone().normalize())
 
+    /*
+     * Orbit, which pins the up axis: the horizon stays level and a drag always
+     * means the same thing. A trackball let the same axis roll over and over,
+     * but tumbling the part with no fixed horizon made it hard to tell which way
+     * up anything was. The polar angle is left unclamped, so the print surface
+     * underneath is still reachable — it just stops at the pole rather than
+     * carrying on over the top.
+     */
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
-    controls.maxPolarAngle = Math.PI / 2
-    view.current = { camera, controls }
+    controls.target.set(0, 0, 2)
 
-    world.add(new THREE.HemisphereLight(0xdfe7ee, 0x141c24, 1.5))
-    const key = new THREE.DirectionalLight(0xffffff, 1.9)
-    key.position.set(-30, -46, 70)
+    world.add(new THREE.HemisphereLight(0xdfeaf4, 0x14293f, 0.85))
+
+    /*
+     * The key sits at ~45° and casts shadows. Everything that matters here —
+     * the marking, the ribs, the bosses — is a shallow step off a flat floor,
+     * so from a plan view the emboss and the floor it sits on share a normal
+     * and shade identically; lit from overhead the number disappears. Any
+     * off-vertical light gives each step a cast shadow instead, which reads
+     * from any angle, and 45° is enough without throwing the well wall halfway
+     * across a small base.
+     */
+    const key = new THREE.DirectionalLight(0xffffff, 2.1)
+    key.position.copy(new THREE.Vector3(-0.42, -0.57, 0.71).normalize().multiplyScalar(SHADOW_DISTANCE))
+    key.castShadow = true
+    key.shadow.mapSize.set(2048, 2048)
+    key.shadow.camera.near = SHADOW_DISTANCE / 2
+    key.shadow.camera.far = SHADOW_DISTANCE * 2
+    // In millimetres, and the relief is 0.6mm: any more and the marking's own
+    // shadow lifts off the letters it belongs to.
+    key.shadow.normalBias = 0.03
     world.add(key)
-    const fill = new THREE.DirectionalLight(0x9fb4c4, 0.5)
-    fill.position.set(50, 30, 10)
+    shadowLight.current = key
+
+    const fill = new THREE.DirectionalLight(0x8fb4d0, 0.4)
+    fill.position.set(50, 30, 14)
     world.add(fill)
+
+    // Orbiting under the part is allowed, and the sky-to-ground hemisphere leaves
+    // downward faces almost black. A weak bounce keeps the print surface readable.
+    const bounce = new THREE.DirectionalLight(0x9fb8cf, 0.5)
+    bounce.position.set(24, 40, -60)
+    world.add(bounce)
 
     const group = new THREE.Group()
     part.current = group
     world.add(group)
+
+    // Until the viewer touches the camera it stays framed on the reference
+    // footprint, which is what makes a window resize or a phone rotating do the
+    // sensible thing. After that the view is theirs and nothing moves it.
+    let held = false
+    controls.addEventListener('start', () => {
+      held = true
+    })
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = container
       renderer.setSize(w, h)
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
+      if (!held) camera.position.setLength(framingDistance(camera.aspect))
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -150,18 +236,6 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     }
   }, [])
 
-  // Re-frame only when the footprint changes, so tweaking other settings never
-  // yanks the camera away from wherever it has been orbited to.
-  useEffect(() => {
-    if (!view.current) return
-    const { camera, controls } = view.current
-    const span = Math.max(width, length)
-    const distance = (span / 2 / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.45
-    camera.position.copy(new THREE.Vector3(0.52, -0.72, 0.46).normalize().multiplyScalar(distance))
-    controls.target.set(0, 0, height / 2)
-    controls.update()
-  }, [width, length, height])
-
   // Swap in new geometry, keeping the camera where it was.
   useEffect(() => {
     const group = part.current
@@ -181,37 +255,61 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     // off the wall and flatten the embossed number. Flat shading keeps them crisp.
     const solid = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({ color: BONE, roughness: 0.75, metalness: 0.02, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: themeColor('--part', '#cbc6bb'), roughness: 0.85, metalness: 0, flatShading: true }),
     )
+    // The part is the only thing in the scene, so it shadows itself: the well
+    // wall onto the floor, the marking and the bosses onto the floor under them.
+    solid.castShadow = true
+    solid.receiveShadow = true
     group.add(solid)
 
-    // A sparse edge pass reads as a drawn part instead of a rendered blob.
+    // Fit the shadow frustum to the part so a 25mm base gets the same texel
+    // density as a 180mm one — the marking is smallest exactly where the base is.
+    const light = shadowLight.current
+    if (light) {
+      const reach = Math.max(width, length) * 0.75
+      Object.assign(light.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach })
+      light.shadow.camera.updateProjectionMatrix()
+    }
+    if (shadowsDirty.current) shadowsDirty.current.shadowMap.needsUpdate = true
+
+    // Ink edges are what make it read as a drawn part rather than a render.
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 32),
-      new THREE.LineBasicMaterial({ color: MEASURE, transparent: true, opacity: 0.22 }),
+      new THREE.LineBasicMaterial({ color: themeColor('--measure', '#7fd0f0'), transparent: true, opacity: 0.3 }),
     )
     group.add(edges)
 
-    group.add(buildGrid(Math.max(60, Math.ceil(Math.max(width, length) / 10) * 10 + 20)))
     group.userData = { halfWidth: width / 2, halfLength: length / 2, height }
+
+    // The triangle count of what is actually in the scene, which is the only
+    // honest signal that a rebuild has landed — the status word reads "ready"
+    // from the build before the one being waited on. The e2e suite polls it.
+    if (host.current) host.current.dataset.triangles = String(mesh.indices.length / 3)
   }, [mesh, width, length, height])
 
   const across = round ? `Ø${trimNumber(width)}` : `${trimNumber(width)} × ${trimNumber(length)}`
 
   return (
     <div className="relative h-full w-full">
-      <div ref={host} className="h-full w-full" />
+      <div ref={host} className="sheet h-full w-full" />
+      {/* Registration marks rather than a frame: the sheet is trimmed to size. */}
+      <div className="pointer-events-none absolute inset-5" aria-hidden>
+        {CORNERS.map((corner) => (
+          <span key={corner} className={cn('absolute size-5 border-measure/45', corner)} />
+        ))}
+      </div>
       <svg ref={overlay} className="pointer-events-none absolute inset-0 h-full w-full">
         <defs>
           <marker id="tick" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-            <path d="M 3 0 L 3 6" stroke="#57d6e3" strokeWidth="1" />
+            <path d="M 3 0 L 3 6" stroke="var(--measure)" strokeWidth="1" />
           </marker>
         </defs>
-        <path id="ext-across" stroke="#57d6e3" strokeWidth="1" strokeOpacity="0.28" fill="none" />
-        <path id="ext-height" stroke="#57d6e3" strokeWidth="1" strokeOpacity="0.28" fill="none" />
+        <path id="ext-across" stroke="var(--measure)" strokeWidth="1" strokeOpacity="0.28" fill="none" />
+        <path id="ext-height" stroke="var(--measure)" strokeWidth="1" strokeOpacity="0.28" fill="none" />
         <path
           id="dim-across"
-          stroke="#57d6e3"
+          stroke="var(--measure)"
           strokeWidth="1"
           strokeOpacity="0.7"
           fill="none"
@@ -220,7 +318,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
         />
         <path
           id="dim-height"
-          stroke="#57d6e3"
+          stroke="var(--measure)"
           strokeWidth="1"
           strokeOpacity="0.7"
           fill="none"
@@ -230,8 +328,8 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
         {/* The ink stroke knocks the dimension text out of whatever sits behind it. */}
         <text
           id="label-across"
-          fill="#57d6e3"
-          stroke="#0e1418"
+          fill="var(--measure)"
+          stroke="var(--card)"
           strokeWidth="4"
           paintOrder="stroke"
           fontSize="12"
@@ -242,8 +340,8 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
         </text>
         <text
           id="label-height"
-          fill="#57d6e3"
-          stroke="#0e1418"
+          fill="var(--measure)"
+          stroke="var(--card)"
           strokeWidth="4"
           paintOrder="stroke"
           fontSize="12"

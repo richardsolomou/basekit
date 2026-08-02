@@ -1,3 +1,4 @@
+import { magnetsRing } from './base'
 import { isElongated } from './outline'
 import type { BaseConfig, ShapeKind } from './types'
 
@@ -22,9 +23,11 @@ export const ROUND_SIZES: SizePreset[] = [
   { label: '50', shape: 'round', width: 50, use: 'Bikes, ogryns' },
   { label: '60', shape: 'round', width: 60, use: 'Dreadnoughts' },
   { label: '65', shape: 'round', width: 65, use: 'Large monsters' },
-  { label: '80', shape: 'round', width: 80, use: 'Riptides, greater daemons' },
+  { label: '80', shape: 'round', width: 80, use: 'Large vehicles, monsters' },
+  { label: '90', shape: 'round', width: 90, use: 'Greater daemons, big characters' },
   { label: '100', shape: 'round', width: 100, use: 'Very large monsters' },
   { label: '130', shape: 'round', width: 130, use: 'Titanic monsters' },
+  { label: '160', shape: 'round', width: 160, use: 'The largest round GW makes' },
 ]
 
 export const OVAL_SIZES: SizePreset[] = [
@@ -83,23 +86,65 @@ export const DEFAULT_SIZE: Record<ShapeKind, SizePreset> = {
 }
 
 /**
- * One central magnet holds anything up to a 40mm footprint. Past that a single
- * magnet lets the model pivot, so they spread out over the area.
+ * Roughly one magnet per this much of the line they are spread along, in mm.
+ * Read off what the 60mm and 80mm sizes already did at three and four magnets,
+ * which are the sizes people have the most experience of.
  */
-function magnetCount(width: number, length: number): number {
-  const area = width * length
-  if (Math.min(width, length) < 20) return 0
-  if (area <= 40 * 40) return 1
-  if (area <= 70 * 70) return 3
-  return 4
+const MAGNET_PITCH = 31
+
+/** Counts a ring or a row may take, so the picker always has the value on offer. */
+const SPREAD_COUNTS = [3, 4, 6, 8]
+
+/** Every count the pickers offer, including ones no preset picks by itself. */
+export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
+export const RIB_CHOICES = [0, 2, 3, 4, 6, 8]
+
+function closestSpread(ideal: number): number {
+  return SPREAD_COUNTS.reduce((best, n) => (Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best), SPREAD_COUNTS[0])
 }
 
-function ribCount(width: number, length: number): number {
+/**
+ * One central magnet holds anything up to a 40mm footprint. Past that a single
+ * magnet lets the model pivot, so they spread out — and the count grows with the
+ * base, because a bigger footprint carries a heavier model *and* offers a longer
+ * run to spread over. Four magnets on a 160mm titanic base was the old ceiling
+ * and nowhere near enough to hold one down.
+ */
+function magnetCount(width: number, length: number): number {
   const short = Math.min(width, length)
+  if (short < 20) return 0
+  if (width * length <= 40 * 40) return 1
+
+  if (magnetsRing(width, length)) {
+    // Ring magnets sit a quarter of the short side out from the centre.
+    return closestSpread((Math.PI * short) / 2 / MAGNET_PITCH)
+  }
+  // A row runs the long axis, stopping a boss-width short of each end.
+  return closestSpread((Math.max(width, length) - 8) / MAGNET_PITCH + 1)
+}
+
+/**
+ * Every magnet boss ends up on a spoke, which gussets its root, prints as one
+ * connected feature rather than an island, and collects the clear floor into a
+ * few wide gaps instead of twice as many narrow ones.
+ *
+ * A ring gets one spoke each. A row is easier than it looks: every magnet in it
+ * shares the long axis, so a single spoke down that axis passes through all of
+ * them — so long as the count is even, which also gives the short axis a pair.
+ * With no ring and no row there is nothing to line up with and the count just
+ * follows the span.
+ */
+function ribCount(width: number, length: number): number {
+  const magnets = magnetCount(width, length)
+  const short = Math.min(width, length)
+
+  if (magnets >= 2) {
+    if (magnetsRing(width, length)) return magnets
+    return short <= 45 ? 4 : 6
+  }
   if (short <= 28.5) return 2
   if (short <= 34) return 3
-  if (short <= 45) return 4
-  return 3
+  return 4
 }
 
 /** Keeps the number readable on a 25mm base without dominating a 100mm one. */
@@ -131,7 +176,7 @@ export function presetFor(preset: SizePreset): BaseConfig {
     underside: 'well',
     wallThickness: 2,
     floorThickness: 1,
-    magnets: { count: magnetCount(width, length), diameter: 5, clearance: 0.2, bossWall: 0.9, depth: 2 },
+    magnets: { count: magnetCount(width, length), diameter: 5, clearance: 0.2, bossWall: 0.9, thickness: 2 },
     // Low ribs brace the thin floor without walling the well off from basing material.
     ribs: { count: ribCount(width, length), thickness: 1.6, height: 1.2 },
     label: { enabled: true, height: labelHeight(width, length), emboss: 0.6 },
