@@ -29,12 +29,14 @@ Presets carry the magnet count, rib count and marking size that suit the footpri
 
 ## Controls
 
-Four things sit in the open: shape, size, magnets, marking. Everything else is behind a drawer.
+Three things sit in the open: footprint (shape and size together), magnets, marking. Everything else is behind a drawer.
 
-- **Body** — well or solid underside, height, wall, floor under the magnet, bottom edge (taper / bevel / round / straight) and its size, corner radius, side count
-- **Ribs** — 0–6 spokes, thickness, height
-- **Fine tuning** — magnet fit clearance, wall around the pocket, marking height and emboss depth, curve quality
+- **Profile** — well or solid underside, height, wall, floor under the magnet, bottom edge (taper / bevel / round / straight) and its size, corner radius, side count
+- **Bracing** — 0–6 rib spokes, thickness, height
+- **Tolerances** — magnet fit clearance, wall around the pocket, marking height and emboss depth, and the curve tolerance, named by the chord error it produces for the base you are on
 - **Pack** — tick several sizes and save them all as one zip
+
+The viewport is annotated like a drawing: dimension leaders track the part's silhouette as you orbit, and a title block in the corner carries the spec, the mesh stats and the build status.
 
 A solid base takes its magnets from underneath instead of from a well, so the pocket opens at the build plate.
 

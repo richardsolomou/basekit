@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-/** The status rail carries the live triangle, volume and footprint readout. */
+/** The drawing's title block carries the spec, the stats and the build status. */
 const footer = (page: Page) => page.locator('footer')
 const marking = (page: Page) => page.getByLabel('Marking text')
 const sizeChip = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true }).first()
@@ -8,7 +8,7 @@ const shape = (page: Page, name: string) => page.getByRole('button', { name, exa
 
 /** Geometry is built in a worker, so the readout settles a moment after a click. */
 async function settled(page: Page) {
-  await expect(footer(page)).toContainText('ready', { timeout: 15_000 })
+  await expect(footer(page)).toContainText(/ready/i, { timeout: 15_000 })
   await expect(footer(page)).toContainText('watertight')
 }
 
@@ -40,7 +40,8 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('builds the default base on load', async ({ page }) => {
-  await expect(footer(page)).toContainText('Ø32 × 4mm')
+  await expect(footer(page)).toContainText('Ø32')
+  await expect(footer(page)).toContainText('4mm')
   await expect(footer(page)).not.toContainText('0 tris')
 })
 
@@ -67,17 +68,19 @@ test('exports a 3MF as well', async ({ page }) => {
 })
 
 const SHAPES = [
-  { name: 'Oval', heading: 'OVAL SIZES', footprint: '60 × 35', mark: '60x35' },
-  { name: 'Pill', heading: 'PILL SIZES', footprint: '60 × 35', mark: '60x35' },
-  { name: 'Rect', heading: 'RANK SIZES', footprint: '25 × 50', mark: '25x50' },
-  { name: 'Hex', heading: 'HEX SIZES', footprint: 'Ø32', mark: '32' },
+  { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
+  { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },
+  { name: 'Rect', footprint: '25 × 50', mark: '25x50', chip: '50×100' },
+  { name: 'Hex', footprint: 'Ø32', mark: '32', chip: '60' },
 ]
 
 for (const entry of SHAPES) {
   test(`starts a ${entry.name.toLowerCase()} base on a standard size`, async ({ page }) => {
     await shape(page, entry.name).click()
     await settled(page)
-    await expect(page.getByRole('heading', { name: entry.heading })).toBeVisible()
+    await expect(shape(page, entry.name)).toHaveAttribute('aria-pressed', 'true')
+    // The size chips swap to that family's range.
+    await expect(sizeChip(page, entry.chip)).toBeVisible()
     await expect(footer(page)).toContainText(entry.footprint)
     await expect(marking(page)).toHaveAttribute('placeholder', entry.mark)
   })
@@ -101,7 +104,7 @@ test('marks even a cramped rank base', async ({ page }) => {
 test('still builds with the wall and floor wound to their limits', async ({ page }) => {
   // The sliders are clamped so no combination can reach an unbuildable base; this
   // guards that clamping, since the geometry does throw outside those bounds.
-  await page.getByRole('button', { name: 'BODY' }).click()
+  await page.getByRole('button', { name: 'PROFILE' }).click()
   const before = await triangles(page)
   for (const control of ['Wall in mm', 'Floor under magnet in mm']) {
     // End jumps the thumb straight to the maximum. Holding an arrow key instead
@@ -109,7 +112,7 @@ test('still builds with the wall and floor wound to their limits', async ({ page
     await page.getByLabel(control).getByRole('slider').press('End')
   }
   await rebuilt(page, before)
-  await expect(footer(page)).not.toContainText('blocked')
+  await expect(footer(page)).not.toContainText(/blocked/i)
 })
 
 test('saves a pack of sizes as one zip', async ({ page }) => {
@@ -120,7 +123,7 @@ test('saves a pack of sizes as one zip', async ({ page }) => {
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await page.getByRole('button', { name: 'BODY' }).click()
+  await page.getByRole('button', { name: 'PROFILE' }).click()
   await page.getByRole('button', { name: 'Solid', exact: true }).click()
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.

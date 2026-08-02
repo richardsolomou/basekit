@@ -1,12 +1,12 @@
 import { Box, Download, Package } from 'lucide-react'
 import { useState } from 'react'
 import { Choice, Drawer, Field, gridColumns, Section } from '@/components/controls'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl, toZip } from '@/geometry/exporters'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
@@ -35,14 +35,6 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
   { value: 'well', label: 'Well' },
   { value: 'solid', label: 'Solid' },
 ]
-
-const SIZE_TITLES: Record<ShapeKind, string> = {
-  round: 'Round sizes',
-  oval: 'Oval sizes',
-  pill: 'Pill sizes',
-  rect: 'Rank sizes',
-  polygon: 'Hex sizes',
-}
 
 const MAGNET_COUNTS = [0, 1, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const RIB_COUNTS = [0, 2, 3, 4, 6].map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
@@ -142,11 +134,8 @@ export function App() {
 
       <div className="flex min-h-0 flex-1">
         <aside className="w-80 shrink-0 overflow-y-auto border-r border-border bg-card/40">
-          <Section title="Shape">
+          <Section title="Footprint">
             <Choice value={config.shape} options={SHAPES} onChange={changeShape} />
-          </Section>
-
-          <Section title={SIZE_TITLES[config.shape]}>
             <ToggleGroup
               variant="outline"
               size="sm"
@@ -239,11 +228,11 @@ export function App() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               {hollow
                 ? `“${markingText}” sits on the well floor — hidden once based, obvious in the slicer.`
-                : 'A solid base has no well to emboss. Switch the underside to a well under Body.'}
+                : 'A solid base has no well to emboss. Switch the underside back to a well under Profile.'}
             </p>
           </Section>
 
-          <Drawer title="Body" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
+          <Drawer title="Profile" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
             <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
             <Field label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
             <Field
@@ -287,7 +276,7 @@ export function App() {
             )}
           </Drawer>
 
-          <Drawer title="Ribs" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
+          <Drawer title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
             <Choice value={config.ribs.count} options={RIB_COUNTS} onChange={(count) => patch({ ribs: { ...config.ribs, count } })} />
             <Field
               label="Thickness"
@@ -312,7 +301,7 @@ export function App() {
             </p>
           </Drawer>
 
-          <Drawer title="Fine tuning" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
+          <Drawer title="Tolerances" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
             <Field
               label="Magnet fit clearance"
               value={config.magnets.clearance}
@@ -349,7 +338,10 @@ export function App() {
             />
             <Choice
               label="Curve tolerance"
-              value={QUALITY_STEPS.reduce((best, q) => (Math.abs(q - config.segments) < Math.abs(best - config.segments) ? q : best), QUALITY_STEPS[1])}
+              value={QUALITY_STEPS.reduce(
+                (best, q) => (Math.abs(q - config.segments) < Math.abs(best - config.segments) ? q : best),
+                QUALITY_STEPS[1],
+              )}
               options={QUALITY_STEPS.map((segments) => ({
                 value: segments,
                 label: `${Math.max(1, Math.round(chordError(Math.max(width, length), segments)))}µm`,
@@ -387,25 +379,16 @@ export function App() {
         <main className="relative min-w-0 flex-1">
           <Viewer mesh={preview?.mesh} width={width} length={length} height={config.height} round={!elongated} />
           {error && (
-            <div className="absolute inset-x-0 bottom-0 border-t border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive">
+            <div
+              role="alert"
+              className="absolute inset-x-0 top-0 border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive"
+            >
               {error}. Showing the last base that built.
             </div>
           )}
+          <TitleBlock config={config} stats={stats} status={error ? 'blocked' : busy ? 'solving' : 'ready'} name={baseName(config)} />
         </main>
       </div>
-
-      <footer className="readout flex items-center gap-4 border-t border-border px-5 py-2 text-xs text-muted-foreground">
-        <Badge variant={error ? 'destructive' : 'secondary'} className="readout">
-          {error ? 'blocked' : busy ? 'solving' : 'ready'}
-        </Badge>
-        <span>{stats ? `${stats.triangles.toLocaleString()} tris` : '—'}</span>
-        <span>{stats ? `${(stats.volume / 1000).toFixed(2)} cm³` : '—'}</span>
-        <span>{stats ? `${stats.grams.toFixed(2)} g PLA` : '—'}</span>
-        <span className={stats?.solid ? 'text-measure' : ''}>{stats ? (stats.solid ? 'watertight' : 'empty') : '—'}</span>
-        <span className="ml-auto">
-          {elongated ? `${trimNumber(width)} × ${trimNumber(length)}` : `Ø${trimNumber(width)}`} × {trimNumber(config.height)}mm
-        </span>
-      </footer>
     </div>
   )
 }
