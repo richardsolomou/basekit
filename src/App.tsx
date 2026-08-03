@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
-import { defaultHolderConfig, holderLayout, holderName, holderPlan } from '@/geometry/holder'
+import { defaultHolderConfig, holderLayout, holderName, holderPlan, maxHolderMagnetThickness, maxHolderSlotDepth } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   DEFAULT_PRESET,
@@ -119,6 +119,11 @@ export function App() {
     })
   const { width, length } = footprint(config)
   const holderSize = holderLayout(holder)
+  const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
+  const fitSlotDepth = (next: HolderConfig) => ({
+    ...next,
+    slotDepth: Math.min(next.slotDepth, Math.max(1, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5)),
+  })
   const plan = holderPlan(holder)
   const requestedModels = holder.groups.reduce((total, group) => total + group.quantity, 0)
   const fittedByGroup = new Map<string, number>()
@@ -642,7 +647,7 @@ export function App() {
             max={42}
             step={7}
             defaultValue={HOLDER_DEFAULTS.height}
-            onChange={(height) => setHolder({ ...holder, height })}
+            onChange={(height) => setHolder(fitSlotDepth({ ...holder, height }))}
           />
         </Section>
 
@@ -651,7 +656,7 @@ export function App() {
             label="Slot depth"
             value={holder.slotDepth}
             min={1}
-            max={Math.max(1, holder.height - (holder.magnets.enabled ? holder.magnets.thickness : 0) - 0.4)}
+            max={maxSlotDepth}
             step={0.5}
             defaultValue={HOLDER_DEFAULTS.slotDepth}
             onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
@@ -669,7 +674,7 @@ export function App() {
             label="Label base sizes"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
-            onChange={(enabled) => setHolder({ ...holder, engraving: { ...holder.engraving, enabled } })}
+            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, enabled } }))}
           />
           {holder.engraving.enabled && (
             <Choice
@@ -677,7 +682,7 @@ export function App() {
               value={holder.engraving.placement}
               defaultValue={HOLDER_DEFAULTS.engraving.placement}
               options={ENGRAVING_PLACEMENTS}
-              onChange={(placement) => setHolder({ ...holder, engraving: { ...holder.engraving, placement } })}
+              onChange={(placement) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, placement } }))}
             />
           )}
         </Section>
@@ -694,7 +699,7 @@ export function App() {
             label="Slot magnets"
             checked={holder.magnets.enabled}
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
-            onChange={(enabled) => setHolder({ ...holder, magnets: { ...holder.magnets, enabled } })}
+            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
           />
           <Dimension
             label="Magnet diameter"
@@ -710,7 +715,7 @@ export function App() {
             label="Magnet thickness"
             value={holder.magnets.thickness}
             min={0.5}
-            max={Math.max(0.5, holder.height - holder.slotDepth - 0.4)}
+            max={Math.max(0.5, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10)}
             step={0.1}
             defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={!holder.magnets.enabled}

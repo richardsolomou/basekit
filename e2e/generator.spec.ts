@@ -192,6 +192,22 @@ test('switches between subtractive holder engraving locations', async ({ page })
   await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('In slots')
 })
 
+test('keeps slot features above the Gridfinity foot', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const depth = page.getByLabel('Slot depth')
+  const magnets = page.getByRole('switch', { name: 'Slot magnets' })
+  await expect(depth).toHaveAttribute('max', '6.5')
+  await magnets.click()
+  await expect(depth).toHaveAttribute('max', '8')
+  await depth.fill('8')
+  await depth.press('Enter')
+  const before = await triangles(page)
+  await magnets.click()
+  await rebuilt(page, before)
+  await expect(depth).toHaveValue('6.5')
+})
+
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
