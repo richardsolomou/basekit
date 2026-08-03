@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Mesh } from 'manifold-3d'
 import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { buildHolder, defaultHolderConfig, holderLayout, holderPlan } from './holder'
+import { buildHolder, defaultHolderConfig, holderLayout, holderPlan, maxHolderMagnetThickness, maxHolderSlotDepth } from './holder'
 import { loadManifold } from './manifold'
 
 let wasm: Awaited<ReturnType<typeof loadManifold>>
@@ -234,11 +234,20 @@ describe('buildHolder', () => {
     expect(maxZ).toBeCloseTo(slotFloor, 2)
   })
 
-  it('rejects slots that break through into the magnet pockets', () => {
-    const config = defaultHolderConfig()
-    expect(() => buildHolder(wasm, { ...config, magnets: { ...config.magnets, thickness: 4 }, slotDepth: 10 })).toThrow(
-      'Slots leave too little material under the magnet pockets',
+  it.each([
+    { name: 'engraving', config: { ...defaultHolderConfig(), magnets: { ...defaultHolderConfig().magnets, enabled: false } } },
+    { name: 'magnets', config: defaultHolderConfig() },
+  ])('rejects slots that cut through the Gridfinity foot with $name', ({ config }) => {
+    const maxDepth = maxHolderSlotDepth(config)
+    expect(buildHolder(wasm, { ...config, slotDepth: maxDepth }, font).stats.solid).toBe(true)
+    expect(() => buildHolder(wasm, { ...config, slotDepth: maxDepth + 0.01 }, font)).toThrow(
+      'Slots leave too little material above the Gridfinity foot',
     )
+  })
+
+  it('limits magnet thickness to the material above the Gridfinity foot', () => {
+    const config = defaultHolderConfig()
+    expect(maxHolderMagnetThickness(config)).toBeCloseTo(5.85)
   })
 
   it.each(['slots', 'module'] as const)('subtracts size engraving %s', (placement) => {

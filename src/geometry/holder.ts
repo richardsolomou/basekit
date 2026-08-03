@@ -16,6 +16,8 @@ const PROFILE = [
 ] as const
 const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
+const MIN_SLOT_FLOOR_THICKNESS = 0.4
+const ENGRAVING_DEPTH = 0.4
 
 export interface HolderLayout {
   unitsWide: number
@@ -42,6 +44,16 @@ export interface HolderPlan {
   omitted: { id: string; quantity: number; diameter: number }[]
   unitsWide: number
   unitsDeep: number
+}
+
+export function maxHolderSlotDepth(config: HolderConfig): number {
+  const engravingDepth = config.engraving.enabled && config.engraving.placement === 'slots' ? ENGRAVING_DEPTH : 0
+  const magnetDepth = config.magnets.enabled ? config.magnets.thickness : 0
+  return config.height - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - Math.max(engravingDepth, magnetDepth)
+}
+
+export function maxHolderMagnetThickness(config: HolderConfig): number {
+  return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS
 }
 
 function distributed(points: { x: number; y: number; diameter: number }[], width: number, length: number) {
@@ -384,8 +396,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
   try {
     if (config.maxColumns < 1 || config.maxRows < 1) throw new Error('A holder needs at least one allowed row and column')
     if (config.height < BASE_HEIGHT) throw new Error('Holder height must be at least one Gridfinity unit')
-    const requiredFloor = config.magnets.enabled ? config.magnets.thickness + 0.4 : 0.4
-    if (config.slotDepth > config.height - requiredFloor) throw new Error('Slots leave too little material under the magnet pockets')
+    if (config.slotDepth > maxHolderSlotDepth(config)) throw new Error('Slots leave too little material above the Gridfinity foot')
 
     const layout = singleHolderLayout(config)
     if (layout.slotCenters.length === 0) throw new Error('Miniatures do not fit within the maximum Gridfinity rows and columns')
@@ -442,7 +453,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
     }
 
     if (config.engraving.enabled && font) {
-      const depth = 0.4
+      const depth = ENGRAVING_DEPTH
       const textSection = (text: string, height: number, maxWidth: number, x: number, y: number) => {
         const polygons = textPolygons(font, text, height)
         const width = polygonsWidth(polygons)
