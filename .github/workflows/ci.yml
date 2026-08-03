@@ -29,13 +29,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format, lint, typecheck, test, build
-        run: pnpm check
+      - name: Run independent checks
+        run: |
+          set -euo pipefail
+          pids=()
+          pnpm format:check & pids+=("$!")
+          pnpm lint & pids+=("$!")
+          pnpm typecheck & pids+=("$!")
+          pnpm test & pids+=("$!")
+          pnpm build & pids+=("$!")
+          status=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || status=1
+          done
+          exit "$status"
 
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+  end-to-end:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
 
-      # `check` already built, so run the suite rather than rebuilding.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
       - name: End-to-end
         run: pnpm test:e2e:run
 
