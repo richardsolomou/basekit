@@ -1,4 +1,4 @@
-import type { BaseConfig } from '@/geometry/types'
+import type { PartConfig } from '@/geometry/types'
 
 export interface MeshData {
   positions: Float32Array
@@ -8,7 +8,7 @@ export interface MeshData {
 /** One config in, one preview out; there is nothing else to ask the worker for. */
 export interface WorkerRequest {
   id: number
-  config: BaseConfig
+  config: PartConfig
 }
 
 export type WorkerReply = { id: number; kind: 'mesh'; mesh: MeshData } | { id: number; kind: 'error'; message: string }

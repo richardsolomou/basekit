@@ -50,6 +50,7 @@ interface DimensionProps {
   step: number
   unit?: string
   disabled?: boolean
+  compact?: boolean
   onChange: (value: number) => void
 }
 
@@ -61,9 +62,11 @@ const quantise = (value: number, step: number) => Math.round(value / step) * ste
  * point — a slider cannot land on 28.5 reliably, and these are millimetres
  * someone is going to print.
  */
-export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, onChange }: DimensionProps) {
+export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, compact, onChange }: DimensionProps) {
   const id = useId()
   const [text, setText] = useState<string | undefined>()
+  const format = (next: number) => (Number.isInteger(step) ? String(Math.round(next)) : next.toFixed(step < 0.1 ? 2 : 1))
+  const formatted = format(value)
 
   /**
    * Listeners go on at pointerdown rather than through an effect: setting a ref
@@ -86,31 +89,37 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
     document.addEventListener('pointerup', stop, { once: true })
   }
 
-  const commit = (raw: string) => {
+  const change = (raw: string) => {
+    setText(raw)
     const parsed = Number.parseFloat(raw)
-    setText(undefined)
+    if (Number.isFinite(parsed) && parsed >= min && parsed <= max) onChange(quantise(parsed, step))
+  }
+
+  const finish = (raw: string) => {
+    const parsed = Number.parseFloat(raw)
     if (Number.isFinite(parsed)) onChange(clamp(quantise(parsed, step), min, max))
+    setText(undefined)
   }
 
   return (
-    <Field orientation="horizontal" data-disabled={disabled}>
-      <FieldLabel htmlFor={id} onPointerDown={startScrub} className="cursor-ew-resize touch-none font-normal">
+    <Field orientation="horizontal" data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
+      <FieldLabel htmlFor={id} onPointerDown={startScrub} className={compact ? 'sr-only' : 'cursor-ew-resize touch-none font-normal'}>
         {label}
       </FieldLabel>
-      <InputGroup className="w-28 shrink-0">
+      <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
         <InputGroupInput
           id={id}
           type="number"
           inputMode="decimal"
           aria-label={`${label} in ${unit}`}
-          value={text ?? value.toFixed(step < 0.1 ? 2 : 1)}
+          value={text ?? formatted}
           min={min}
           max={max}
           step={step}
           disabled={disabled}
-          onChange={(event) => setText(event.currentTarget.value)}
-          onBlur={(event) => commit(event.currentTarget.value)}
-          onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+          onChange={(event) => change(event.currentTarget.value)}
+          onBlur={(event) => finish(event.currentTarget.value)}
+          onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
           className="readout text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
         {unit && (

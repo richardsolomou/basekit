@@ -70,3 +70,34 @@ export interface BaseStats {
   /** True when the mesh is a closed solid with substance. */
   solid: boolean
 }
+
+export interface HolderConfig {
+  kind: 'holder'
+  groups: { id: string; quantity: number; diameter: number }[]
+  maxColumns: number
+  maxRows: number
+  splitGroups: boolean
+  engraving: {
+    enabled: boolean
+    placement: 'slots' | 'module'
+  }
+  /** Edge-to-edge distance between nominal miniature bases. */
+  spacing: number
+  /** Added to the diameter so bases lift out without binding. */
+  slotClearance: number
+  slotDepth: number
+  height: number
+  magnets: {
+    enabled: boolean
+    diameter: number
+    clearance: number
+    thickness: number
+  }
+  segments: number
+}
+
+export interface BasePartConfig extends BaseConfig {
+  kind?: 'base'
+}
+
+export type PartConfig = BasePartConfig | HolderConfig

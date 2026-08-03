@@ -1,9 +1,10 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
-import type { BaseConfig } from '@/geometry/types'
+import { holderLayout, holderPlan } from '@/geometry/holder'
+import type { PartConfig } from '@/geometry/types'
 
 interface Props {
-  config: BaseConfig
+  config: PartConfig
   /**
    * Only whether the config builds. There is deliberately no pending preview
    * state: a typical rebuild takes about 15ms, so a spinner would strobe on every
@@ -27,11 +28,39 @@ function Row({ label, value }: { label: string; value: string }) {
  * replaces a status bar rather than adding to one.
  */
 export function TitleBlock({ config, status, name }: Props) {
+  if (config.kind === 'holder') {
+    const layout = holderLayout(config)
+    const plan = holderPlan(config)
+    const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
+    const slots = config.groups.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' · ')
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row label="Models" value={slots} />
+        <Row label="Modules" value={`${plan.modules.length} in ${layout.unitsWide} × ${layout.unitsDeep}`} />
+        {plan.omitted.length > 0 && (
+          <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' · ')} />
+        )}
+        <Row label="Magnets" value={config.magnets.enabled ? `${layout.slotCenters.length} × Ø${pocket}` : 'none'} />
+      </TitleFrame>
+    )
+  }
   const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
   const thickness = trimNumber(config.magnets.thickness)
 
   return (
-    <footer className="pointer-events-none absolute right-3 bottom-3 w-56 sm:right-5 sm:bottom-5 sm:w-72 border-2 border-measure/50 bg-card/90 text-card-foreground backdrop-blur-sm">
+    <TitleFrame status={status} name={name}>
+      <Row label="Magnets" value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × Ø${pocket} · ${thickness}mm`} />
+      <Row
+        label="Marking"
+        value={config.label.enabled && config.underside === 'well' ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'}
+      />
+    </TitleFrame>
+  )
+}
+
+function TitleFrame({ status, name, children }: { status: Props['status']; name: string; children: React.ReactNode }) {
+  return (
+    <footer className="pointer-events-none absolute right-3 bottom-3 w-56 border-2 border-measure/50 bg-card/90 text-card-foreground backdrop-blur-sm sm:right-5 sm:bottom-5 sm:w-72">
       <div className="flex items-center gap-2 border-b-2 border-measure/50 px-3 py-2">
         <span className="readout truncate text-xs text-measure">{name}</span>
         <Badge variant={status === 'blocked' ? 'destructive' : 'secondary'} className="note ms-auto">
@@ -47,11 +76,7 @@ export function TitleBlock({ config, status, name }: Props) {
           bug this has had. Watertightness is asserted against a real export in the
           tests instead. */}
       <dl className="grid grid-cols-[5.5rem_1fr] items-baseline text-xs *:py-1 [&>dd]:pl-3 [&>dt]:border-r [&>dt]:border-border [&>dt]:px-3">
-        <Row label="Magnets" value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × Ø${pocket} · ${thickness}mm`} />
-        <Row
-          label="Marking"
-          value={config.label.enabled && config.underside === 'well' ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'}
-        />
+        {children}
       </dl>
     </footer>
   )

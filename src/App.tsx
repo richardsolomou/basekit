@@ -1,5 +1,6 @@
-import { Box, Code2, Download, PanelLeft } from 'lucide-react'
-import { useState } from 'react'
+import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { zipSync } from 'fflate'
 import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
 import { Accordion } from '@/components/ui/accordion'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
+import { defaultHolderConfig, holderLayout, holderName, holderPlan } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   DEFAULT_PRESET,
@@ -25,7 +27,7 @@ import {
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
 import { exportSegmentsFor } from '@/geometry/quality'
-import type { BaseConfig, EdgeProfile, ShapeKind, Underside } from '@/geometry/types'
+import type { BaseConfig, EdgeProfile, HolderConfig, ShapeKind, Underside } from '@/geometry/types'
 import { buildMesh } from '@/lib/buildMesh'
 import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
@@ -48,21 +50,66 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 ]
 
 const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Well' },
+  { value: 'well', label: 'Hollow well' },
   { value: 'solid', label: 'Solid' },
 ]
 
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const MAGNET_COUNTS = counts(MAGNET_CHOICES)
 const RIB_COUNTS = counts(RIB_CHOICES)
+const MODELS = [
+  { value: 'base' as const, label: 'Bases', href: '/' },
+  { value: 'holder' as const, label: 'Holders', href: '/holders' },
+]
+const ENGRAVING_PLACEMENTS = [
+  { value: 'slots' as const, label: 'In slots' },
+  { value: 'module' as const, label: 'On module' },
+]
+
+const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+
+function RepositoryLink() {
+  return (
+    <div className="flex justify-center px-5 pt-4">
+      <a
+        href="https://github.com/richardsolomou/mini-bases"
+        target="_blank"
+        rel="noreferrer"
+        className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}
+      >
+        <Code2 className="size-3.5" />
+        GitHub
+      </a>
+    </div>
+  )
+}
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
+  const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
+  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const { preview, error } = useGenerator(config)
+  const partConfig = model === 'base' ? config : holder
+  const { preview, error } = useGenerator(partConfig)
+
+  useEffect(() => {
+    const syncRoute = () => setModel(modelForPath())
+    window.addEventListener('popstate', syncRoute)
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [])
+
+  useEffect(() => {
+    document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
+  }, [model])
+
+  const changeModel = (next: 'base' | 'holder') => {
+    if (next === model) return
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    setModel(next)
+  }
 
   const safeEdgeSize = (next: BaseConfig) => Math.floor((maxProfileSize(next) + 1e-6) * 10) / 10
   const patch = (changes: Partial<BaseConfig>) =>
@@ -71,6 +118,26 @@ export function App() {
       return { ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) }
     })
   const { width, length } = footprint(config)
+  const holderSize = holderLayout(holder)
+  const plan = holderPlan(holder)
+  const requestedModels = holder.groups.reduce((total, group) => total + group.quantity, 0)
+  const fittedByGroup = new Map<string, number>()
+  for (const module of plan.modules) {
+    for (const group of module.config.groups) fittedByGroup.set(group.id, (fittedByGroup.get(group.id) ?? 0) + group.quantity)
+  }
+  const moveGroup = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= holder.groups.length) return
+    const groups = [...holder.groups]
+    const current = groups[index]
+    groups[index] = groups[target]
+    groups[target] = current
+    setHolder({ ...holder, groups })
+  }
+  const partWidth = model === 'base' ? width : holderSize.width
+  const partLength = model === 'base' ? length : holderSize.length
+  const partHeight = model === 'base' ? config.height : holder.height
+  const partName = model === 'base' ? baseName(config) : holderName(holder)
   const elongated = isElongated(config.shape)
   const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
@@ -93,7 +160,7 @@ export function App() {
     setExporting(format)
     setExportError(undefined)
     try {
-      return await buildMesh({ ...config, segments: exportSegmentsFor(Math.max(width, length)) })
+      return await buildMesh({ ...partConfig, segments: exportSegmentsFor(Math.max(partWidth, partLength)) })
     } catch (failure) {
       posthog.captureException(failure, { export_format: format })
       setExportError(failure instanceof Error ? failure.message : String(failure))
@@ -103,9 +170,32 @@ export function App() {
   }
 
   const exportStl = async () => {
+    if (model === 'holder' && plan.modules.length > 1) {
+      setExporting('stl')
+      setExportError(undefined)
+      try {
+        const meshes = await Promise.all(
+          plan.modules.map((module) =>
+            buildMesh({ ...module.config, segments: exportSegmentsFor(Math.max(module.layout.width, module.layout.length)) }),
+          ),
+        )
+        const files = Object.fromEntries(
+          meshes.map((mesh, index) => {
+            const name = `module-${index + 1}-${holderName(plan.modules[index].config)}.stl`
+            return [name, toStl(asMeshLike(mesh), name)]
+          }),
+        )
+        download(`${partName}.zip`, zipSync(files))
+      } catch (failure) {
+        setExportError(failure instanceof Error ? failure.message : String(failure))
+      } finally {
+        setExporting(undefined)
+      }
+      return
+    }
     const mesh = await buildExport('stl')
     if (!mesh) return
-    const name = `${baseName(config)}.stl`
+    const name = `${partName}.stl`
     download(name, toStl(asMeshLike(mesh), name))
     posthog.capture('base_exported', { format: 'stl', shape: config.shape, width, length, height: config.height })
   }
@@ -113,17 +203,16 @@ export function App() {
   const export3mf = async () => {
     const mesh = await buildExport('3mf')
     if (!mesh) return
-    const name = baseName(config)
+    const name = partName
     download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
     posthog.capture('base_exported', { format: '3mf', shape: config.shape, width, length, height: config.height })
   }
 
-  const panel = (
+  const basePanel = (
     <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Footprint">
-          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
           <SizeSelect
             value={standard?.label ?? null}
             options={sizes.map((size) => ({ value: size.label, use: size.use }))}
@@ -132,8 +221,9 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
+          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
           <Dimension
-            label={elongated ? 'Width' : 'Across'}
+            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
             value={config.width}
             min={15}
             max={180}
@@ -160,13 +250,6 @@ export function App() {
             </span>
           }
         >
-          <Choice
-            label="Magnets per base"
-            hideLabel
-            value={config.magnets.count}
-            options={MAGNET_COUNTS}
-            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
-          />
           <Dimension
             label="Magnet Ø"
             value={config.magnets.diameter}
@@ -216,14 +299,24 @@ export function App() {
               onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
               className="readout"
             />
-            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside back under Profile.</FieldDescription>}
+            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside under Construction.</FieldDescription>}
           </Field>
         </Section>
 
         {/* Folds are independent: opening the profile should not shut the tolerances. */}
         <Accordion multiple className="border-b border-border">
-          <Fold title="Profile" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
+          <Fold title="Construction" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
             <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
+            <div aria-hidden="true" className="grid grid-cols-2 gap-2 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+              <div className={`border p-2 ${hollow ? 'border-measure/60 text-measure' : 'border-border'}`}>
+                <div className="mx-auto mb-1 h-3 w-12 border-x border-b border-current" />
+                Recessed
+              </div>
+              <div className={`border p-2 ${hollow ? 'border-border' : 'border-measure/60 text-measure'}`}>
+                <div className="mx-auto mb-1 h-3 w-12 border border-current bg-current/10" />
+                Filled
+              </div>
+            </div>
             <Dimension label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
             <Dimension
               label="Wall"
@@ -268,6 +361,19 @@ export function App() {
             {config.shape === 'polygon' && (
               <Dimension label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
             )}
+          </Fold>
+
+          <Fold
+            title="Magnet layout"
+            summary={config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
+          >
+            <Choice
+              label="Magnets per base"
+              hideLabel
+              value={config.magnets.count}
+              options={MAGNET_COUNTS}
+              onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+            />
           </Fold>
 
           <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
@@ -335,55 +441,318 @@ export function App() {
             />
           </Fold>
         </Accordion>
-        <div className="flex justify-center px-5 pt-4">
-          <a
-            href="https://github.com/richardsolomou/mini-bases"
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}
-          >
-            <Code2 className="size-3.5" />
-            Source
-          </a>
-        </div>
+        <RepositoryLink />
       </aside>
     </ScrollArea>
   )
 
+  const holderPanel = (
+    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Holder settings" className="pb-4 [counter-reset:schedule]">
+        <Section
+          title="Miniatures"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {holderSize.slotCenters.length}/{requestedModels} fitted
+            </span>
+          }
+        >
+          <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
+          <div className="grid grid-cols-[3rem_4rem_1fr_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+            <span>Fit</span>
+            <span>Qty</span>
+            <span>Base Ø</span>
+          </div>
+          {holder.groups.map((group, index) => (
+            <div
+              key={group.id}
+              className="grid grid-cols-[3rem_4rem_1fr_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
+            >
+              <span
+                className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
+              >
+                {fittedByGroup.get(group.id) ?? 0}/{group.quantity}
+              </span>
+              <Dimension
+                label={`Quantity ${index + 1}`}
+                value={group.quantity}
+                min={1}
+                max={100}
+                step={1}
+                unit=""
+                compact
+                onChange={(quantity) => {
+                  const groups = holder.groups.map((entry, groupIndex) =>
+                    groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
+                  )
+                  setHolder({ ...holder, groups })
+                }}
+              />
+              <Dimension
+                label={`Base Ø ${index + 1}`}
+                value={group.diameter}
+                min={15}
+                max={180}
+                step={0.5}
+                compact
+                onChange={(diameter) =>
+                  setHolder({
+                    ...holder,
+                    groups: holder.groups.map((entry, groupIndex) => (groupIndex === index ? { ...group, diameter } : entry)),
+                  })
+                }
+              />
+              <div className="flex">
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Increase priority of miniature group ${index + 1}`}
+                  disabled={index === 0}
+                  onClick={() => moveGroup(index, -1)}
+                >
+                  <ChevronUp />
+                </Button>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Decrease priority of miniature group ${index + 1}`}
+                  disabled={index === holder.groups.length - 1}
+                  onClick={() => moveGroup(index, 1)}
+                >
+                  <ChevronDown />
+                </Button>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Remove miniature group ${index + 1}`}
+                  disabled={holder.groups.length === 1}
+                  onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </div>
+          ))}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setHolder({ ...holder, groups: [...holder.groups, { id: crypto.randomUUID(), quantity: 1, diameter: 40 }] })}
+          >
+            <Plus /> Add size
+          </Button>
+        </Section>
+
+        <Section
+          title="Layout"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {holderSize.unitsWide} × {holderSize.unitsDeep} used
+            </span>
+          }
+        >
+          <Dimension
+            label="Maximum columns"
+            value={holder.maxColumns}
+            min={1}
+            max={12}
+            step={1}
+            unit=""
+            onChange={(maxColumns) => setHolder({ ...holder, maxColumns: Math.round(maxColumns) })}
+          />
+          <Dimension
+            label="Maximum rows"
+            value={holder.maxRows}
+            min={1}
+            max={12}
+            step={1}
+            unit=""
+            onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
+          />
+          <Dimension
+            label="Between minis"
+            value={holder.spacing}
+            min={0}
+            max={10}
+            step={0.5}
+            onChange={(spacing) => setHolder({ ...holder, spacing })}
+          />
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="split-holder-groups" className="font-normal">
+              Split into modules
+            </FieldLabel>
+            <Switch
+              id="split-holder-groups"
+              checked={holder.splitGroups}
+              onCheckedChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
+            />
+          </Field>
+          <div className="space-y-1 border-y border-border py-3 text-xs">
+            {plan.modules.map((module, index) => (
+              <div key={`${module.config.groups[0].id}-${module.column}-${module.row}`} className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Module {index + 1}</span>
+                <span className="readout">
+                  {module.config.groups.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' + ')} ·{' '}
+                  {module.layout.unitsWide}×{module.layout.unitsDeep}
+                </span>
+              </div>
+            ))}
+          </div>
+          <Dimension
+            label="Height"
+            value={holder.height}
+            min={7}
+            max={42}
+            step={7}
+            onChange={(height) => setHolder({ ...holder, height })}
+          />
+        </Section>
+
+        <Section title="Slots" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(holder.slotDepth)}mm deep</span>}>
+          <Dimension
+            label="Slot depth"
+            value={holder.slotDepth}
+            min={1}
+            max={Math.max(1, holder.height - (holder.magnets.enabled ? holder.magnets.thickness : 0) - 0.4)}
+            step={0.5}
+            onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
+          />
+          <Dimension
+            label="Slot clearance"
+            value={holder.slotClearance}
+            min={0.1}
+            max={2}
+            step={0.1}
+            onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
+          />
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="holder-engraving" className="font-normal">
+              Engrave base sizes
+            </FieldLabel>
+            <Switch
+              id="holder-engraving"
+              checked={holder.engraving.enabled}
+              onCheckedChange={(enabled) => setHolder({ ...holder, engraving: { ...holder.engraving, enabled } })}
+            />
+          </Field>
+          {holder.engraving.enabled && (
+            <Choice
+              label="Engraving location"
+              value={holder.engraving.placement}
+              options={ENGRAVING_PLACEMENTS}
+              onChange={(placement) => setHolder({ ...holder, engraving: { ...holder.engraving, placement } })}
+            />
+          )}
+        </Section>
+
+        <Section
+          title="Magnets"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              Ø{trimNumber(holder.magnets.diameter + holder.magnets.clearance)} pocket
+            </span>
+          }
+        >
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="holder-magnets" className="font-normal">
+              Slot magnets
+            </FieldLabel>
+            <Switch
+              id="holder-magnets"
+              checked={holder.magnets.enabled}
+              onCheckedChange={(enabled) => setHolder({ ...holder, magnets: { ...holder.magnets, enabled } })}
+            />
+          </Field>
+          <Dimension
+            label="Magnet Ø"
+            value={holder.magnets.diameter}
+            min={2}
+            max={8}
+            step={0.5}
+            disabled={!holder.magnets.enabled}
+            onChange={(diameter) => setHolder({ ...holder, magnets: { ...holder.magnets, diameter } })}
+          />
+          <Dimension
+            label="Magnet thickness"
+            value={holder.magnets.thickness}
+            min={0.5}
+            max={Math.max(0.5, holder.height - holder.slotDepth - 0.4)}
+            step={0.1}
+            disabled={!holder.magnets.enabled}
+            onChange={(thickness) => setHolder({ ...holder, magnets: { ...holder.magnets, thickness } })}
+          />
+          <Dimension
+            label="Magnet fit clearance"
+            value={holder.magnets.clearance}
+            min={0}
+            max={1}
+            step={0.05}
+            disabled={!holder.magnets.enabled}
+            onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
+          />
+        </Section>
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel = model === 'base' ? basePanel : holderPanel
+
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-4">
           {/* Same panel, same order; on a narrow screen it slides in from the left
               instead of standing beside the sheet. */}
           {!docked && (
             <Sheet>
-              <SheetTrigger render={<Button size="icon-sm" variant="outline" aria-label="Base settings" />}>
+              <SheetTrigger
+                render={<Button size="icon-sm" variant="outline" aria-label={`${model === 'base' ? 'Base' : 'Holder'} settings`} />}
+              >
                 <PanelLeft />
               </SheetTrigger>
               <SheetContent side="left" className="w-80 max-w-[85vw] gap-0 p-0">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">
-                  <SheetTitle className="note">Base settings</SheetTitle>
+                  <SheetTitle className="note">{model === 'base' ? 'Base' : 'Holder'} settings</SheetTitle>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
               </SheetContent>
             </Sheet>
           )}
-          <h1 className="text-sm font-medium tracking-[0.18em] uppercase">
-            Mini <span className="text-measure">Bases</span>
+          <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase">
+            <span className="sm:hidden">MB</span>
+            <span className="max-sm:hidden">
+              Mini <span className="text-measure">Bases</span>
+            </span>
           </h1>
+          <nav aria-label="Generators" className="flex self-stretch">
+            {MODELS.map((item) => (
+              <a
+                key={item.value}
+                href={item.href}
+                aria-current={model === item.value ? 'page' : undefined}
+                onClick={(event) => {
+                  event.preventDefault()
+                  changeModel(item.value)
+                }}
+                className="note relative flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
         </div>
         <ButtonGroup>
           {/* The labels fold away on a phone; the icons and the names still read out. */}
           <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
-            <span className="max-sm:sr-only">{exporting === 'stl' ? 'Building STL' : 'Save STL'}</span>
+            <span className="max-sm:sr-only">
+              {exporting === 'stl' ? 'Building STL' : model === 'holder' && plan.modules.length > 1 ? 'Download STLs' : 'Download STL'}
+            </span>
           </Button>
           <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview || exporting !== undefined}>
             <Box />
-            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Save 3MF'}</span>
+            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Download 3MF'}</span>
           </Button>
         </ButtonGroup>
       </header>
@@ -392,16 +761,16 @@ export function App() {
         {docked && panel}
 
         <main className="relative min-w-0 flex-1">
-          <Viewer mesh={preview} width={width} length={length} height={config.height} round={!elongated} />
+          <Viewer mesh={preview} width={partWidth} length={partLength} height={partHeight} round={model === 'base' && !elongated} />
           {(error || exportError) && (
             <div
               role="alert"
               className="absolute inset-x-0 top-0 border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive"
             >
-              {error ? `${error}. Showing the last base that built.` : `Export failed: ${exportError}`}
+              {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
             </div>
           )}
-          <TitleBlock config={config} status={error ? 'blocked' : 'ready'} name={baseName(config)} />
+          <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} />
         </main>
       </div>
     </div>

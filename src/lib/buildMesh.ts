@@ -1,8 +1,8 @@
-import type { BaseConfig } from '@/geometry/types'
+import type { PartConfig } from '@/geometry/types'
 import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
 /** Builds one mesh in an isolated worker, used by exports without replacing the preview. */
-export function buildMesh(config: BaseConfig): Promise<MeshData> {
+export function buildMesh(config: PartConfig): Promise<MeshData> {
   const worker = new Worker(new URL('../worker/base.worker.ts', import.meta.url), { type: 'module' })
   const id = 1
 

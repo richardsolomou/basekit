@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { BaseConfig } from '@/geometry/types'
+import type { PartConfig } from '@/geometry/types'
 import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
 /**
@@ -7,18 +7,18 @@ import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
  * only ever renders the newest config, and every reply is a finished preview, so
  * nothing here reports a pending state.
  */
-export function useGenerator(config: BaseConfig) {
+export function useGenerator(config: PartConfig) {
   const worker = useRef<Worker>(null)
   const nextId = useRef(0)
   const latestPreview = useRef(0)
   const building = useRef(false)
-  const queued = useRef<BaseConfig>(undefined)
+  const queued = useRef<PartConfig>(undefined)
 
   const [preview, setPreview] = useState<MeshData>()
   const [error, setError] = useState<string>()
 
   /** Sends one config and remembers it is the one whose reply matters. */
-  const send = useCallback((next: BaseConfig) => {
+  const send = useCallback((next: PartConfig) => {
     const id = ++nextId.current
     latestPreview.current = id
     building.current = true
