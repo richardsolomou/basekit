@@ -81,7 +81,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.shadowMap.type = THREE.PCFShadowMap
     // Both the light and the part are fixed; only the camera moves. Redrawing the
     // shadow map every frame cost more than the scene itself, so it is redrawn
     // once per geometry swap instead.
