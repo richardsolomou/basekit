@@ -22,7 +22,7 @@ The built-in presets include the common Games Workshop, The Old World, Kings of 
 
 ## How it works 🧲
 
-1. **Choose the size and shape** from a standard base size or enter exact dimensions.
+1. **Choose the footprint** by picking its shape, then a standard size or exact dimensions.
 2. **Match your magnets** by setting their diameter, thickness, fit, and count.
 3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
