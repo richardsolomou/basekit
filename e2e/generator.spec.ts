@@ -75,6 +75,7 @@ test('uses wider default framing for holders until the viewer zooms', { tag: '@c
     const label = document.querySelector<SVGTextElement>('#label-across')!
     viewport.dataset.zoomedBeforeMeshSwap = 'false'
     viewport.dataset.dimensionsChangedBeforeMeshSwap = 'false'
+    viewport.dataset.fadeMissingAtMeshSwap = 'false'
     new MutationObserver(() => {
       if (viewport.dataset.meshModel === 'base' && Math.abs(Number(viewport.dataset.cameraDistance) - distance) > 1) {
         viewport.dataset.zoomedBeforeMeshSwap = 'true'
@@ -85,6 +86,15 @@ test('uses wider default framing for holders until the viewer zooms', { tag: '@c
         viewport.dataset.dimensionsChangedBeforeMeshSwap = 'true'
       }
     }).observe(label, { childList: true, characterData: true, subtree: true })
+    new MutationObserver(() => {
+      if (viewport.dataset.meshModel === 'holder') {
+        const canvas = viewport.querySelector('canvas')!
+        const leaders = viewport.parentElement!.querySelector('svg')!
+        if (canvas.getAnimations().length === 0 || leaders.getAnimations().length === 0) {
+          viewport.dataset.fadeMissingAtMeshSwap = 'true'
+        }
+      }
+    }).observe(viewport, { attributes: true, attributeFilter: ['data-mesh-model'] })
   }, baseDistance)
 
   await page.getByRole('link', { name: 'Holders' }).click()
@@ -92,6 +102,7 @@ test('uses wider default framing for holders until the viewer zooms', { tag: '@c
   await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance * 1.4, 4)
   await expect(drawn(page)).toHaveAttribute('data-zoomed-before-mesh-swap', 'false')
   await expect(drawn(page)).toHaveAttribute('data-dimensions-changed-before-mesh-swap', 'false')
+  await expect(drawn(page)).toHaveAttribute('data-fade-missing-at-mesh-swap', 'false')
 
   const holderTriangles = await triangles(page)
   await page.getByRole('link', { name: 'Bases' }).click()

@@ -15,6 +15,7 @@ const FIELD_OF_VIEW = 38
  */
 const REFERENCE_FOOTPRINT = 50
 const HOLDER_ZOOM = 1.4
+const SWITCH_FADE_MS = 120
 
 /**
  * Distance at which the reference footprint fits the *narrower* axis. A phone
@@ -302,6 +303,11 @@ export function Viewer({ mesh, model, meshModel, width, length, height, round }:
     if (viewCamera && meshModel && meshModel !== framedModel.current) {
       framedModel.current = meshModel
       if (!zoomHeld.current) viewCamera.position.setLength(framingDistance(viewCamera.aspect, meshModel))
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const timing = { duration: SWITCH_FADE_MS, easing: 'ease-out' }
+        shadowsDirty.current?.domElement.animate({ opacity: [0, 1] }, timing)
+        overlay.current?.animate({ opacity: [0, 1] }, timing)
+      }
     }
 
     // The triangle count of what is actually in the scene, which is the only
