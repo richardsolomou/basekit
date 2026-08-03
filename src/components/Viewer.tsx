@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { trimNumber } from '@/geometry/outline'
@@ -253,7 +253,7 @@ export function Viewer({ mesh, model, meshModel, width, length, height, round }:
   }, [])
 
   // Swap in new geometry, keeping the camera where it was.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const group = part.current
     if (!group || !mesh) return
 

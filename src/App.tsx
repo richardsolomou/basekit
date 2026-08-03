@@ -107,7 +107,7 @@ export function App() {
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
-  const { preview, previewKind, error } = useGenerator(partConfig)
+  const { preview, previewConfig, error } = useGenerator(partConfig)
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -171,6 +171,15 @@ export function App() {
   const partWidth = model === 'base' ? width : holderSize.width
   const partLength = model === 'base' ? length : holderSize.length
   const partHeight = model === 'base' ? config.height : holder.height
+  const previewIsHolder = previewConfig?.kind === 'holder'
+  const previewSize = previewConfig ? (previewIsHolder ? holderLayout(previewConfig) : footprint(previewConfig)) : undefined
+  const previewWidth = previewSize?.width ?? partWidth
+  const previewLength = previewSize?.length ?? partLength
+  const previewHeight = previewConfig?.height ?? partHeight
+  const previewModel = previewIsHolder ? 'holder' : 'base'
+  const previewRound = previewConfig
+    ? !previewIsHolder && !isElongated(previewConfig.shape)
+    : model === 'base' && !isElongated(config.shape)
   const partName = model === 'base' ? baseName(config) : holderName(holder)
   const {
     exporting,
@@ -891,11 +900,11 @@ export function App() {
           <Viewer
             mesh={preview}
             model={model}
-            meshModel={previewKind}
-            width={partWidth}
-            length={partLength}
-            height={partHeight}
-            round={model === 'base' && !elongated}
+            meshModel={previewModel}
+            width={previewWidth}
+            length={previewLength}
+            height={previewHeight}
+            round={previewRound}
           />
           {(error || exportError) && (
             <div

@@ -15,7 +15,7 @@ export function useGenerator(config: PartConfig) {
   const building = useRef(false)
   const queued = useRef<PartConfig>(undefined)
 
-  const [preview, setPreview] = useState<{ mesh: MeshData; kind: 'base' | 'holder' }>()
+  const [preview, setPreview] = useState<{ mesh: MeshData; config: PartConfig }>()
   const [error, setError] = useState<string>()
 
   /** Sends one config and remembers it is the one whose reply matters. */
@@ -44,7 +44,7 @@ export function useGenerator(config: PartConfig) {
       if (reply.kind === 'error') {
         setError(reply.message)
       } else {
-        setPreview({ mesh: reply.mesh, kind: latestConfig.current.kind === 'holder' ? 'holder' : 'base' })
+        setPreview({ mesh: reply.mesh, config: latestConfig.current })
         setError(undefined)
       }
       drain()
@@ -60,5 +60,5 @@ export function useGenerator(config: PartConfig) {
     else send(config)
   }, [config, send])
 
-  return { preview: preview?.mesh, previewKind: preview?.kind, error }
+  return { preview: preview?.mesh, previewConfig: preview?.config, error }
 }

@@ -72,18 +72,26 @@ test('uses wider default framing for holders until the viewer zooms', { tag: '@c
   const baseTriangles = await triangles(page)
   await page.evaluate((distance) => {
     const viewport = document.querySelector<HTMLElement>('[data-triangles]')!
+    const label = document.querySelector<SVGTextElement>('#label-across')!
     viewport.dataset.zoomedBeforeMeshSwap = 'false'
+    viewport.dataset.dimensionsChangedBeforeMeshSwap = 'false'
     new MutationObserver(() => {
       if (viewport.dataset.meshModel === 'base' && Math.abs(Number(viewport.dataset.cameraDistance) - distance) > 1) {
         viewport.dataset.zoomedBeforeMeshSwap = 'true'
       }
     }).observe(viewport, { attributes: true, attributeFilter: ['data-camera-distance'] })
+    new MutationObserver(() => {
+      if (viewport.dataset.meshModel === 'base' && label.textContent !== 'Ø32') {
+        viewport.dataset.dimensionsChangedBeforeMeshSwap = 'true'
+      }
+    }).observe(label, { childList: true, characterData: true, subtree: true })
   }, baseDistance)
 
   await page.getByRole('link', { name: 'Holders' }).click()
   await rebuilt(page, baseTriangles)
   await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance * 1.4, 4)
   await expect(drawn(page)).toHaveAttribute('data-zoomed-before-mesh-swap', 'false')
+  await expect(drawn(page)).toHaveAttribute('data-dimensions-changed-before-mesh-swap', 'false')
 
   const holderTriangles = await triangles(page)
   await page.getByRole('link', { name: 'Bases' }).click()
