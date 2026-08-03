@@ -5,6 +5,7 @@ const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: './e2e',
+  grep: process.env.CI ? /@ci/ : undefined,
   // WASM booleans are CPU-heavy and a CI runner takes several times longer than a
   // laptop, so the default 30s is not enough headroom.
   timeout: 60_000,

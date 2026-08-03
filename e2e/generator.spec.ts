@@ -56,7 +56,7 @@ test.beforeEach(async ({ page }) => {
   test.info().annotations.push({ type: 'console', description: errors.join('\n') })
 })
 
-test('builds the default base on load', async ({ page }) => {
+test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
   await expect(across(page)).toHaveText('Ø32')
   await expect(tall(page)).toHaveText('4')
   await expect(footer(page)).toContainText('base-round-32mm')
@@ -67,7 +67,7 @@ test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
 })
 
-test('keeps a half millimetre size exact', async ({ page }) => {
+test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
   await expect(across(page)).toHaveText('Ø28.5')
@@ -75,7 +75,7 @@ test('keeps a half millimetre size exact', async ({ page }) => {
   await expect(marking(page)).toHaveAttribute('placeholder', '28.5')
 })
 
-test('marks and resets a changed value to its default', async ({ page }) => {
+test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
   const reset = page.getByRole('button', { name: 'Reset Diameter to 32.0 mm' })
   await expect(reset).toBeVisible()
@@ -126,7 +126,7 @@ test('exports a 3MF as well', async ({ page }) => {
   expect((await download).suggestedFilename()).toBe('base-round-32mm.3mf')
 })
 
-test('exports finer circular geometry than the preview', async ({ page }) => {
+test('exports finer circular geometry than the preview', { tag: '@ci' }, async ({ page }) => {
   const previewTriangles = await triangles(page)
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
@@ -136,7 +136,7 @@ test('exports finer circular geometry than the preview', async ({ page }) => {
   expect(stl.readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
-test('builds and exports an automatically sized Gridfinity holder', async ({ page }) => {
+test('builds and exports an automatically sized Gridfinity holder', { tag: '@ci' }, async ({ page }) => {
   const before = await triangles(page)
   await page.getByRole('link', { name: 'Holders' }).click()
   await rebuilt(page, before)
@@ -354,7 +354,7 @@ test('takes magnets out of the underside of a solid base', async ({ page }) => {
   await expect(page.getByText(/solid base has no well/i)).toBeVisible()
 })
 
-test('moves the controls into a drawer on a phone', async ({ page }) => {
+test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   // The docked panel is not rendered at all below `md`, so nothing is duplicated.
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toBeHidden()
