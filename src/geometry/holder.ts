@@ -1,5 +1,6 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
+import { magnetPositions } from './base'
 import { isElongated, trimNumber } from './outline'
 import { DEFAULT_SIZE, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
@@ -19,6 +20,7 @@ const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
+const BASE_LABEL_MARGIN = 0.8
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 
 export interface HolderLayout {
@@ -95,6 +97,25 @@ function slotWidth(slot: Pick<HolderGroup, 'width'>) {
 
 function slotLength(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
   return isElongated(slot.shape) ? slot.length : slot.width
+}
+
+export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
+  const base = presetFor({
+    label: '',
+    shape: slot.shape,
+    width: slotWidth(slot),
+    length: slotLength(slot),
+    use: '',
+  })
+  const pocketRadius = (base.magnets.diameter + base.magnets.clearance) / 2
+  const bossRadius = pocketRadius + base.magnets.bossWall
+  const halfWidth = Math.max(0, slotWidth(slot) / 2 - base.wallThickness)
+  const halfLength = Math.max(0, slotLength(slot) / 2 - base.wallThickness)
+  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + BASE_LABEL_MARGIN).map(({ x, y }) => ({ x, y }))
+}
+
+export function holderMagnetPocketCount(config: HolderConfig): number {
+  return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot).length, 0)
 }
 
 function maxPossibleGroupQuantity(
@@ -627,11 +648,15 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
     if (config.magnets.enabled) {
       const radius = (config.magnets.diameter + config.magnets.clearance) / 2
       const magnetDisc = section(CrossSection.circle(radius, segmentsFor(radius * 2, 32)))
-      const magnetOutlines = layout.slotCenters.map((slot) => section(magnetDisc.translate([slot.x, slot.y])))
-      const magnets = section(CrossSection.union(magnetOutlines))
-      const drill = solidOf(magnets.extrude(config.magnets.thickness + 0.001))
-      const pocketFloor = config.height - config.slotDepth - config.magnets.thickness
-      cutters.push(solidOf(drill.translate([0, 0, pocketFloor])))
+      const magnetOutlines = layout.slotCenters.flatMap((slot) =>
+        holderSlotMagnetCenters(slot).map((center) => section(magnetDisc.translate([slot.x + center.x, slot.y + center.y]))),
+      )
+      if (magnetOutlines.length > 0) {
+        const magnets = section(CrossSection.union(magnetOutlines))
+        const drill = solidOf(magnets.extrude(config.magnets.thickness + 0.001))
+        const pocketFloor = config.height - config.slotDepth - config.magnets.thickness
+        cutters.push(solidOf(drill.translate([0, 0, pocketFloor])))
+      }
     }
 
     if (config.engraving.enabled && font) {
