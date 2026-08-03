@@ -100,6 +100,7 @@ function RepositoryLink() {
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
+  const [customBaseSize, setCustomBaseSize] = useState(false)
   const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
@@ -190,6 +191,7 @@ export function App() {
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
+    setCustomBaseSize(false)
     setConfig(presetFor(size))
   }
 
@@ -198,6 +200,7 @@ export function App() {
     if (shape === config.shape) return
     posthog.capture('base_shape_selected', { shape })
     const target = DEFAULT_SIZE[shape]
+    setCustomBaseSize(false)
     setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
   }
 
@@ -208,23 +211,32 @@ export function App() {
         <Section title="Size & Shape">
           <Choice label="Shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <SizeSelect
-            value={standard?.label ?? null}
-            options={sizes.map((size) => ({ value: size.label, use: size.use }))}
+            value={!customBaseSize && standard ? standard.label : CUSTOM_HOLDER_SIZE}
+            options={[
+              ...sizes.map((size) => ({ value: size.label, use: size.use })),
+              { value: CUSTOM_HOLDER_SIZE, label: 'Custom', use: 'exact dimensions' },
+            ]}
             onChange={(label) => {
+              if (label === CUSTOM_HOLDER_SIZE) {
+                setCustomBaseSize(true)
+                return
+              }
               const size = sizes.find((s) => s.label === label)
               if (size) loadPreset(size)
             }}
           />
-          <Dimension
-            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Overall width'}
-            value={config.width}
-            min={15}
-            max={180}
-            step={0.5}
-            defaultValue={BASE_DEFAULTS.width}
-            onChange={(w) => setConfig(resized(config, w, config.length))}
-          />
-          {elongated && (
+          {customBaseSize && (
+            <Dimension
+              label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Overall width'}
+              value={config.width}
+              min={15}
+              max={180}
+              step={0.5}
+              defaultValue={BASE_DEFAULTS.width}
+              onChange={(w) => setConfig(resized(config, w, config.length))}
+            />
+          )}
+          {customBaseSize && elongated && (
             <Dimension
               label="Depth"
               value={config.length}
@@ -490,10 +502,9 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_5.5rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Qty</span>
             <span>Shape</span>
-            <span>Size</span>
           </div>
           {holder.groups.map((group, index) => {
             const groupStandard = holderSizePreset(group)
@@ -503,7 +514,7 @@ export function App() {
             return (
               <div
                 key={group.id}
-                className={`grid grid-cols-[3rem_5.5rem_minmax(0,1fr)] items-center gap-2 border-b pb-2 last:border-0 ${
+                className={`grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2 border-b pb-2 last:border-0 ${
                   missing > 0 ? 'border-destructive/50' : 'border-border'
                 }`}
               >
@@ -536,37 +547,39 @@ export function App() {
                     })
                   }}
                 />
-                <SizeSelect
-                  label={`Standard base size ${index + 1}`}
-                  value={groupStandard?.label ?? CUSTOM_HOLDER_SIZE}
-                  options={[
-                    ...SIZES_BY_SHAPE[group.shape].map((size) => ({ value: size.label, use: size.use })),
-                    { value: CUSTOM_HOLDER_SIZE, label: 'Custom', use: 'exact dimensions' },
-                  ]}
-                  onChange={(value) => {
-                    if (value === CUSTOM_HOLDER_SIZE) {
-                      showCustomHolderGroup(group.id)
-                      return
-                    }
-                    const size = SIZES_BY_SHAPE[group.shape].find((candidate) => candidate.label === value)
-                    if (!size) return
-                    hideCustomHolderGroup(group.id)
-                    setHolder({
-                      ...holder,
-                      groups: holder.groups.map((entry, groupIndex) =>
-                        groupIndex === index
-                          ? holderGroup(group.id, group.quantity, {
-                              shape: size.shape,
-                              width: size.width,
-                              length: size.length ?? size.width,
-                            })
-                          : entry,
-                      ),
-                    })
-                  }}
-                />
+                <div className="col-start-2 min-w-0">
+                  <SizeSelect
+                    label={`Standard base size ${index + 1}`}
+                    value={groupStandard?.label ?? CUSTOM_HOLDER_SIZE}
+                    options={[
+                      ...SIZES_BY_SHAPE[group.shape].map((size) => ({ value: size.label, use: size.use })),
+                      { value: CUSTOM_HOLDER_SIZE, label: 'Custom', use: 'exact dimensions' },
+                    ]}
+                    onChange={(value) => {
+                      if (value === CUSTOM_HOLDER_SIZE) {
+                        showCustomHolderGroup(group.id)
+                        return
+                      }
+                      const size = SIZES_BY_SHAPE[group.shape].find((candidate) => candidate.label === value)
+                      if (!size) return
+                      hideCustomHolderGroup(group.id)
+                      setHolder({
+                        ...holder,
+                        groups: holder.groups.map((entry, groupIndex) =>
+                          groupIndex === index
+                            ? holderGroup(group.id, group.quantity, {
+                                shape: size.shape,
+                                width: size.width,
+                                length: size.length ?? size.width,
+                              })
+                            : entry,
+                        ),
+                      })
+                    }}
+                  />
+                </div>
                 {customOpen && (
-                  <div className="col-span-3 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(3rem+0.5rem)]">
+                  <div className="col-span-2 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(3rem+0.5rem)]">
                     <Dimension
                       label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
                       value={group.width}
@@ -608,7 +621,7 @@ export function App() {
                     )}
                   </div>
                 )}
-                <div className="col-span-3 flex min-w-0 items-center justify-between gap-2 pl-[calc(3rem+0.5rem)]">
+                <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 pl-[calc(3rem+0.5rem)]">
                   {missing > 0 && (
                     <p className="min-w-0 truncate text-xs text-destructive">
                       {fitted === 0 ? `None of ${group.quantity} fit` : `Only ${fitted} of ${group.quantity} fit`}
