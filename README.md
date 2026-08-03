@@ -39,7 +39,7 @@ Every magnet boss ends up on a rib spoke, which braces its root, prints as one c
 
 Three things sit in the open: footprint (shape and size together), magnets, marking. Everything else is folded away in an accordion.
 
-- **Profile** — hollow or solid underside, height, wall, recess floor, edge (taper / bevel / round / straight) and its size, corner radius, side count
+- **Profile** — hollow or solid underside, height, wall, recess floor, edge (taper / bevel / round / straight) and its size, corner radius, side count. Edge size stops before the profile could cut through the wall beside the recess floor
 - **Bracing** — 0–6 rib spokes, thickness, height. They stiffen the thin floor the recess leaves behind, which is the face the model is glued to, and each spoke runs through a magnet boss to brace its root. They stop short of the rim by default; wind the height up to the full recess depth if you want them flush
 - **Tolerances** — magnet fit clearance, wall around the pocket, marking height and emboss depth, and the curve tolerance, named by the chord error it produces for the base you are on
 

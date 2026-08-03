@@ -1,7 +1,7 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
 import { baseOutline, defaultLabel } from './outline'
-import { profileSteps } from './profile'
+import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseConfig, BaseStats } from './types'
 
@@ -204,6 +204,11 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const hollow = config.underside === 'well'
     const wellDepth = config.height - config.floorThickness
     if (hollow && wellDepth < 0.2) throw new Error('No room left for a well — thin the floor')
+    const wallAtFloor =
+      config.wallThickness - profileInsetAt(config.height, config.profile, config.profileSize, config.segments, config.floorThickness)
+    if (hollow && wallAtFloor < MIN_PROFILE_WALL - 1e-6) {
+      throw new Error('Edge profile leaves too little wall at the well floor — reduce the edge size')
+    }
 
     const outline = section(baseOutline(wasm, config))
 

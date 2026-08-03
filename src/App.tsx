@@ -23,6 +23,7 @@ import {
   SIZES_BY_SHAPE,
   type SizePreset,
 } from '@/geometry/presets'
+import { maxProfileSize } from '@/geometry/profile'
 import type { BaseConfig, EdgeProfile, ShapeKind, Underside } from '@/geometry/types'
 import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
@@ -68,7 +69,12 @@ export function App() {
   const docked = useMediaQuery('(min-width: 48rem)')
   const { preview, error } = useGenerator(config)
 
-  const patch = (changes: Partial<BaseConfig>) => setConfig((current) => ({ ...current, ...changes }))
+  const safeEdgeSize = (next: BaseConfig) => Math.floor((maxProfileSize(next) + 1e-6) * 10) / 10
+  const patch = (changes: Partial<BaseConfig>) =>
+    setConfig((current) => {
+      const next = { ...current, ...changes }
+      return { ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) }
+    })
   const { width, length } = footprint(config)
   const elongated = isElongated(config.shape)
   const hollow = config.underside === 'well'
@@ -225,7 +231,7 @@ export function App() {
               label="Edge size"
               value={config.profileSize}
               min={0}
-              max={3}
+              max={safeEdgeSize(config)}
               step={0.1}
               disabled={config.profile === 'straight'}
               onChange={(profileSize) => patch({ profileSize })}

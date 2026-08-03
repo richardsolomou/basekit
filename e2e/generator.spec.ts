@@ -130,6 +130,20 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   await expect(footer(page)).not.toContainText(/blocked/i)
 })
 
+test('caps the edge profile when the recess floor is thinned', async ({ page }) => {
+  await page.getByRole('button', { name: 'PROFILE' }).click()
+  const floorBuild = triangles(page)
+  await page.getByLabel('Recess floor in mm').fill('0.4')
+  await page.getByLabel('Recess floor in mm').press('Enter')
+  await rebuilt(page, floorBuild)
+
+  const edgeBuild = triangles(page)
+  await page.getByLabel('Edge size in mm').fill('3')
+  await page.getByLabel('Edge size in mm').press('Enter')
+  await rebuilt(page, edgeBuild)
+  await expect(page.getByLabel('Edge size in mm')).toHaveValue('1.7')
+})
+
 test('takes an exact typed dimension', async ({ page }) => {
   // The whole point of a typed field over a slider: 28.5 is reachable.
   await page.getByLabel('Across in mm').fill('28.5')

@@ -300,6 +300,11 @@ describe('buildBase', () => {
   it('rejects a floor that leaves no well', () => {
     expect(() => build({ ...preset(ROUND_32), floorThickness: 4 })).toThrow(/No room left for a well/)
   })
+
+  it('rejects an edge profile that cuts through the wall at the well floor', () => {
+    const config = { ...preset(ROUND_32), profileSize: 3, floorThickness: 0.4 }
+    expect(() => build(config)).toThrow(/Edge profile leaves too little wall at the well floor/)
+  })
 })
 
 describe('labels', () => {
