@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { footprintKey } from '../geometry/presets'
 import { defaultWorkspace, loadWorkspace, saveWorkspace, synchronizeWorkspace } from './workspace'
 
 function memoryStorage() {
@@ -19,7 +20,8 @@ describe('workspace state', () => {
     state.shared.labelsEnabled = false
     state.shared.wallThickness = 2.5
     state.shared.magnetBossWall = 1.1
-    state.shared.magnets = { diameter: 6, thickness: 1.5, clearance: 0.3, depthClearance: 0.2 }
+    state.shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)] = 4
+    state.shared.magnets = { maxCount: 8, diameter: 6, thickness: 1.5, clearance: 0.3, depthClearance: 0.2 }
     const synchronized = synchronizeWorkspace(state)
     expect({ label: synchronized.base.label.enabled, engraving: synchronized.holder.engraving.enabled }).toEqual({
       label: false,
@@ -27,6 +29,10 @@ describe('workspace state', () => {
     })
     expect(synchronized.base.magnets).toMatchObject(synchronized.shared.magnets)
     expect(synchronized.holder.magnets).toMatchObject(synchronized.shared.magnets)
+    expect({ base: synchronized.base.magnets.count, holder: synchronized.holder.magnetCounts }).toEqual({
+      base: 4,
+      holder: synchronized.shared.magnetCounts,
+    })
     expect({
       baseWall: synchronized.base.wallThickness,
       baseBoss: synchronized.base.magnets.bossWall,
@@ -41,7 +47,7 @@ describe('workspace state', () => {
     workspace.base.width = 40
     workspace.holder.maxColumns = 4
     workspace.shared.labelsEnabled = false
-    workspace.shared.magnets = { diameter: 6, thickness: 2, clearance: 0.3, depthClearance: 0.2 }
+    workspace.shared.magnets = { maxCount: 8, diameter: 6, thickness: 2, clearance: 0.3, depthClearance: 0.2 }
     const synchronized = synchronizeWorkspace(workspace)
     saveWorkspace(storage, synchronized)
     expect(loadWorkspace(storage)).toEqual(synchronized)

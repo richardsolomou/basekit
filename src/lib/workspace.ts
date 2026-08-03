@@ -1,5 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
-import { DEFAULT_PRESET, presetFor } from '../geometry/presets'
+import { DEFAULT_PRESET, footprintKey, presetFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
@@ -21,7 +21,8 @@ export interface SharedSettings {
   labelsEnabled: boolean
   wallThickness: number
   magnetBossWall: number
-  magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
+  magnetCounts: Record<string, number>
+  magnets: Pick<BaseConfig['magnets'], 'maxCount' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
 export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceState): void {
@@ -37,7 +38,9 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
     labelsEnabled: base.label.enabled,
     wallThickness: base.wallThickness,
     magnetBossWall: base.magnets.bossWall,
+    magnetCounts: {},
     magnets: {
+      maxCount: base.magnets.maxCount,
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
       clearance: base.magnets.clearance,
@@ -48,18 +51,20 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
 
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
+  const count = shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)]
   return {
     ...state,
     base: {
       ...state.base,
       wallThickness: shared.wallThickness,
       label: { ...state.base.label, enabled: shared.labelsEnabled },
-      magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall },
+      magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall, count: count ?? state.base.magnets.count },
     },
     holder: {
       ...state.holder,
       baseWallThickness: shared.wallThickness,
       magnetBossWall: shared.magnetBossWall,
+      magnetCounts: shared.magnetCounts,
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
@@ -97,6 +102,6 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   return (
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
-    Object.values(workspace.holder.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
+    Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )
 }

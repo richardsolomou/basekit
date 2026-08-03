@@ -84,11 +84,6 @@ const HOLDER_DEFAULTS = defaultHolderConfig()
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
 
-function withRememberedMagnetCount(config: BaseConfig, magnetCounts: Record<string, number>): BaseConfig {
-  const count = magnetCounts[footprintKey(config.shape, config.width, config.length)]
-  return count === undefined ? config : { ...config, magnets: { ...config.magnets, count } }
-}
-
 function RepositoryLink() {
   return (
     <div className="flex justify-center px-5 pt-4">
@@ -220,7 +215,7 @@ export function App() {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
     const next = presetFor(size)
-    setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+    setConfig(next)
   }
 
   const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
@@ -263,8 +258,7 @@ export function App() {
     const key = footprintKey(config.shape, config.width, config.length)
     setWorkspace((current) => ({
       ...current,
-      base: { ...current.base, magnets: { ...current.base.magnets, count } },
-      holder: { ...current.holder, magnetCounts: { ...current.holder.magnetCounts, [key]: count } },
+      shared: { ...current.shared, magnetCounts: { ...current.shared.magnetCounts, [key]: count } },
     }))
   }
 
@@ -275,7 +269,7 @@ export function App() {
     const target = DEFAULT_SIZE[shape]
     setCustomBaseSize(false)
     const next = resized({ ...config, shape }, target.width, target.length ?? target.width)
-    setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+    setConfig(next)
   }
 
   const basePanel = (
@@ -309,7 +303,7 @@ export function App() {
               defaultValue={BASE_DEFAULTS.width}
               onChange={(w) => {
                 const next = resized(config, w, config.length)
-                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+                setConfig(next)
               }}
             />
           )}
@@ -323,7 +317,7 @@ export function App() {
               defaultValue={BASE_DEFAULTS.length}
               onChange={(l) => {
                 const next = resized(config, config.width, l)
-                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+                setConfig(next)
               }}
             />
           )}
