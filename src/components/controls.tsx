@@ -78,6 +78,7 @@ function ResetSlot({ children }: { children?: ReactNode }) {
 }
 
 const settingColumns = 'grid w-full grid-cols-[minmax(0,1fr)_0.875rem_7rem] items-center gap-2'
+const settingLabel = 'w-full font-normal'
 
 /**
  * A dimension: type an exact figure, or drag its label to scrub. Typing is the
@@ -130,7 +131,7 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
         <FieldLabel
           htmlFor={id}
           onPointerDown={startScrub}
-          className={compact ? 'sr-only' : `cursor-ew-resize touch-none font-normal ${modified ? 'text-modified' : ''}`}
+          className={compact ? 'sr-only' : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : ''}`}
         >
           {label}
         </FieldLabel>
@@ -194,7 +195,7 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel className={`font-normal ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
+        <FieldLabel className={`${settingLabel} ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
         <ResetSlot>{modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}</ResetSlot>
         <Select
           value={String(value)}
@@ -237,7 +238,7 @@ export function ToggleSetting({
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel htmlFor={id} className={`font-normal ${modified ? 'text-modified' : ''}`}>
+        <FieldLabel htmlFor={id} className={`${settingLabel} ${modified ? 'text-modified' : ''}`}>
           {label}
         </FieldLabel>
         <ResetSlot>
