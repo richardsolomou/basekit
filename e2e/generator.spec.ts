@@ -67,6 +67,15 @@ test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
 })
 
+test('opens selects from their visible labels', async ({ page }) => {
+  await page.getByText('Shape', { exact: true }).click()
+  await expect(page.getByRole('option', { name: 'Round', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.getByText('Size', { exact: true }).click()
+  await expect(sizeOption(page, '32')).toBeVisible()
+})
+
 test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)

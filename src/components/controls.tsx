@@ -183,13 +183,16 @@ interface ChoiceProps<T extends string | number> {
  * are mapped back through the options so numbers survive the trip.
  */
 export function Choice<T extends string | number>({ label, value, defaultValue, options, onChange }: ChoiceProps<T>) {
+  const id = useId()
   const modified = defaultValue !== undefined && value !== defaultValue
   const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
   const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel className={`${settingLabel} col-span-2 ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
+        <FieldLabel htmlFor={id} className={`${settingLabel} col-span-2 ${modified ? 'text-modified' : ''}`}>
+          {label}
+        </FieldLabel>
         {modified && (
           <ResetSlot>
             <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />
@@ -202,7 +205,7 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
             if (picked) onChange(picked.value)
           }}
         >
-          <SelectTrigger aria-label={label} className="w-28">
+          <SelectTrigger id={id} aria-label={label} className="w-28">
             <SelectValue>
               <span className="readout truncate text-xs">{selectedLabel}</span>
             </SelectValue>
