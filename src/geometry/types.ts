@@ -73,7 +73,7 @@ export interface BaseStats {
 
 export interface HolderConfig {
   kind: 'holder'
-  groups: { id: string; quantity: number; diameter: number }[]
+  groups: HolderGroup[]
   maxColumns: number
   maxRows: number
   splitGroups: boolean
@@ -94,6 +94,16 @@ export interface HolderConfig {
     thickness: number
   }
   segments: number
+}
+
+export interface HolderGroup {
+  id: string
+  quantity: number
+  shape: ShapeKind
+  width: number
+  length: number
+  cornerRadius: number
+  sides: number
 }
 
 export interface BasePartConfig extends BaseConfig {

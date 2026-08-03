@@ -1,7 +1,7 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -11,7 +11,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
-import { defaultHolderConfig, holderLayout, holderName, holderPlan, maxHolderMagnetThickness, maxHolderSlotDepth } from '@/geometry/holder'
+import {
+  defaultHolderConfig,
+  holderGroup,
+  holderGroupLabel,
+  holderLayout,
+  holderName,
+  holderPlan,
+  maxHolderMagnetThickness,
+  maxHolderSlotDepth,
+} from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   DEFAULT_PRESET,
@@ -502,15 +511,16 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+          <div className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span>Base diameter</span>
+            <span>Shape</span>
+            <span>Size</span>
           </div>
           {holder.groups.map((group, index) => (
             <div
               key={group.id}
-              className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
+              className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
             >
               <span
                 className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -532,21 +542,59 @@ export function App() {
                   setHolder({ ...holder, groups })
                 }}
               />
+              <CompactChoice
+                label={`Shape ${index + 1}`}
+                value={group.shape}
+                options={SHAPES}
+                onChange={(shape) =>
+                  setHolder({
+                    ...holder,
+                    groups: holder.groups.map((entry, groupIndex) =>
+                      groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
+                    ),
+                  })
+                }
+              />
               <Dimension
-                label={`Base diameter ${index + 1}`}
-                value={group.diameter}
+                label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
+                value={group.width}
                 min={15}
                 max={180}
                 step={0.5}
                 compact
-                onChange={(diameter) =>
+                onChange={(baseWidth) =>
                   setHolder({
                     ...holder,
-                    groups: holder.groups.map((entry, groupIndex) => (groupIndex === index ? { ...group, diameter } : entry)),
+                    groups: holder.groups.map((entry, groupIndex) =>
+                      groupIndex === index
+                        ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
+                        : entry,
+                    ),
                   })
                 }
               />
-              <div className="flex">
+              {isElongated(group.shape) && (
+                <>
+                  <span />
+                  <span />
+                  <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
+                  <Dimension
+                    label={`Base depth ${index + 1}`}
+                    value={group.length}
+                    min={15}
+                    max={180}
+                    step={0.5}
+                    compact
+                    onChange={(baseLength) =>
+                      setHolder({
+                        ...holder,
+                        groups: holder.groups.map((entry, groupIndex) => (groupIndex === index ? { ...group, length: baseLength } : entry)),
+                      })
+                    }
+                  />
+                </>
+              )}
+              <div className="col-span-4 flex justify-end">
                 <Button
                   size="icon-xs"
                   variant="ghost"
@@ -580,7 +628,7 @@ export function App() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setHolder({ ...holder, groups: [...holder.groups, { id: crypto.randomUUID(), quantity: 1, diameter: 40 }] })}
+            onClick={() => setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })}
           >
             <Plus /> Add size
           </Button>
@@ -631,10 +679,13 @@ export function App() {
           />
           <div className="space-y-1 border-y border-border py-3 text-xs">
             {plan.modules.map((module, index) => (
-              <div key={`${module.config.groups[0].id}-${module.column}-${module.row}`} className="flex justify-between gap-3">
+              <div
+                key={`${module.config.groups[0].id}-${module.column}-${module.row}`}
+                className="flex flex-wrap justify-between gap-x-3 gap-y-1"
+              >
                 <span className="text-muted-foreground">Module {index + 1}</span>
-                <span className="readout">
-                  {module.config.groups.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' + ')} ·{' '}
+                <span className="readout text-right">
+                  {module.config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' + ')} ·{' '}
                   {module.layout.unitsWide}×{module.layout.unitsDeep}
                 </span>
               </div>

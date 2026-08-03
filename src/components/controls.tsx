@@ -221,6 +221,32 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
   )
 }
 
+export function CompactChoice<T extends string | number>({ label, value, options, onChange }: Omit<ChoiceProps<T>, 'defaultValue'>) {
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
+  return (
+    <Select
+      value={String(value)}
+      onValueChange={(next) => {
+        const picked = options.find((option) => String(option.value) === String(next))
+        if (picked) onChange(picked.value)
+      }}
+    >
+      <SelectTrigger aria-label={label} className="w-full min-w-0">
+        <SelectValue>
+          <span className="readout truncate text-xs">{selectedLabel}</span>
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={String(option.value)} value={String(option.value)}>
+            <span className="readout text-xs">{option.label}</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function ToggleSetting({
   label,
   checked,

@@ -252,6 +252,18 @@ test('adds another miniature size to the holder', async ({ page }) => {
   expect(Object.keys(unzipSync(await readFile(path))).filter((name) => name.endsWith('.stl'))).toHaveLength(2)
 })
 
+test('changes holder slots to non-round base shapes', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const before = await triangles(page)
+  await pickChoice(page, 'Shape 1', 'Oval')
+  await rebuilt(page, before)
+  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('60.0')
+  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('35.0')
+  await expect(footer(page)).toContainText('5×oval 60×35')
+  await expect(footer(page)).toContainText('holder-gridfinity-2x5-5xoval-60x35mm')
+})
+
 const SHAPES = [
   { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
   { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },
