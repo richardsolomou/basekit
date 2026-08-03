@@ -5,7 +5,7 @@
   "description": "Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.",
   "homepage": "https://mini-bases.ras.sh",
   "bugs": "https://github.com/richardsolomou/mini-bases/issues",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/richardsolomou/mini-bases.git"

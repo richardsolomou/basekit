@@ -1,0 +1,55 @@
+name: Bug report
+description: Report behavior that is broken or unexpected.
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Mini Bases. Do not include secrets or unredacted personal information.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      placeholder: |
+        1. Choose a shape and size…
+        2. Change…
+        3. Export…
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - mini-bases.ras.sh
+        - Local development
+        - Other deployment
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: Chrome 140 on macOS 16
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Base configuration
+      description: Include the shape, dimensions, profile, magnets, bracing, tolerances, and any custom marking needed to reproduce it.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, slicer findings, or links to a minimal exported model.
