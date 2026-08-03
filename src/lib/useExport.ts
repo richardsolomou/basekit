@@ -75,7 +75,7 @@ export function useExport({ model, base, holder, width, length }: ExportOptions)
           mesh: asMeshLike(mesh),
           name: `module-${index + 1}-${holderName(plan.modules[index].config)}`,
         }))
-        download(`${name}.3mf`, to3mf(modules, true))
+        download(`${name.replace(/^holder-/, `holders-${modules.length}-`)}.3mf`, to3mf(modules, true))
         return
       }
       const mesh = await build()

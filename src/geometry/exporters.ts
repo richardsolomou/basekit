@@ -51,9 +51,14 @@ const RELS = `<?xml version="1.0" encoding="UTF-8"?>
 <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
 </Relationships>`
 
-const PROJECT_SETTINGS = JSON.stringify({ bed_shape: ['0x0', '256x0', '256x256', '0x256'], curr_bed_type: 'Cool Plate' })
+const PROJECT_SETTINGS = JSON.stringify({
+  filament_settings_id: ['Bambu PLA Basic @BBL X1C'],
+  print_settings_id: '0.20mm Standard @BBL X1C',
+  printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle',
+})
 const PLATE_SIZE = 256
 const PLATE_STRIDE = PLATE_SIZE * 1.2
+const PLATE_MARGIN = 30
 
 function meshXml(mesh: MeshLike): string {
   const { numProp, vertProperties: v, triVerts: t } = mesh
@@ -79,7 +84,7 @@ function placement(mesh: MeshLike, index: number, count: number): string {
   const columns = Math.ceil(Math.sqrt(count))
   const column = index % columns
   const row = Math.floor(index / columns)
-  return `1 0 0 0 1 0 0 0 1 ${10 - minX + column * PLATE_STRIDE} ${10 - minY - row * PLATE_STRIDE} 0`
+  return `1 0 0 0 1 0 0 0 1 ${PLATE_MARGIN - minX + column * PLATE_STRIDE} ${PLATE_MARGIN - minY - row * PLATE_STRIDE} 0`
 }
 
 function modelXml(meshes: { mesh: MeshLike; name: string }[], separateBuildPlates: boolean): string {

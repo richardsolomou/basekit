@@ -345,7 +345,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
   const pending3mf = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download 3MF' }).click()
   const saved3mf = await pending3mf
-  expect(saved3mf.suggestedFilename()).toBe('holder-2x4-5x-round-32mm-1x-round-40mm.3mf')
+  expect(saved3mf.suggestedFilename()).toBe('holders-2-2x4-5x-round-32mm-1x-round-40mm.3mf')
   const path3mf = await saved3mf.path()
   if (!path3mf) throw new Error('download has no local path')
   const archive = unzipSync(await readFile(path3mf))
@@ -363,7 +363,11 @@ test('adds another miniature size to the holder', async ({ page }) => {
   expect(settings).toContain('<metadata key="object_id" value="4"/>')
   expect(archive['3D/Objects/object_1.model']).toBeDefined()
   expect(archive['3D/Objects/object_2.model']).toBeDefined()
-  expect(JSON.parse(project)).toEqual({ bed_shape: ['0x0', '256x0', '256x256', '0x256'], curr_bed_type: 'Cool Plate' })
+  expect(JSON.parse(project)).toEqual({
+    filament_settings_id: ['Bambu PLA Basic @BBL X1C'],
+    print_settings_id: '0.20mm Standard @BBL X1C',
+    printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle',
+  })
 })
 
 test('changes holder slots to non-round base shapes', async ({ page }) => {
