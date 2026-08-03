@@ -1,6 +1,5 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { zipSync } from 'fflate'
+import { useEffect, useMemo, useState } from 'react'
 import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting, type SizeOption } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -10,7 +9,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
-import { to3mf, toStl } from '@/geometry/exporters'
 import {
   defaultHolderConfig,
   holderGroup,
@@ -33,10 +31,8 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import { exportSegmentsFor } from '@/geometry/quality'
 import type { BaseConfig, EdgeProfile, HolderConfig, ShapeKind, Underside } from '@/geometry/types'
-import { buildMesh } from '@/lib/buildMesh'
-import { asMeshLike, download } from '@/lib/download'
+import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
@@ -119,8 +115,6 @@ export function App() {
   const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
-  const [exporting, setExporting] = useState<'stl' | '3mf'>()
-  const [exportError, setExportError] = useState<string>()
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
@@ -149,18 +143,21 @@ export function App() {
       return { ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) }
     })
   const { width, length } = footprint(config)
-  const holderSize = holderLayout(holder)
+  const holderSize = useMemo(() => holderLayout(holder), [holder])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const fitSlotDepth = (next: HolderConfig) => ({
     ...next,
     slotDepth: Math.min(next.slotDepth, Math.max(1, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5)),
   })
-  const plan = holderPlan(holder)
-  const requestedModels = holder.groups.reduce((total, group) => total + group.quantity, 0)
-  const fittedByGroup = new Map<string, number>()
-  for (const module of plan.modules) {
-    for (const group of module.config.groups) fittedByGroup.set(group.id, (fittedByGroup.get(group.id) ?? 0) + group.quantity)
-  }
+  const plan = useMemo(() => holderPlan(holder), [holder])
+  const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
+  const fittedByGroup = useMemo(() => {
+    const fitted = new Map<string, number>()
+    for (const module of plan.modules) {
+      for (const group of module.config.groups) fitted.set(group.id, (fitted.get(group.id) ?? 0) + group.quantity)
+    }
+    return fitted
+  }, [plan])
   const moveGroup = (index: number, direction: -1 | 1) => {
     const target = index + direction
     if (target < 0 || target >= holder.groups.length) return
@@ -186,6 +183,18 @@ export function App() {
   const partLength = model === 'base' ? length : holderSize.length
   const partHeight = model === 'base' ? config.height : holder.height
   const partName = model === 'base' ? baseName(config) : holderName(holder)
+  const {
+    exporting,
+    error: exportError,
+    exportStl,
+    export3mf,
+  } = useExport({
+    model,
+    base: config,
+    holder,
+    width: partWidth,
+    length: partLength,
+  })
   const elongated = isElongated(config.shape)
   const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
@@ -202,58 +211,6 @@ export function App() {
     posthog.capture('base_shape_selected', { shape })
     const target = DEFAULT_SIZE[shape]
     setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
-  }
-
-  const buildExport = async (format: 'stl' | '3mf') => {
-    setExporting(format)
-    setExportError(undefined)
-    try {
-      return await buildMesh({ ...partConfig, segments: exportSegmentsFor(Math.max(partWidth, partLength)) })
-    } catch (failure) {
-      posthog.captureException(failure, { export_format: format })
-      setExportError(failure instanceof Error ? failure.message : String(failure))
-    } finally {
-      setExporting(undefined)
-    }
-  }
-
-  const exportStl = async () => {
-    if (model === 'holder' && plan.modules.length > 1) {
-      setExporting('stl')
-      setExportError(undefined)
-      try {
-        const meshes = await Promise.all(
-          plan.modules.map((module) =>
-            buildMesh({ ...module.config, segments: exportSegmentsFor(Math.max(module.layout.width, module.layout.length)) }),
-          ),
-        )
-        const files = Object.fromEntries(
-          meshes.map((mesh, index) => {
-            const name = `module-${index + 1}-${holderName(plan.modules[index].config)}.stl`
-            return [name, toStl(asMeshLike(mesh), name)]
-          }),
-        )
-        download(`${partName}.zip`, zipSync(files))
-      } catch (failure) {
-        setExportError(failure instanceof Error ? failure.message : String(failure))
-      } finally {
-        setExporting(undefined)
-      }
-      return
-    }
-    const mesh = await buildExport('stl')
-    if (!mesh) return
-    const name = `${partName}.stl`
-    download(name, toStl(asMeshLike(mesh), name))
-    posthog.capture('base_exported', { format: 'stl', shape: config.shape, width, length, height: config.height })
-  }
-
-  const export3mf = async () => {
-    const mesh = await buildExport('3mf')
-    if (!mesh) return
-    const name = partName
-    download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
-    posthog.capture('base_exported', { format: '3mf', shape: config.shape, width, length, height: config.height })
   }
 
   const basePanel = (

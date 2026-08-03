@@ -22,6 +22,13 @@ const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
+const MAX_CACHE_ENTRIES = 100
+
+function cacheResult<T>(cache: Map<string, T>, key: string, value: T): T {
+  if (cache.size >= MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value!)
+  cache.set(key, value)
+  return value
+}
 
 export interface HolderLayout {
   unitsWide: number
@@ -405,8 +412,7 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
     }
   }
   layout ??= { unitsWide: maxColumns, unitsDeep: maxRows, width: maxColumns * GRID - GAP, length: maxRows * GRID - GAP, slotCenters: [] }
-  layoutCache.set(key, layout)
-  return layout
+  return cacheResult(layoutCache, key, layout)
 }
 
 const planCache = new Map<string, HolderPlan>()
@@ -462,8 +468,7 @@ export function holderPlan(config: HolderConfig): HolderPlan {
           unitsDeep: layout.unitsDeep,
         }
       : { modules: [], omitted, unitsWide: 1, unitsDeep: 1 }
-    planCache.set(key, plan)
-    return plan
+    return cacheResult(planCache, key, plan)
   }
 
   const occupied = Array.from({ length: rows }, () => Array.from({ length: columns }, () => false))
@@ -524,8 +529,7 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   const unitsWide = Math.max(1, ...modules.map((module) => module.column + module.layout.unitsWide))
   const unitsDeep = Math.max(1, ...modules.map((module) => module.row + module.layout.unitsDeep))
   const plan = { modules, omitted, unitsWide, unitsDeep }
-  planCache.set(key, plan)
-  return plan
+  return cacheResult(planCache, key, plan)
 }
 
 export function holderLayout(config: HolderConfig): HolderLayout {

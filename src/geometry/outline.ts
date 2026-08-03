@@ -15,7 +15,7 @@ export function footprint(config: BaseConfig): { width: number; length: number }
   return { width: config.width, length: isElongated(config.shape) ? config.length : config.width }
 }
 
-/** What the marking says when the text field is left empty. */
+/** What the size label says when the text field is left empty. */
 export function defaultLabel(config: BaseConfig): string {
   const { width, length } = footprint(config)
   return isElongated(config.shape) ? `${trimNumber(width)}x${trimNumber(length)}` : trimNumber(width)

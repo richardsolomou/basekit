@@ -9,7 +9,7 @@ const drawn = (page: Page) => page.locator('main [data-triangles]')
 /** Footprint and height are read off the dimension leaders drawn on the part. */
 const across = (page: Page) => page.locator('#label-across')
 const tall = (page: Page) => page.locator('#label-height')
-const marking = (page: Page) => page.getByLabel('Label text')
+const sizeLabel = (page: Page) => page.getByLabel('Label text')
 
 /** Options read "<size> <what it is for>", so anchor on the figure. */
 const sizeOption = (page: Page, label: string) => page.getByRole('option', { name: new RegExp(`^${label.replaceAll('.', '\\.')}\\b`) })
@@ -71,8 +71,8 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
   await expect(across(page)).toHaveText('Ø28.5')
-  // Rounding to 29 anywhere would defeat the whole point of the marking.
-  await expect(marking(page)).toHaveAttribute('placeholder', '28.5')
+  // Rounding to 29 anywhere would defeat the whole point of the size label.
+  await expect(sizeLabel(page)).toHaveAttribute('placeholder', '28.5')
 })
 
 test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
@@ -86,12 +86,12 @@ test('marks and resets a changed value to its default', { tag: '@ci' }, async ({
 })
 
 test('marks and resets changed toggles and choices', async ({ page }) => {
-  const markingToggle = page.getByRole('switch', { name: 'Show size label' })
-  await markingToggle.click()
-  const resetMarking = page.getByRole('button', { name: 'Reset Show size label to on' })
-  await expect(resetMarking).toBeVisible()
-  await resetMarking.click()
-  await expect(markingToggle).toBeChecked()
+  const labelToggle = page.getByRole('switch', { name: 'Show size label' })
+  await labelToggle.click()
+  const resetLabel = page.getByRole('button', { name: 'Reset Show size label to on' })
+  await expect(resetLabel).toBeVisible()
+  await resetLabel.click()
+  await expect(labelToggle).toBeChecked()
 
   await pickChoice(page, 'Shape', 'Oval')
   const resetShape = page.getByRole('button', { name: 'Reset Shape to Round' })
@@ -324,7 +324,7 @@ for (const entry of SHAPES) {
     await expect(sizeOption(page, entry.chip)).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(across(page)).toHaveText(entry.footprint)
-    await expect(marking(page)).toHaveAttribute('placeholder', entry.mark)
+    await expect(sizeLabel(page)).toHaveAttribute('placeholder', entry.mark)
   })
 }
 
@@ -333,9 +333,9 @@ test('marks even a cramped rank base', async ({ page }) => {
   await settled(page)
   await pickSize(page, '20×20')
   await settled(page)
-  await expect(marking(page)).toHaveAttribute('placeholder', '20x20')
+  await expect(sizeLabel(page)).toHaveAttribute('placeholder', '20x20')
 
-  // A 20mm well is mostly boss and ribs. The marking used to be dropped silently
+  // A 20mm well is mostly boss and ribs. The label used to be dropped silently
   // when it would not fit, so compare the triangle count against an unmarked base.
   const withMark = await triangles(page)
   await page.getByRole('switch', { name: 'Show size label' }).click()

@@ -26,7 +26,7 @@ function framingDistance(aspect: number): number {
   return ((REFERENCE_FOOTPRINT / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
 }
 
-/** Steep enough to look down into the well, where the marking and bracing are. */
+/** Steep enough to look down into the well, where the size label and supports are. */
 const VIEW_DIRECTION = new THREE.Vector3(0.39, -0.54, 0.74)
 
 const CORNERS = [
@@ -112,7 +112,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
 
     /*
      * The key sits at ~45° and casts shadows. Everything that matters here —
-     * the marking, the ribs, the bosses — is a shallow step off a flat floor,
+     * the size label, the ribs, the bosses — is a shallow step off a flat floor,
      * so from a plan view the emboss and the floor it sits on share a normal
      * and shade identically; lit from overhead the number disappears. Any
      * off-vertical light gives each step a cast shadow instead, which reads
@@ -125,7 +125,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     key.shadow.mapSize.set(2048, 2048)
     key.shadow.camera.near = SHADOW_DISTANCE / 2
     key.shadow.camera.far = SHADOW_DISTANCE * 2
-    // In millimetres, and the relief is 0.6mm: any more and the marking's own
+    // In millimetres, and the relief is 0.6mm: any more and the label's own
     // shadow lifts off the letters it belongs to.
     key.shadow.normalBias = 0.03
     world.add(key)
@@ -258,13 +258,13 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
       new THREE.MeshStandardMaterial({ color: themeColor('--part', '#cbc6bb'), roughness: 0.85, metalness: 0, flatShading: true }),
     )
     // The part is the only thing in the scene, so it shadows itself: the well
-    // wall onto the floor, the marking and the bosses onto the floor under them.
+    // wall onto the floor, the label and the bosses onto the floor under them.
     solid.castShadow = true
     solid.receiveShadow = true
     group.add(solid)
 
     // Fit the shadow frustum to the part so a 25mm base gets the same texel
-    // density as a 180mm one — the marking is smallest exactly where the base is.
+    // density as a 180mm one — the label is smallest exactly where the base is.
     const light = shadowLight.current
     if (light) {
       const reach = Math.max(width, length) * 0.75

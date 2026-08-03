@@ -3,7 +3,7 @@ import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
 /** Builds one mesh in an isolated worker, used by exports without replacing the preview. */
 export function buildMesh(config: PartConfig): Promise<MeshData> {
-  const worker = new Worker(new URL('../worker/base.worker.ts', import.meta.url), { type: 'module' })
+  const worker = new Worker(new URL('../worker/geometry.worker.ts', import.meta.url), { type: 'module' })
   const id = 1
 
   return new Promise((resolve, reject) => {

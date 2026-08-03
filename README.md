@@ -22,9 +22,9 @@ The built-in presets include the common Games Workshop, The Old World, Kings of 
 
 ## How it works 🧲
 
-1. **Choose the footprint** from a standard size or enter exact dimensions.
+1. **Choose the size and shape** from a standard base size or enter exact dimensions.
 2. **Match your magnets** by setting their diameter, thickness, fit, and count.
-3. **Tune the print** with the edge profile, wall, recess floor, and internal bracing.
+3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
@@ -36,7 +36,7 @@ The base generator lives at `/`; the Gridfinity holder generator can be opened d
 
 Settings changed from their original defaults mark their label and reset action in orange, so numeric values, choices, and toggles can be undone one at a time without rebuilding the rest of the configuration.
 
-The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
+The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
 
