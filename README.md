@@ -36,6 +36,8 @@ The base generator lives at `/`; the Gridfinity holder generator can be opened d
 
 Settings changed from their original defaults mark their label and reset action in orange, so numeric values, choices, and toggles can be undone one at a time without rebuilding the rest of the configuration.
 
+Elongated bases up to roughly three magnet pitches use a pair at the usable ends, where they provide the widest support and anti-tip lever arm without unnecessary holding force in the middle. Longer rows and ring layouts continue to scale at roughly one magnet per 31mm, with a directly aligned support rib for every ring magnet.
+
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.

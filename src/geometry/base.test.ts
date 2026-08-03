@@ -433,6 +433,15 @@ describe('scaling with the footprint', () => {
     expect(biggest?.magnets.count).toBeGreaterThan(4)
   })
 
+  it('uses an end pair on a 90×52 oval without weakening larger rows', () => {
+    expect(presetFor(OVAL_SIZES[2]).magnets.count).toBe(2)
+    expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(4)
+  })
+
+  it('keeps a 100mm ring on pitch without rounding five magnets up to six', () => {
+    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 5 } })
+  })
+
   it('offers every count a preset can pick', () => {
     const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map(presetFor)
     for (const config of all) {

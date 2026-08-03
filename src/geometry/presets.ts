@@ -93,12 +93,15 @@ export const DEFAULT_SIZE: Record<ShapeKind, SizePreset> = {
  */
 const MAGNET_PITCH = 31
 
-/** Counts a ring or a row may take, so the picker always has the value on offer. */
-const SPREAD_COUNTS = [3, 4, 6, 8]
+/** An end pair covers this many pitches before a longer row needs inner magnets for added holding force. */
+const END_PAIR_PITCHES = 3
+
+/** Counts a ring or a long row may take, so the picker always has the value on offer. */
+const SPREAD_COUNTS = [3, 4, 5, 6, 8]
 
 /** Every count the pickers offer, including ones no preset picks by itself. */
 export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
-export const RIB_CHOICES = [0, 2, 3, 4, 6, 8]
+export const RIB_CHOICES = [0, 2, 3, 4, 5, 6, 8]
 
 function closestSpread(ideal: number): number {
   return SPREAD_COUNTS.reduce((best, n) => (Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best), SPREAD_COUNTS[0])
@@ -121,7 +124,9 @@ function magnetCount(width: number, length: number): number {
     return closestSpread((Math.PI * short) / 2 / MAGNET_PITCH)
   }
   // A row runs the long axis, stopping a boss-width short of each end.
-  return closestSpread((Math.max(width, length) - 8) / MAGNET_PITCH + 1)
+  const run = Math.max(width, length) - 8
+  if (run <= MAGNET_PITCH * END_PAIR_PITCHES) return 2
+  return closestSpread(run / MAGNET_PITCH + 1)
 }
 
 /**
