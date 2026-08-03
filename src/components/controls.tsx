@@ -277,37 +277,41 @@ export function SizeSelect({
   options,
   onChange,
   label = 'Standard base size',
-  displayLabel = 'Size',
+  compact = false,
 }: {
   value: string | null
   options: readonly SizeOption[]
   onChange: (value: string) => void
   label?: string
-  displayLabel?: string
+  compact?: boolean
 }) {
   const id = useId()
   const selected = options.find((option) => option.value === value)
   return (
-    <Field>
-      <FieldLabel htmlFor={id} className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-        {displayLabel}
-      </FieldLabel>
-      <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger id={id} aria-label={label} className="w-full">
-          <SelectValue>
-            <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
-            <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <span className="readout shrink-0">{option.label ?? option.value}</span>
-              <span className="min-w-0 truncate text-muted-foreground">{option.use}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <Field orientation={compact ? undefined : 'horizontal'} className={compact ? 'min-w-0' : undefined}>
+      <div className={compact ? 'contents' : settingColumns}>
+        {!compact && (
+          <FieldLabel htmlFor={id} className={`${settingLabel} col-span-2`}>
+            Size
+          </FieldLabel>
+        )}
+        <Select value={value} onValueChange={(next) => onChange(String(next))}>
+          <SelectTrigger id={id} aria-label={label} className={compact ? 'w-full min-w-0' : 'w-28'}>
+            <SelectValue>
+              <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
+              <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent align="end" alignItemWithTrigger={false} style={{ width: '20rem', maxWidth: 'calc(100vw - 2rem)' }}>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <span className="readout shrink-0">{option.label ?? option.value}</span>
+                <span className="text-muted-foreground">{option.use}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </Field>
   )
 }
