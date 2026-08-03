@@ -333,18 +333,27 @@ test('clamps a dimension typed past its limit', async ({ page }) => {
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('180.0')
 })
 
-test('scrubs a dimension by dragging its label', async ({ page }) => {
+test('scrubs a dimension from the empty reset space after its label', async ({ page }) => {
   const field = page.getByLabel('Diameter in mm', { exact: true })
   const before = await triangles(page)
   const label = page.getByText('Diameter', { exact: true })
   const box = await label.boundingBox()
   if (!box) throw new Error('no label to drag')
-  await page.mouse.move(box.x + 10, box.y + box.height / 2)
+  await page.mouse.move(box.x + box.width - 5, box.y + box.height / 2)
   await page.mouse.down()
-  await page.mouse.move(box.x + 90, box.y + box.height / 2, { steps: 10 })
+  await page.mouse.move(box.x + box.width + 75, box.y + box.height / 2, { steps: 10 })
   await page.mouse.up()
   await rebuilt(page, before)
   expect(Number(await field.inputValue())).toBeGreaterThan(32)
+})
+
+test('toggles a setting from the empty reset space after its label', async ({ page }) => {
+  const toggle = page.getByRole('switch', { name: 'Show size label' })
+  const label = page.getByText('Show size label', { exact: true })
+  const box = await label.boundingBox()
+  if (!box) throw new Error('no label to click')
+  await page.mouse.click(box.x + box.width - 5, box.y + box.height / 2)
+  await expect(toggle).not.toBeChecked()
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {

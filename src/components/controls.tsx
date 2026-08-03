@@ -78,6 +78,7 @@ function ResetSlot({ children }: { children?: ReactNode }) {
 }
 
 const settingColumns = 'grid w-full grid-cols-[minmax(0,1fr)_0.875rem_7rem] items-center gap-2'
+const settingLabel = 'w-full font-normal'
 
 /**
  * A dimension: type an exact figure, or drag its label to scrub. Typing is the
@@ -130,22 +131,20 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
         <FieldLabel
           htmlFor={id}
           onPointerDown={startScrub}
-          className={compact ? 'sr-only' : `cursor-ew-resize touch-none font-normal ${modified ? 'text-modified' : ''}`}
+          className={compact ? 'sr-only' : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`}
         >
           {label}
         </FieldLabel>
-        {!compact && (
+        {!compact && modified && (
           <ResetSlot>
-            {modified && (
-              <ResetButton
-                label={label}
-                value={`${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-                onReset={() => {
-                  setText(undefined)
-                  onChange(defaultValue)
-                }}
-              />
-            )}
+            <ResetButton
+              label={label}
+              value={`${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+              onReset={() => {
+                setText(undefined)
+                onChange(defaultValue)
+              }}
+            />
           </ResetSlot>
         )}
         <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
@@ -194,8 +193,12 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel className={`font-normal ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
-        <ResetSlot>{modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}</ResetSlot>
+        <FieldLabel className={`${settingLabel} ${modified ? 'text-modified' : 'col-span-2'}`}>{label}</FieldLabel>
+        {modified && (
+          <ResetSlot>
+            <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />
+          </ResetSlot>
+        )}
         <Select
           value={String(value)}
           onValueChange={(next) => {
@@ -237,12 +240,14 @@ export function ToggleSetting({
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel htmlFor={id} className={`font-normal ${modified ? 'text-modified' : ''}`}>
+        <FieldLabel htmlFor={id} className={`${settingLabel} ${modified ? 'text-modified' : 'col-span-2'}`}>
           {label}
         </FieldLabel>
-        <ResetSlot>
-          {modified && <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />}
-        </ResetSlot>
+        {modified && (
+          <ResetSlot>
+            <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />
+          </ResetSlot>
+        )}
         <div className="flex w-28 justify-start">
           <Switch id={id} checked={checked} onCheckedChange={onChange} className="ms-px" />
         </div>
