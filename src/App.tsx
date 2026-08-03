@@ -1,8 +1,8 @@
-import { Box, Download, PanelLeft } from 'lucide-react'
+import { Box, Code2, Download, PanelLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
 import { Accordion } from '@/components/ui/accordion'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -324,6 +324,17 @@ export function App() {
             />
           </Fold>
         </Accordion>
+        <div className="flex justify-center px-5 pt-4">
+          <a
+            href="https://github.com/richardsolomou/mini-bases"
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}
+          >
+            <Code2 className="size-3.5" />
+            Source
+          </a>
+        </div>
       </aside>
     </ScrollArea>
   )

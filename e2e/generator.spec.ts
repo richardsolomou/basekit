@@ -58,6 +58,10 @@ test('builds the default base on load', async ({ page }) => {
   expect(await triangles(page)).toBeGreaterThan(0)
 })
 
+test('links to the source repository', async ({ page }) => {
+  await expect(page.getByRole('link', { name: 'Source' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
+})
+
 test('keeps a half millimetre size exact', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
