@@ -1,8 +1,7 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, Dimension, Fold, Section, SizeSelect, ToggleSetting } from '@/components/controls'
-import { Accordion } from '@/components/ui/accordion'
+import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -303,183 +302,184 @@ export function App() {
           </Field>
         </Section>
 
-        {/* Folds are independent: opening the profile should not shut the tolerances. */}
-        <Accordion multiple className="border-b border-border">
-          <Fold title="Construction" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
-            <Choice
-              label="Underside"
-              value={config.underside}
-              defaultValue={BASE_DEFAULTS.underside}
-              options={UNDERSIDES}
-              onChange={(underside) => patch({ underside })}
-            />
-            <div aria-hidden="true" className="grid grid-cols-2 gap-2 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-              <div className={`border p-2 ${hollow ? 'border-measure/60 text-measure' : 'border-border'}`}>
-                <div className="mx-auto mb-1 h-3 w-12 border-x border-b border-current" />
-                Recessed
-              </div>
-              <div className={`border p-2 ${hollow ? 'border-border' : 'border-measure/60 text-measure'}`}>
-                <div className="mx-auto mb-1 h-3 w-12 border border-current bg-current/10" />
-                Filled
-              </div>
-            </div>
-            <Dimension
-              label="Height"
-              value={config.height}
-              min={2}
-              max={12}
-              step={0.25}
-              defaultValue={BASE_DEFAULTS.height}
-              onChange={(height) => patch({ height })}
-            />
-            <Dimension
-              label="Wall"
-              value={config.wallThickness}
-              min={1}
-              max={6}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.wallThickness}
-              onChange={(wallThickness) => patch({ wallThickness })}
-            />
-            {/* Only a hollowed underside has a floor to set. It is the face the model
+        <Section title="Construction" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(config.height)}mm</span>}>
+          <Choice
+            label="Underside"
+            value={config.underside}
+            defaultValue={BASE_DEFAULTS.underside}
+            options={UNDERSIDES}
+            onChange={(underside) => patch({ underside })}
+          />
+          <Dimension
+            label="Height"
+            value={config.height}
+            min={2}
+            max={12}
+            step={0.25}
+            defaultValue={BASE_DEFAULTS.height}
+            onChange={(height) => patch({ height })}
+          />
+          <Dimension
+            label="Wall"
+            value={config.wallThickness}
+            min={1}
+            max={6}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.wallThickness}
+            onChange={(wallThickness) => patch({ wallThickness })}
+          />
+          {/* Only a hollowed underside has a floor to set. It is the face the model
                 is glued to, and it is never between a magnet and the tray. */}
-            {hollow && (
-              <Dimension
-                label="Recess floor"
-                value={config.floorThickness}
-                min={0.4}
-                max={Math.max(0.5, config.height - 0.5)}
-                step={0.1}
-                defaultValue={BASE_DEFAULTS.floorThickness}
-                onChange={(floorThickness) => patch({ floorThickness })}
-              />
-            )}
-            <Choice
-              label="Bottom edge"
-              value={config.profile}
-              defaultValue={BASE_DEFAULTS.profile}
-              options={PROFILES}
-              onChange={(profile) => patch({ profile })}
-            />
+          {hollow && (
             <Dimension
-              label="Edge size"
-              value={config.profileSize}
-              min={0}
-              max={safeEdgeSize(config)}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.profileSize}
-              disabled={config.profile === 'straight'}
-              onChange={(profileSize) => patch({ profileSize })}
-            />
-            {config.shape === 'rect' && (
-              <Dimension
-                label="Corner radius"
-                value={config.cornerRadius}
-                min={0}
-                max={12}
-                step={0.5}
-                defaultValue={BASE_DEFAULTS.cornerRadius}
-                onChange={(cornerRadius) => patch({ cornerRadius })}
-              />
-            )}
-            {config.shape === 'polygon' && (
-              <Dimension
-                label="Sides"
-                value={config.sides}
-                min={3}
-                max={12}
-                step={1}
-                unit=""
-                defaultValue={BASE_DEFAULTS.sides}
-                onChange={(sides) => patch({ sides })}
-              />
-            )}
-          </Fold>
-
-          <Fold
-            title="Magnet layout"
-            summary={config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
-          >
-            <Choice
-              label="Magnets per base"
-              value={config.magnets.count}
-              defaultValue={BASE_DEFAULTS.magnets.count}
-              options={MAGNET_COUNTS}
-              onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
-            />
-          </Fold>
-
-          <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
-            <Choice
-              label="Spokes"
-              value={config.ribs.count}
-              defaultValue={BASE_DEFAULTS.ribs.count}
-              options={RIB_COUNTS}
-              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
-            />
-            <Dimension
-              label="Thickness"
-              value={config.ribs.thickness}
-              min={0.8}
-              max={4}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.ribs.thickness}
-              disabled={config.ribs.count === 0}
-              onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
-            />
-            <Dimension
-              label="Height"
-              value={config.ribs.height}
+              label="Recess floor"
+              value={config.floorThickness}
               min={0.4}
-              max={Math.max(0.5, config.height - config.floorThickness)}
+              max={Math.max(0.5, config.height - 0.5)}
               step={0.1}
-              defaultValue={BASE_DEFAULTS.ribs.height}
-              disabled={config.ribs.count === 0}
-              onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+              defaultValue={BASE_DEFAULTS.floorThickness}
+              onChange={(floorThickness) => patch({ floorThickness })}
             />
-          </Fold>
-
-          <Fold title="Tolerances" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
+          )}
+          <Choice
+            label="Bottom edge"
+            value={config.profile}
+            defaultValue={BASE_DEFAULTS.profile}
+            options={PROFILES}
+            onChange={(profile) => patch({ profile })}
+          />
+          <Dimension
+            label="Edge size"
+            value={config.profileSize}
+            min={0}
+            max={safeEdgeSize(config)}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.profileSize}
+            disabled={config.profile === 'straight'}
+            onChange={(profileSize) => patch({ profileSize })}
+          />
+          {config.shape === 'rect' && (
             <Dimension
-              label="Magnet fit clearance"
-              value={config.magnets.clearance}
+              label="Corner radius"
+              value={config.cornerRadius}
               min={0}
-              max={0.6}
-              step={0.05}
-              defaultValue={BASE_DEFAULTS.magnets.clearance}
-              onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
-            />
-            <Dimension
-              label="Wall around pocket"
-              value={config.magnets.bossWall}
-              min={0.4}
-              max={3}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.magnets.bossWall}
-              onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
-            />
-            <Dimension
-              label="Marking height"
-              value={config.label.height}
-              min={2}
-              max={16}
+              max={12}
               step={0.5}
-              defaultValue={BASE_DEFAULTS.label.height}
-              disabled={!config.label.enabled}
-              onChange={(height) => patch({ label: { ...config.label, height } })}
+              defaultValue={BASE_DEFAULTS.cornerRadius}
+              onChange={(cornerRadius) => patch({ cornerRadius })}
             />
+          )}
+          {config.shape === 'polygon' && (
             <Dimension
-              label="Marking emboss"
-              value={config.label.emboss}
-              min={0.2}
-              max={1.5}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.label.emboss}
-              disabled={!config.label.enabled}
-              onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
+              label="Sides"
+              value={config.sides}
+              min={3}
+              max={12}
+              step={1}
+              unit=""
+              defaultValue={BASE_DEFAULTS.sides}
+              onChange={(sides) => patch({ sides })}
             />
-          </Fold>
-        </Accordion>
+          )}
+        </Section>
+
+        <Section
+          title="Magnet layout"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
+            </span>
+          }
+        >
+          <Choice
+            label="Magnets per base"
+            value={config.magnets.count}
+            defaultValue={BASE_DEFAULTS.magnets.count}
+            options={MAGNET_COUNTS}
+            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+          />
+        </Section>
+
+        <Section
+          title="Bracing"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
+            </span>
+          }
+        >
+          <Choice
+            label="Spokes"
+            value={config.ribs.count}
+            defaultValue={BASE_DEFAULTS.ribs.count}
+            options={RIB_COUNTS}
+            onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+          />
+          <Dimension
+            label="Thickness"
+            value={config.ribs.thickness}
+            min={0.8}
+            max={4}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.ribs.thickness}
+            disabled={config.ribs.count === 0}
+            onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
+          />
+          <Dimension
+            label="Height"
+            value={config.ribs.height}
+            min={0.4}
+            max={Math.max(0.5, config.height - config.floorThickness)}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.ribs.height}
+            disabled={config.ribs.count === 0}
+            onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+          />
+        </Section>
+
+        <Section
+          title="Tolerances"
+          aside={<span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>}
+        >
+          <Dimension
+            label="Magnet fit clearance"
+            value={config.magnets.clearance}
+            min={0}
+            max={0.6}
+            step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.clearance}
+            onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
+          />
+          <Dimension
+            label="Wall around pocket"
+            value={config.magnets.bossWall}
+            min={0.4}
+            max={3}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.magnets.bossWall}
+            onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
+          />
+          <Dimension
+            label="Marking height"
+            value={config.label.height}
+            min={2}
+            max={16}
+            step={0.5}
+            defaultValue={BASE_DEFAULTS.label.height}
+            disabled={!config.label.enabled}
+            onChange={(height) => patch({ label: { ...config.label, height } })}
+          />
+          <Dimension
+            label="Marking emboss"
+            value={config.label.emboss}
+            min={0.2}
+            max={1.5}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.label.emboss}
+            disabled={!config.label.enabled}
+            onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
+          />
+        </Section>
         <RepositoryLink />
       </aside>
     </ScrollArea>

@@ -276,7 +276,6 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   // The dimension fields clamp to their limits, so no combination can reach an
   // unbuildable base. The geometry does throw outside those bounds, so this guards
   // the clamping rather than the geometry.
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const before = await triangles(page)
   for (const control of ['Wall in mm', 'Recess floor in mm']) {
     // Well past the maximum: the field clamps, which is the behaviour being guarded.
@@ -288,7 +287,6 @@ test('still builds with the wall and floor wound to their limits', async ({ page
 })
 
 test('caps the edge profile when the recess floor is thinned', async ({ page }) => {
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const floorBuild = triangles(page)
   await page.getByLabel('Recess floor in mm').fill('0.4')
   await page.getByLabel('Recess floor in mm').press('Enter')
@@ -334,7 +332,6 @@ test('scrubs a dimension by dragging its label', async ({ page }) => {
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   await pickChoice(page, 'Underside', 'Solid')
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.
