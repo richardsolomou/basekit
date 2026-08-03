@@ -206,6 +206,16 @@ describe('buildHolder', () => {
     expect(bounds(buildHolder(wasm, config).mesh).size[0]).toBeGreaterThan(83.5)
   })
 
+  it('separates every module when several share one row', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      maxColumns: 4,
+      maxRows: 1,
+      groups: Array.from({ length: 4 }, (_, index) => ({ id: `models-${index}`, quantity: 1, diameter: 32 })),
+    }
+    expect(bounds(buildHolder(wasm, config).mesh).size[0]).toBeCloseTo(185.5)
+  })
+
   it('opens one flush magnet pocket in the floor of every mini slot', () => {
     const config = { ...defaultHolderConfig(), groups: [{ id: 'models-1', quantity: 1, diameter: 32 }], maxRows: 1 }
     const { mesh } = buildHolder(wasm, config)

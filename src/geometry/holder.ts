@@ -507,6 +507,9 @@ export function buildHolder(wasm: ManifoldToplevel, config: HolderConfig, font?:
   if (plan.modules.length === 0) throw new Error('No requested miniatures fit within the available Gridfinity box')
   const solids: Manifold[] = []
   const previewGap = config.segments <= 256 && plan.modules.length > 1 ? 6 : 0
+  const columns = [...new Set(plan.modules.map((module) => module.column))].sort((a, b) => a - b)
+  const rows = [...new Set(plan.modules.map((module) => module.row))].sort((a, b) => a - b)
+  const previewShift = (value: number, positions: number[]) => (positions.indexOf(value) - (positions.length - 1) / 2) * previewGap
   try {
     for (const module of plan.modules) {
       const built = buildSingleHolder(wasm, module.config, font)
@@ -514,7 +517,7 @@ export function buildHolder(wasm: ManifoldToplevel, config: HolderConfig, font?:
       solids.push(solid)
       const offsetX = (module.column + module.layout.unitsWide / 2 - plan.unitsWide / 2) * GRID
       const offsetY = (module.row + module.layout.unitsDeep / 2 - plan.unitsDeep / 2) * GRID
-      const placed = solid.translate([offsetX + Math.sign(offsetX) * previewGap, offsetY + Math.sign(offsetY) * previewGap, 0])
+      const placed = solid.translate([offsetX + previewShift(module.column, columns), offsetY + previewShift(module.row, rows), 0])
       solids.push(placed)
     }
     const combined = wasm.Manifold.union(solids.filter((_, index) => index % 2 === 1))
