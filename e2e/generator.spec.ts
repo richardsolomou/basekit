@@ -138,8 +138,10 @@ test('shares the size label preference between bases and holders', async ({ page
   await page.getByRole('switch', { name: 'Show size label' }).click()
   await page.getByRole('link', { name: 'Holders' }).click()
   await expect(page.getByRole('switch', { name: 'Label base sizes' })).not.toBeChecked()
+  const withoutLabels = await triangles(page)
 
   await page.getByRole('switch', { name: 'Label base sizes' }).click()
+  await rebuilt(page, withoutLabels)
   await page.getByRole('link', { name: 'Bases' }).click()
   await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
 })
