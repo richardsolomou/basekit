@@ -86,6 +86,15 @@ test('keeps a half millimetre size exact', async ({ page }) => {
   await expect(marking(page)).toHaveAttribute('placeholder', '28.5')
 })
 
+test('marks and resets a changed value to its default', async ({ page }) => {
+  await pickSize(page, '28.5')
+  const reset = page.getByRole('button', { name: 'Reset Diameter to 32.0 mm' })
+  await expect(reset).toBeVisible()
+  await reset.click()
+  await expect(page.getByLabel('Diameter in mm')).toHaveValue('32.0')
+  await expect(page).not.toHaveURL(/base.width=/)
+})
+
 test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)

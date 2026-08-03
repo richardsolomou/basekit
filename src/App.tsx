@@ -66,6 +66,8 @@ const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
   { value: 'module' as const, label: 'On module' },
 ]
+const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
+const HOLDER_DEFAULTS = defaultHolderConfig()
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
 
@@ -270,6 +272,7 @@ export function App() {
             min={15}
             max={180}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.width}
             onChange={(w) => setConfig(resized(config, w, config.length))}
           />
           {elongated && (
@@ -279,6 +282,7 @@ export function App() {
               min={15}
               max={180}
               step={0.5}
+              defaultValue={BASE_DEFAULTS.length}
               onChange={(l) => setConfig(resized(config, config.width, l))}
             />
           )}
@@ -298,6 +302,7 @@ export function App() {
             min={2}
             max={12}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={config.magnets.count === 0}
             onChange={(diameter) => patch({ magnets: { ...config.magnets, diameter } })}
           />
@@ -309,6 +314,7 @@ export function App() {
             // well is deep or it would stand proud of the top face.
             max={hollow ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={config.magnets.count === 0}
             onChange={(thickness) => patch({ magnets: { ...config.magnets, thickness } })}
           />
@@ -359,13 +365,22 @@ export function App() {
                 Filled
               </div>
             </div>
-            <Dimension label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
+            <Dimension
+              label="Height"
+              value={config.height}
+              min={2}
+              max={12}
+              step={0.25}
+              defaultValue={BASE_DEFAULTS.height}
+              onChange={(height) => patch({ height })}
+            />
             <Dimension
               label="Wall"
               value={config.wallThickness}
               min={1}
               max={6}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.wallThickness}
               onChange={(wallThickness) => patch({ wallThickness })}
             />
             {/* Only a hollowed underside has a floor to set. It is the face the model
@@ -377,6 +392,7 @@ export function App() {
                 min={0.4}
                 max={Math.max(0.5, config.height - 0.5)}
                 step={0.1}
+                defaultValue={BASE_DEFAULTS.floorThickness}
                 onChange={(floorThickness) => patch({ floorThickness })}
               />
             )}
@@ -387,6 +403,7 @@ export function App() {
               min={0}
               max={safeEdgeSize(config)}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.profileSize}
               disabled={config.profile === 'straight'}
               onChange={(profileSize) => patch({ profileSize })}
             />
@@ -397,11 +414,21 @@ export function App() {
                 min={0}
                 max={12}
                 step={0.5}
+                defaultValue={BASE_DEFAULTS.cornerRadius}
                 onChange={(cornerRadius) => patch({ cornerRadius })}
               />
             )}
             {config.shape === 'polygon' && (
-              <Dimension label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
+              <Dimension
+                label="Sides"
+                value={config.sides}
+                min={3}
+                max={12}
+                step={1}
+                unit=""
+                defaultValue={BASE_DEFAULTS.sides}
+                onChange={(sides) => patch({ sides })}
+              />
             )}
           </Fold>
 
@@ -432,6 +459,7 @@ export function App() {
               min={0.8}
               max={4}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.ribs.thickness}
               disabled={config.ribs.count === 0}
               onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
             />
@@ -441,6 +469,7 @@ export function App() {
               min={0.4}
               max={Math.max(0.5, config.height - config.floorThickness)}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.ribs.height}
               disabled={config.ribs.count === 0}
               onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
             />
@@ -453,6 +482,7 @@ export function App() {
               min={0}
               max={0.6}
               step={0.05}
+              defaultValue={BASE_DEFAULTS.magnets.clearance}
               onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
             />
             <Dimension
@@ -461,6 +491,7 @@ export function App() {
               min={0.4}
               max={3}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.magnets.bossWall}
               onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
             />
             <Dimension
@@ -469,6 +500,7 @@ export function App() {
               min={2}
               max={16}
               step={0.5}
+              defaultValue={BASE_DEFAULTS.label.height}
               disabled={!config.label.enabled}
               onChange={(height) => patch({ label: { ...config.label, height } })}
             />
@@ -478,6 +510,7 @@ export function App() {
               min={0.2}
               max={1.5}
               step={0.1}
+              defaultValue={BASE_DEFAULTS.label.emboss}
               disabled={!config.label.enabled}
               onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
             />
@@ -599,6 +632,7 @@ export function App() {
             max={12}
             step={1}
             unit=""
+            defaultValue={HOLDER_DEFAULTS.maxColumns}
             onChange={(maxColumns) => setHolder({ ...holder, maxColumns: Math.round(maxColumns) })}
           />
           <Dimension
@@ -608,6 +642,7 @@ export function App() {
             max={12}
             step={1}
             unit=""
+            defaultValue={HOLDER_DEFAULTS.maxRows}
             onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
           />
           <Dimension
@@ -616,6 +651,7 @@ export function App() {
             min={0}
             max={10}
             step={0.5}
+            defaultValue={HOLDER_DEFAULTS.spacing}
             onChange={(spacing) => setHolder({ ...holder, spacing })}
           />
           <Field orientation="horizontal">
@@ -645,6 +681,7 @@ export function App() {
             min={7}
             max={42}
             step={7}
+            defaultValue={HOLDER_DEFAULTS.height}
             onChange={(height) => setHolder({ ...holder, height })}
           />
         </Section>
@@ -656,6 +693,7 @@ export function App() {
             min={1}
             max={Math.max(1, holder.height - (holder.magnets.enabled ? holder.magnets.thickness : 0) - 0.4)}
             step={0.5}
+            defaultValue={HOLDER_DEFAULTS.slotDepth}
             onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
           />
           <Dimension
@@ -664,6 +702,7 @@ export function App() {
             min={0.1}
             max={2}
             step={0.1}
+            defaultValue={HOLDER_DEFAULTS.slotClearance}
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <Field orientation="horizontal">
@@ -710,6 +749,7 @@ export function App() {
             min={2}
             max={12}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={!holder.magnets.enabled}
             onChange={(diameter) => patchHolderMagnets({ diameter })}
           />
@@ -719,6 +759,7 @@ export function App() {
             min={0.5}
             max={Math.max(0.5, holder.height - holder.slotDepth - 0.4)}
             step={0.1}
+            defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={!holder.magnets.enabled}
             onChange={(thickness) => patchHolderMagnets({ thickness })}
           />
@@ -728,6 +769,7 @@ export function App() {
             min={0}
             max={0.6}
             step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.clearance}
             disabled={!holder.magnets.enabled}
             onChange={(clearance) => patchHolderMagnets({ clearance })}
           />

@@ -1,3 +1,4 @@
+import { RotateCcw } from 'lucide-react'
 import { useId, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
@@ -51,6 +52,7 @@ interface DimensionProps {
   unit?: string
   disabled?: boolean
   compact?: boolean
+  defaultValue?: number
   onChange: (value: number) => void
 }
 
@@ -62,11 +64,12 @@ const quantise = (value: number, step: number) => Math.round(value / step) * ste
  * point — a slider cannot land on 28.5 reliably, and these are millimetres
  * someone is going to print.
  */
-export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, compact, onChange }: DimensionProps) {
+export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, compact, defaultValue, onChange }: DimensionProps) {
   const id = useId()
   const [text, setText] = useState<string | undefined>()
   const format = (next: number) => (Number.isInteger(step) ? String(Math.round(next)) : next.toFixed(step < 0.1 ? 2 : 1))
   const formatted = format(value)
+  const modified = defaultValue !== undefined && value !== defaultValue
 
   /**
    * Listeners go on at pointerdown rather than through an effect: setting a ref
@@ -106,7 +109,7 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
       <FieldLabel htmlFor={id} onPointerDown={startScrub} className={compact ? 'sr-only' : 'cursor-ew-resize touch-none font-normal'}>
         {label}
       </FieldLabel>
-      <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
+      <InputGroup className={`${compact ? 'w-full min-w-0' : 'w-28 shrink-0'} ${modified ? 'ring-1 ring-measure/60' : ''}`}>
         <InputGroupInput
           id={id}
           type="number"
@@ -125,6 +128,22 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
         {unit && (
           <InputGroupAddon align="inline-end">
             <InputGroupText className="text-xs">{unit}</InputGroupText>
+          </InputGroupAddon>
+        )}
+        {modified && (
+          <InputGroupAddon align="inline-end">
+            <button
+              type="button"
+              aria-label={`Reset ${label} to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+              title={`Reset to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+              onClick={() => {
+                setText(undefined)
+                onChange(defaultValue)
+              }}
+              className="text-muted-foreground transition-colors hover:text-measure"
+            >
+              <RotateCcw className="size-3" />
+            </button>
           </InputGroupAddon>
         )}
       </InputGroup>
