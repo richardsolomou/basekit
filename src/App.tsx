@@ -33,7 +33,7 @@ import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { shareUrl, sharedConfigFromUrl } from '@/lib/shareConfig'
+import { shareUrl, sharedProjectFromUrl } from '@/lib/shareConfig'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -86,10 +86,10 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [shared] = useState(() => sharedConfigFromUrl(window.location.href))
-  const [config, setConfig] = useState<BaseConfig>(() => (shared?.model === 'base' ? shared.config : presetFor(DEFAULT_PRESET)))
-  const [holder, setHolder] = useState<HolderConfig>(() => (shared?.model === 'holder' ? shared.config : defaultHolderConfig()))
-  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
+  const [shared] = useState(() => sharedProjectFromUrl(window.location.href))
+  const [config, setConfig] = useState<BaseConfig>(() => shared?.base ?? presetFor(DEFAULT_PRESET))
+  const [holder, setHolder] = useState<HolderConfig>(() => shared?.holder ?? defaultHolderConfig())
+  const [model, setModel] = useState<'base' | 'holder'>(() => shared?.model ?? modelForPath())
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle')
@@ -116,7 +116,7 @@ export function App() {
 
   const copyShareLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl(partConfig))
+      await navigator.clipboard.writeText(shareUrl({ model, base: config, holder }))
       posthog.capture('configuration_shared', { model })
       setShareState('copied')
       window.setTimeout(() => setShareState('idle'), 2000)

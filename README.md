@@ -32,7 +32,7 @@ Gridfinity holders take one or more quantities and round mini-base diameters, th
 
 The base generator lives at `/`; the Gridfinity holder generator can be opened directly at `/holders`.
 
-The Share action copies a link containing the active base or holder configuration. Opening it restores the exact printable setup locally; no configuration is uploaded or stored on a server.
+The Share action copies a link containing changes made to both the base and holder configurations. Opening it restores the complete project and its active generator locally; no configuration is uploaded or stored on a server.
 
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
 

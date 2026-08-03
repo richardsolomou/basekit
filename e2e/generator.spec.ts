@@ -136,8 +136,10 @@ test('loads the Gridfinity holder directly from its route', async ({ page }) => 
   await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
 })
 
-test('shares and restores the active holder configuration', async ({ page, context }) => {
+test('shares and restores both generator configurations', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await pickSize(page, '28.5')
+  await page.getByLabel('Marking text').fill('Shared squad')
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel(/^Quantity 1 in/).fill('4')
   await page.getByLabel(/^Base Ø 1 in/).fill('40')
@@ -145,9 +147,12 @@ test('shares and restores the active holder configuration', async ({ page, conte
   const url = await page.evaluate(() => navigator.clipboard.readText())
   await page.goto(url)
   await settled(page)
-  await expect(page).toHaveURL(/\/holders\?config=/)
+  await expect(page).toHaveURL(/\/holders\?share=/)
   await expect(page.getByLabel(/^Quantity 1 in/)).toHaveValue('4')
   await expect(page.getByLabel(/^Base Ø 1 in/)).toHaveValue('40.0')
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(page.getByLabel('Diameter in mm')).toHaveValue('28.5')
+  await expect(page.getByLabel('Marking text')).toHaveValue('Shared squad')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
