@@ -11,7 +11,7 @@ export interface WorkspaceState {
 
 export interface SharedSettings {
   labelsEnabled: boolean
-  magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>
+  magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
 function sharedFromBase(base: BaseConfig): SharedSettings {
@@ -21,6 +21,7 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
       clearance: base.magnets.clearance,
+      depthClearance: base.magnets.depthClearance,
     },
   }
 }

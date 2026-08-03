@@ -184,12 +184,11 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
 
     /*
      * The boss carries the pocket the full depth of the well, and the pocket is cut
-     * only as deep as the magnet is thick — measured down from the top. So the
-     * magnet always finishes flush with the top of the boss, and a thinner one is
-     * packed out from underneath with solid material rather than left sitting at
-     * the bottom of an open tube.
+     * only as deep as the magnet plus its depth clearance — measured down from the
+     * top. The magnet can finish flush with the top of the boss while leaving room
+     * for adhesive behind it.
      */
-    const seatedThickness = Math.min(config.magnets.thickness, wellDepth)
+    const pocketDepth = Math.min(config.magnets.thickness + config.magnets.depthClearance, wellDepth)
 
     if (hollow && magnets.length > 0) {
       // Bosses carry the pockets up through the well so magnets seat against the floor.
@@ -251,10 +250,10 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     // Both undersides open their pockets on the face that meets the tray, which is
     // the top of the model as built, since the part is modelled the way it prints.
     if (magnets.length > 0) {
-      const depth = hollow ? seatedThickness + 1 : Math.min(config.magnets.thickness, config.height - 0.4)
+      const depth = hollow ? pocketDepth + 1 : Math.min(config.magnets.thickness + config.magnets.depthClearance, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))
       const drill = solidOf(pocketDisc.extrude(depth + 0.001))
-      const z = hollow ? config.height - seatedThickness : -0.001
+      const z = hollow ? config.height - pocketDepth : -0.001
       for (const m of magnets) {
         solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, z]))))
       }
