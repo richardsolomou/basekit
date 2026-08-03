@@ -195,7 +195,7 @@ test('switches between subtractive holder engraving locations', async ({ page })
 test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
-  const depth = page.getByLabel('Slot depth')
+  const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
