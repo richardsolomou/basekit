@@ -240,7 +240,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
   await page.getByRole('button', { name: 'Add size' }).click()
   await rebuilt(page, before)
   await expect(page.getByLabel(/^Quantity 2 in/)).toHaveValue('1')
-  await expect(page.getByLabel(/^Base diameter 2 in/)).toHaveValue('40.0')
+  await expect(page.getByRole('combobox', { name: 'Standard base size 2' })).toContainText('40')
   await expect(footer(page)).toContainText('5×Ø32 · 1×Ø40')
 
   const pending = page.waitForEvent('download')
@@ -256,14 +256,15 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   const before = await triangles(page)
-  await pickChoice(page, 'Shape 1', 'Oval')
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /75×42\b.*Oval/ }).click()
   await rebuilt(page, before)
-  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
-  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('75×42')
   await expect(footer(page)).toContainText('5×oval 75×42')
   await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
+  await page.getByRole('button', { name: 'Custom footprint' }).click()
+  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
+  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })
 
 const SHAPES = [

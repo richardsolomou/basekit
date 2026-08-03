@@ -111,6 +111,7 @@ function RepositoryLink() {
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
   const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
+  const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
@@ -163,6 +164,12 @@ export function App() {
     groups[target] = current
     setHolder({ ...holder, groups })
   }
+  const showCustomHolderGroup = (id: string) =>
+    setCustomHolderGroups((current) => {
+      const next = new Set(current)
+      next.add(id)
+      return next
+    })
   const partWidth = model === 'base' ? width : holderSize.width
   const partLength = model === 'base' ? length : holderSize.length
   const partHeight = model === 'base' ? config.height : holder.height
@@ -526,17 +533,18 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+          <div className="grid grid-cols-[2.25rem_3rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span className="col-span-2">Standard base size</span>
+            <span>Standard base size</span>
           </div>
           {holder.groups.map((group, index) => {
             const groupStandard = holderSizePreset(group)
+            const customOpen = customHolderGroups.has(group.id) || !groupStandard
             return (
               <div
                 key={group.id}
-                className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
+                className="grid grid-cols-[2.25rem_3rem_minmax(0,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
               >
                 <span
                   className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -558,86 +566,89 @@ export function App() {
                     setHolder({ ...holder, groups })
                   }}
                 />
-                <div className="col-span-2">
-                  <SizeSelect
-                    label={`Standard base size ${index + 1}`}
-                    value={groupStandard ? holderSizeValue(groupStandard) : null}
-                    options={HOLDER_SIZE_OPTIONS}
-                    onChange={(value) => {
-                      const size = HOLDER_SIZE_PRESETS.find((candidate) => holderSizeValue(candidate) === value)
-                      if (!size) return
-                      setHolder({
-                        ...holder,
-                        groups: holder.groups.map((entry, groupIndex) =>
-                          groupIndex === index
-                            ? holderGroup(group.id, group.quantity, {
-                                shape: size.shape,
-                                width: size.width,
-                                length: size.length ?? size.width,
-                              })
-                            : entry,
-                        ),
-                      })
-                    }}
-                  />
-                </div>
-                <span />
-                <span />
-                <CompactChoice
-                  label={`Shape ${index + 1}`}
-                  value={group.shape}
-                  options={SHAPES}
-                  onChange={(shape) =>
-                    setHolder({
-                      ...holder,
-                      groups: holder.groups.map((entry, groupIndex) =>
-                        groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
-                      ),
-                    })
-                  }
-                />
-                <Dimension
-                  label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
-                  value={group.width}
-                  min={15}
-                  max={180}
-                  step={0.5}
-                  compact
-                  onChange={(baseWidth) =>
+                <SizeSelect
+                  label={`Standard base size ${index + 1}`}
+                  value={groupStandard ? holderSizeValue(groupStandard) : null}
+                  options={HOLDER_SIZE_OPTIONS}
+                  onChange={(value) => {
+                    const size = HOLDER_SIZE_PRESETS.find((candidate) => holderSizeValue(candidate) === value)
+                    if (!size) return
                     setHolder({
                       ...holder,
                       groups: holder.groups.map((entry, groupIndex) =>
                         groupIndex === index
-                          ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
+                          ? holderGroup(group.id, group.quantity, {
+                              shape: size.shape,
+                              width: size.width,
+                              length: size.length ?? size.width,
+                            })
                           : entry,
                       ),
                     })
-                  }
+                  }}
                 />
-                {isElongated(group.shape) && (
-                  <>
-                    <span />
-                    <span />
-                    <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
-                    <Dimension
-                      label={`Base depth ${index + 1}`}
-                      value={group.length}
-                      min={15}
-                      max={180}
-                      step={0.5}
-                      compact
-                      onChange={(baseLength) =>
+                {customOpen && (
+                  <div className="col-span-3 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(2.25rem+3rem+1rem)]">
+                    <CompactChoice
+                      label={`Shape ${index + 1}`}
+                      value={group.shape}
+                      options={SHAPES}
+                      onChange={(shape) =>
                         setHolder({
                           ...holder,
                           groups: holder.groups.map((entry, groupIndex) =>
-                            groupIndex === index ? { ...group, length: baseLength } : entry,
+                            groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
                           ),
                         })
                       }
                     />
-                  </>
+                    <Dimension
+                      label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
+                      value={group.width}
+                      min={15}
+                      max={180}
+                      step={0.5}
+                      compact
+                      onChange={(baseWidth) =>
+                        setHolder({
+                          ...holder,
+                          groups: holder.groups.map((entry, groupIndex) =>
+                            groupIndex === index
+                              ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
+                              : entry,
+                          ),
+                        })
+                      }
+                    />
+                    {isElongated(group.shape) && (
+                      <>
+                        <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
+                        <Dimension
+                          label={`Base depth ${index + 1}`}
+                          value={group.length}
+                          min={15}
+                          max={180}
+                          step={0.5}
+                          compact
+                          onChange={(baseLength) =>
+                            setHolder({
+                              ...holder,
+                              groups: holder.groups.map((entry, groupIndex) =>
+                                groupIndex === index ? { ...group, length: baseLength } : entry,
+                              ),
+                            })
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
                 )}
-                <div className="col-span-4 flex justify-end">
+                <div className="col-span-3 flex justify-end">
+                  {!customOpen && (
+                    <Button size="xs" variant="ghost" aria-label="Custom footprint" onClick={() => showCustomHolderGroup(group.id)}>
+                      Custom
+                    </Button>
+                  )}
                   <Button
                     size="icon-xs"
                     variant="ghost"
