@@ -6,16 +6,11 @@
 **Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.**
 
 [mini-bases.ras.sh](https://mini-bases.ras.sh)
+
+[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/mini-bases/ci.yml?branch=main)](https://github.com/richardsolomou/mini-bases/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/mini-bases)](LICENSE)
 </div>
 
 A base comes out hollowed underneath. The recess takes magnets, so the model holds itself down on a magnetised tray or display board, and the size sits raised on the recess floor where nothing but the table ever sees it. The whole part is modelled the way it prints, upside down with the recess facing up, so every overhang points at the sky and nothing needs supports. That also means you are looking at the underside when the app opens, which is where the number is, so the slicer shows you which base you are about to print. A `28.5` base says `28.5`, not `29`.
-
-## Run it
-
-```bash
-pnpm install
-pnpm dev
-```
 
 Nothing is uploaded and there is no backend. Geometry is built in a web worker with [Manifold](https://github.com/elalish/manifold) compiled to WASM, previewed with three.js, and exported straight from the browser.
 
@@ -60,24 +55,13 @@ Files are named for what they are: `base-round-28.5mm.stl`, `base-oval-60x35mm.s
 
 ## Development
 
-```bash
-pnpm test              # geometry tests, no browser needed
-pnpm check             # format, lint, typecheck, test, build
-pnpm test:e2e          # build, then drive the real app with Playwright
-pnpm test:e2e:install  # one-off, fetches Chromium
-pnpm samples out       # write one STL per round preset to ./out
-pnpm samples out oval
-```
-
-`src/geometry` is plain TypeScript with no DOM dependency, so the builder is testable in Node, reusable from a CLI, and identical to what the browser runs.
-
-The body is lofted as a convex hull of the footprint offset at each height of the edge profile. That is exact for every shape here, since all of them are convex — a concave footprint would need a different approach.
+Requires Node 24.x and pnpm 10.33.0. Setup, checks, architecture, and sample exports live in [CONTRIBUTING.md](CONTRIBUTING.md); see [SECURITY.md](SECURITY.md) for vulnerability reports and [GitHub Issues](https://github.com/richardsolomou/mini-bases/issues) for planned work.
 
 ## Deployment
 
 Static assets, nothing else. There is no backend, no database and no secret: geometry is built in a web worker, and exports are assembled in the browser. Manifold ships the single-threaded WASM build, so no cross-origin isolation headers are needed either.
 
-`wrangler.jsonc` describes the deploy for Cloudflare, which builds the repo with `pnpm build` and serves `dist/`.
+Cloudflare builds the repo with `pnpm build` and serves `dist/`. See the [deployment guide](docs/deployment.md) for Pages setup, custom-domain configuration, and production checks. `wrangler.jsonc` describes the equivalent Workers Static Assets deployment.
 
 ## Not included
 
