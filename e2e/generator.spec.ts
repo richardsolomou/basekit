@@ -257,11 +257,13 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await settled(page)
   const before = await triangles(page)
   await pickChoice(page, 'Shape 1', 'Oval')
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: /75×42\b.*Oval/ }).click()
   await rebuilt(page, before)
-  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('60.0')
-  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('35.0')
-  await expect(footer(page)).toContainText('5×oval 60×35')
-  await expect(footer(page)).toContainText('holder-gridfinity-2x5-5xoval-60x35mm')
+  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
+  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
+  await expect(footer(page)).toContainText('5×oval 75×42')
+  await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
 })
 
 const SHAPES = [

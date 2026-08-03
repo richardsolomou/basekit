@@ -49,6 +49,21 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'polygon', label: 'Hex' },
 ]
 
+const shapeName = (shape: ShapeKind) => SHAPES.find((option) => option.value === shape)?.label ?? shape
+const HOLDER_SIZE_PRESETS = Object.values(SIZES_BY_SHAPE).flat()
+const holderSizeValue = (size: SizePreset) => `${size.shape}:${size.label}`
+const HOLDER_SIZE_OPTIONS = HOLDER_SIZE_PRESETS.map((size) => ({
+  value: holderSizeValue(size),
+  label: size.label,
+  use: `${shapeName(size.shape)} · ${size.use}`,
+}))
+
+function holderSizePreset(group: { shape: ShapeKind; width: number; length: number }) {
+  return HOLDER_SIZE_PRESETS.find(
+    (size) => size.shape === group.shape && size.width === group.width && (size.length ?? size.width) === group.length,
+  )
+}
+
 const PROFILES: { value: EdgeProfile; label: string }[] = [
   { value: 'taper', label: 'Taper' },
   { value: 'bevel', label: 'Bevel' },
@@ -514,117 +529,146 @@ export function App() {
           <div className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span>Shape</span>
-            <span>Size</span>
+            <span className="col-span-2">Standard base size</span>
           </div>
-          {holder.groups.map((group, index) => (
-            <div
-              key={group.id}
-              className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
-            >
-              <span
-                className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
+          {holder.groups.map((group, index) => {
+            const groupStandard = holderSizePreset(group)
+            return (
+              <div
+                key={group.id}
+                className="grid grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
               >
-                {fittedByGroup.get(group.id) ?? 0}/{group.quantity}
-              </span>
-              <Dimension
-                label={`Quantity ${index + 1}`}
-                value={group.quantity}
-                min={1}
-                max={100}
-                step={1}
-                unit=""
-                compact
-                onChange={(quantity) => {
-                  const groups = holder.groups.map((entry, groupIndex) =>
-                    groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
-                  )
-                  setHolder({ ...holder, groups })
-                }}
-              />
-              <CompactChoice
-                label={`Shape ${index + 1}`}
-                value={group.shape}
-                options={SHAPES}
-                onChange={(shape) =>
-                  setHolder({
-                    ...holder,
-                    groups: holder.groups.map((entry, groupIndex) =>
-                      groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
-                    ),
-                  })
-                }
-              />
-              <Dimension
-                label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
-                value={group.width}
-                min={15}
-                max={180}
-                step={0.5}
-                compact
-                onChange={(baseWidth) =>
-                  setHolder({
-                    ...holder,
-                    groups: holder.groups.map((entry, groupIndex) =>
-                      groupIndex === index
-                        ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
-                        : entry,
-                    ),
-                  })
-                }
-              />
-              {isElongated(group.shape) && (
-                <>
-                  <span />
-                  <span />
-                  <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
-                  <Dimension
-                    label={`Base depth ${index + 1}`}
-                    value={group.length}
-                    min={15}
-                    max={180}
-                    step={0.5}
-                    compact
-                    onChange={(baseLength) =>
+                <span
+                  className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {fittedByGroup.get(group.id) ?? 0}/{group.quantity}
+                </span>
+                <Dimension
+                  label={`Quantity ${index + 1}`}
+                  value={group.quantity}
+                  min={1}
+                  max={100}
+                  step={1}
+                  unit=""
+                  compact
+                  onChange={(quantity) => {
+                    const groups = holder.groups.map((entry, groupIndex) =>
+                      groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
+                    )
+                    setHolder({ ...holder, groups })
+                  }}
+                />
+                <div className="col-span-2">
+                  <SizeSelect
+                    label={`Standard base size ${index + 1}`}
+                    value={groupStandard ? holderSizeValue(groupStandard) : null}
+                    options={HOLDER_SIZE_OPTIONS}
+                    onChange={(value) => {
+                      const size = HOLDER_SIZE_PRESETS.find((candidate) => holderSizeValue(candidate) === value)
+                      if (!size) return
                       setHolder({
                         ...holder,
-                        groups: holder.groups.map((entry, groupIndex) => (groupIndex === index ? { ...group, length: baseLength } : entry)),
+                        groups: holder.groups.map((entry, groupIndex) =>
+                          groupIndex === index
+                            ? holderGroup(group.id, group.quantity, {
+                                shape: size.shape,
+                                width: size.width,
+                                length: size.length ?? size.width,
+                              })
+                            : entry,
+                        ),
                       })
-                    }
+                    }}
                   />
-                </>
-              )}
-              <div className="col-span-4 flex justify-end">
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Increase priority of miniature group ${index + 1}`}
-                  disabled={index === 0}
-                  onClick={() => moveGroup(index, -1)}
-                >
-                  <ChevronUp />
-                </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Decrease priority of miniature group ${index + 1}`}
-                  disabled={index === holder.groups.length - 1}
-                  onClick={() => moveGroup(index, 1)}
-                >
-                  <ChevronDown />
-                </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Remove miniature group ${index + 1}`}
-                  disabled={holder.groups.length === 1}
-                  onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
-                >
-                  <Trash2 />
-                </Button>
+                </div>
+                <span />
+                <span />
+                <CompactChoice
+                  label={`Shape ${index + 1}`}
+                  value={group.shape}
+                  options={SHAPES}
+                  onChange={(shape) =>
+                    setHolder({
+                      ...holder,
+                      groups: holder.groups.map((entry, groupIndex) =>
+                        groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
+                      ),
+                    })
+                  }
+                />
+                <Dimension
+                  label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
+                  value={group.width}
+                  min={15}
+                  max={180}
+                  step={0.5}
+                  compact
+                  onChange={(baseWidth) =>
+                    setHolder({
+                      ...holder,
+                      groups: holder.groups.map((entry, groupIndex) =>
+                        groupIndex === index
+                          ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
+                          : entry,
+                      ),
+                    })
+                  }
+                />
+                {isElongated(group.shape) && (
+                  <>
+                    <span />
+                    <span />
+                    <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
+                    <Dimension
+                      label={`Base depth ${index + 1}`}
+                      value={group.length}
+                      min={15}
+                      max={180}
+                      step={0.5}
+                      compact
+                      onChange={(baseLength) =>
+                        setHolder({
+                          ...holder,
+                          groups: holder.groups.map((entry, groupIndex) =>
+                            groupIndex === index ? { ...group, length: baseLength } : entry,
+                          ),
+                        })
+                      }
+                    />
+                  </>
+                )}
+                <div className="col-span-4 flex justify-end">
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Increase priority of miniature group ${index + 1}`}
+                    disabled={index === 0}
+                    onClick={() => moveGroup(index, -1)}
+                  >
+                    <ChevronUp />
+                  </Button>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Decrease priority of miniature group ${index + 1}`}
+                    disabled={index === holder.groups.length - 1}
+                    onClick={() => moveGroup(index, 1)}
+                  >
+                    <ChevronDown />
+                  </Button>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Remove miniature group ${index + 1}`}
+                    disabled={holder.groups.length === 1}
+                    onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <Button
             size="sm"
             variant="outline"

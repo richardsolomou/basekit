@@ -279,6 +279,7 @@ export function ToggleSetting({
 
 export interface SizeOption {
   value: string
+  label?: string
   use: string
 }
 
@@ -293,25 +294,27 @@ export function SizeSelect({
   value,
   options,
   onChange,
+  label = 'Standard base size',
 }: {
   value: string | null
   options: readonly SizeOption[]
   onChange: (value: string) => void
+  label?: string
 }) {
   const selected = options.find((option) => option.value === value)
   return (
     <Field>
       <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger aria-label="Standard base size" className="w-full">
+        <SelectTrigger aria-label={label} className="w-full">
           <SelectValue>
-            <span className="readout shrink-0">{selected?.value ?? 'Custom'}</span>
+            <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
             <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              <span className="readout w-16 shrink-0">{option.value}</span>
+              <span className="readout w-16 shrink-0">{option.label ?? option.value}</span>
               <span className="text-muted-foreground">{option.use}</span>
             </SelectItem>
           ))}
