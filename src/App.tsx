@@ -1,4 +1,4 @@
-import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Share2, Trash2 } from 'lucide-react'
+import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
 import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
@@ -33,7 +33,6 @@ import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { shareUrl, sharedProjectFromUrl } from '@/lib/shareConfig'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -88,34 +87,21 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [shared] = useState(() => sharedProjectFromUrl(window.location.href))
-  const [config, setConfig] = useState<BaseConfig>(() => shared?.base ?? presetFor(DEFAULT_PRESET))
-  const [holder, setHolder] = useState<HolderConfig>(() => shared?.holder ?? defaultHolderConfig())
-  const [model, setModel] = useState<'base' | 'holder'>(() => shared?.model ?? modelForPath())
+  const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
+  const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
+  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
-  const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
-    const syncRoute = () => {
-      const project = sharedProjectFromUrl(window.location.href)
-      if (project) {
-        setConfig(project.base)
-        setHolder(project.holder)
-      }
-      setModel(modelForPath())
-    }
+    const syncRoute = () => setModel(modelForPath())
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
-
-  useEffect(() => {
-    window.history.replaceState(null, '', shareUrl({ model, base: config, holder }))
-  }, [config, holder, model])
 
   useEffect(() => {
     document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
@@ -123,35 +109,16 @@ export function App() {
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
-    window.history.pushState(null, '', shareUrl({ model: next, base: config, holder }))
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
   }
 
-  const copyShareLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      posthog.capture('configuration_shared', { model })
-      setShareState('copied')
-      window.setTimeout(() => setShareState('idle'), 2000)
-    } catch {
-      setShareState('failed')
-    }
-  }
-
   const safeEdgeSize = (next: BaseConfig) => Math.floor((maxProfileSize(next) + 1e-6) * 10) / 10
-  const patch = (changes: Partial<BaseConfig>) => {
-    const next = { ...config, ...changes }
-    if (changes.magnets) {
-      const { diameter, thickness, clearance } = changes.magnets
-      setHolder((current) => ({ ...current, magnets: { ...current.magnets, diameter, thickness, clearance } }))
-    }
-    setConfig({ ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) })
-  }
-
-  const patchHolderMagnets = (changes: Partial<Pick<HolderConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>>) => {
-    setHolder((current) => ({ ...current, magnets: { ...current.magnets, ...changes } }))
-    setConfig((current) => ({ ...current, magnets: { ...current.magnets, ...changes } }))
-  }
+  const patch = (changes: Partial<BaseConfig>) =>
+    setConfig((current) => {
+      const next = { ...current, ...changes }
+      return { ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) }
+    })
   const { width, length } = footprint(config)
   const holderSize = holderLayout(holder)
   const plan = holderPlan(holder)
@@ -180,16 +147,7 @@ export function App() {
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
-    const preset = presetFor(size)
-    setConfig({
-      ...preset,
-      magnets: {
-        ...preset.magnets,
-        diameter: config.magnets.diameter,
-        thickness: config.magnets.thickness,
-        clearance: config.magnets.clearance,
-      },
-    })
+    setConfig(presetFor(size))
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -747,11 +705,11 @@ export function App() {
             label="Magnet Ø"
             value={holder.magnets.diameter}
             min={2}
-            max={12}
+            max={8}
             step={0.5}
             defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={!holder.magnets.enabled}
-            onChange={(diameter) => patchHolderMagnets({ diameter })}
+            onChange={(diameter) => setHolder({ ...holder, magnets: { ...holder.magnets, diameter } })}
           />
           <Dimension
             label="Magnet thickness"
@@ -761,17 +719,17 @@ export function App() {
             step={0.1}
             defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={!holder.magnets.enabled}
-            onChange={(thickness) => patchHolderMagnets({ thickness })}
+            onChange={(thickness) => setHolder({ ...holder, magnets: { ...holder.magnets, thickness } })}
           />
           <Dimension
             label="Magnet fit clearance"
             value={holder.magnets.clearance}
             min={0}
-            max={0.6}
+            max={1}
             step={0.05}
             defaultValue={BASE_DEFAULTS.magnets.clearance}
             disabled={!holder.magnets.enabled}
-            onChange={(clearance) => patchHolderMagnets({ clearance })}
+            onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
           />
         </Section>
         <RepositoryLink />
@@ -827,17 +785,6 @@ export function App() {
           </nav>
         </div>
         <ButtonGroup>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={copyShareLink}
-            aria-label={
-              shareState === 'copied' ? 'Copied share link' : shareState === 'failed' ? 'Could not copy share link' : 'Copy share link'
-            }
-          >
-            <Share2 />
-            <span className="max-sm:sr-only">{shareState === 'copied' ? 'Copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
-          </Button>
           {/* The labels fold away on a phone; the icons and the names still read out. */}
           <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
