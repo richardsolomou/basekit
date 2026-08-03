@@ -212,14 +212,14 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   await expect(page).toHaveURL(/\/holders$/)
   await expect(across(page)).toHaveText('41.5 × 167.5')
   await expect(tall(page)).toHaveText('14')
-  await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
+  await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
   await expect(footer(page)).toContainText('5 × 5.2 mm hole')
 
   const previewTriangles = await triangles(page)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
   const saved = await download
-  expect(saved.suggestedFilename()).toBe('holder-gridfinity-1x4-5x32mm.stl')
+  expect(saved.suggestedFilename()).toBe('holder-1x4-5x-round-32mm.stl')
   const path = await saved.path()
   if (!path) throw new Error('download has no local path')
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
@@ -230,7 +230,7 @@ test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, asyn
   await settled(page)
   await expect(page).toHaveTitle('Gridfinity Mini Holders')
   await expect(page.getByRole('link', { name: 'Holders' })).toHaveAttribute('aria-current', 'page')
-  await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
+  await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
@@ -344,10 +344,40 @@ test('adds another miniature size to the holder', async ({ page }) => {
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STLs' }).click()
   const saved = await pending
-  expect(saved.suggestedFilename()).toBe('holder-gridfinity-2x4-5x32-1x40mm.zip')
+  expect(saved.suggestedFilename()).toBe('holder-2x4-5x-round-32mm-1x-round-40mm.zip')
   const path = await saved.path()
   if (!path) throw new Error('download has no local path')
-  expect(Object.keys(unzipSync(await readFile(path))).filter((name) => name.endsWith('.stl'))).toHaveLength(2)
+  expect(Object.keys(unzipSync(await readFile(path))).sort()).toEqual([
+    'module-1-holder-1x4-5x-round-32mm.stl',
+    'module-2-holder-1x1-1x-round-40mm.stl',
+  ])
+
+  const pending3mf = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download 3MF' }).click()
+  const saved3mf = await pending3mf
+  expect(saved3mf.suggestedFilename()).toBe('holders-2-2x4-5x-round-32mm-1x-round-40mm.3mf')
+  const path3mf = await saved3mf.path()
+  if (!path3mf) throw new Error('download has no local path')
+  const archive = unzipSync(await readFile(path3mf))
+  const model = new TextDecoder().decode(archive['3D/3dmodel.model'])
+  const settings = new TextDecoder().decode(archive['Metadata/model_settings.config'])
+  const project = new TextDecoder().decode(archive['Metadata/project_settings.config'])
+  expect(model.match(/<object /g)).toHaveLength(2)
+  expect(model.match(/<item objectid="\d+"[^>]+ transform=/g)).toHaveLength(2)
+  expect(model).toContain('<metadata name="Application">BambuStudio-02.07.01.62</metadata>')
+  expect(model).toContain('<metadata name="BambuStudio:3mfVersion">1</metadata>')
+  expect(settings.match(/<plate>/g)).toHaveLength(2)
+  expect(settings).toContain('<metadata key="plater_name" value="module-1-holder-1x4-5x-round-32mm"/>')
+  expect(settings).toContain('<metadata key="object_id" value="2"/>')
+  expect(settings).toContain('<metadata key="plater_name" value="module-2-holder-1x1-1x-round-40mm"/>')
+  expect(settings).toContain('<metadata key="object_id" value="4"/>')
+  expect(archive['3D/Objects/object_1.model']).toBeDefined()
+  expect(archive['3D/Objects/object_2.model']).toBeDefined()
+  expect(JSON.parse(project)).toEqual({
+    filament_settings_id: ['Bambu PLA Basic @BBL X1C'],
+    print_settings_id: '0.20mm Standard @BBL X1C',
+    printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle',
+  })
 })
 
 test('changes holder slots to non-round base shapes', async ({ page }) => {
@@ -362,7 +392,7 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await rebuilt(page, oval)
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('75×42')
   await expect(footer(page)).toContainText('5×oval 75×42')
-  await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
+  await expect(footer(page)).toContainText('holder-4x4-5x-oval-75x42mm')
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: 'Custom exact dimensions' }).click()
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('Custom')

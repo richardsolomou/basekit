@@ -41,16 +41,18 @@ export function useExport({ model, base, holder, width, length }: ExportOptions)
   }
 
   const build = () => buildMesh({ ...config, segments: exportSegmentsFor(Math.max(width, length)) })
+  const plan = model === 'holder' ? holderPlan(holder) : undefined
+  const buildModules = () =>
+    Promise.all(
+      plan!.modules.map((module) =>
+        buildMesh({ ...module.config, segments: exportSegmentsFor(Math.max(module.layout.width, module.layout.length)) }),
+      ),
+    )
 
   const exportStl = () =>
     run('stl', async () => {
-      const plan = model === 'holder' ? holderPlan(holder) : undefined
       if (plan && plan.modules.length > 1) {
-        const meshes = await Promise.all(
-          plan.modules.map((module) =>
-            buildMesh({ ...module.config, segments: exportSegmentsFor(Math.max(module.layout.width, module.layout.length)) }),
-          ),
-        )
+        const meshes = await buildModules()
         const files = Object.fromEntries(
           meshes.map((mesh, index) => {
             const moduleName = `module-${index + 1}-${holderName(plan.modules[index].config)}.stl`
@@ -67,6 +69,15 @@ export function useExport({ model, base, holder, width, length }: ExportOptions)
 
   const export3mf = () =>
     run('3mf', async () => {
+      if (plan && plan.modules.length > 1) {
+        const meshes = await buildModules()
+        const modules = meshes.map((mesh, index) => ({
+          mesh: asMeshLike(mesh),
+          name: `module-${index + 1}-${holderName(plan.modules[index].config)}`,
+        }))
+        download(`${name.replace(/^holder-/, `holders-${modules.length}-`)}.3mf`, to3mf(modules, true))
+        return
+      }
       const mesh = await build()
       download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
     })

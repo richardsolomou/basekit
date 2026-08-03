@@ -98,7 +98,7 @@ function holderGroupSizeLabel(group: Pick<HolderGroup, 'shape' | 'width' | 'leng
 
 function holderGroupNamePart(group: HolderGroup): string {
   const size = isElongated(group.shape) ? `${trimNumber(group.width)}x${trimNumber(group.length)}` : trimNumber(group.width)
-  return group.shape === 'round' ? `${group.quantity}x${size}` : `${group.quantity}x${group.shape}-${size}`
+  return `${group.quantity}x-${group.shape}-${size}mm`
 }
 
 function shapeLabel(shape: ShapeKind): string {
@@ -585,7 +585,7 @@ export function defaultHolderConfig(): HolderConfig {
 export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
   const models = config.groups.map(holderGroupNamePart).join('-')
-  return `holder-gridfinity-${layout.unitsWide}x${layout.unitsDeep}-${models}mm`
+  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
