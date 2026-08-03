@@ -37,7 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveWorkspace } from '@/lib/workspace'
+import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -106,9 +106,11 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [workspace, setWorkspace] = useState(loadWorkspace)
+  const [workspace, setWorkspaceState] = useState(loadWorkspace)
   const config = workspace.base
   const holder = workspace.holder
+  const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
+    setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
@@ -248,10 +250,19 @@ export function App() {
 
   const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>>) => {
     setWorkspace((current) => ({
-      base: { ...current.base, magnets: { ...current.base.magnets, ...changes } },
-      holder: { ...current.holder, magnets: { ...current.holder.magnets, ...changes } },
+      ...current,
+      shared: { ...current.shared, magnets: { ...current.shared.magnets, ...changes } },
     }))
   }
+
+  const setSharedLabels = (labelsEnabled: boolean) =>
+    setWorkspace((current) => ({
+      ...current,
+      shared: { ...current.shared, labelsEnabled },
+      holder: labelsEnabled
+        ? fitSlotDepth({ ...current.holder, engraving: { ...current.holder.engraving, enabled: true } })
+        : current.holder,
+    }))
 
   const setSharedMagnetPlacement = (changes: Partial<Pick<BaseConfig, 'wallThickness'> & { bossWall: number }>) => {
     setWorkspace((current) => {
@@ -261,6 +272,7 @@ export function App() {
         magnets: { ...current.base.magnets, ...('bossWall' in changes ? { bossWall: changes.bossWall } : {}) },
       }
       return {
+        ...current,
         base: { ...base, profileSize: Math.min(base.profileSize, safeEdgeSize(base)) },
         holder: {
           ...current.holder,
@@ -274,6 +286,7 @@ export function App() {
   const setMagnetCount = (count: number) => {
     const key = footprintKey(config.shape, config.width, config.length)
     setWorkspace((current) => ({
+      ...current,
       base: { ...current.base, magnets: { ...current.base.magnets, count } },
       holder: { ...current.holder, magnetCounts: { ...current.holder.magnetCounts, [key]: count } },
     }))
@@ -377,7 +390,7 @@ export function App() {
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
               posthog.capture('base_marking_toggled', { enabled })
-              patch({ label: { ...config.label, enabled } })
+              setSharedLabels(enabled)
             }}
           />
           <Field>
@@ -848,7 +861,7 @@ export function App() {
             label="Label base sizes"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
-            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, enabled } }))}
+            onChange={setSharedLabels}
           />
           {holder.engraving.enabled && (
             <Choice

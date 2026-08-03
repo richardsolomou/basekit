@@ -134,6 +134,16 @@ test('remembers a base and its magnet settings for matching holders', async ({ p
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
+test('shares the size label preference between bases and holders', async ({ page }) => {
+  await page.getByRole('switch', { name: 'Show size label' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect(page.getByRole('switch', { name: 'Label base sizes' })).not.toBeChecked()
+
+  await page.getByRole('switch', { name: 'Label base sizes' }).click()
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between minis in mm').fill('1.5')
