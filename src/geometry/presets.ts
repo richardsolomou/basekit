@@ -195,6 +195,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
       maxCount: maxMagnets,
       diameter: 5,
       clearance: 0.2,
+      depthClearance: 0,
       bossWall: 0.9,
       thickness: 2,
     },

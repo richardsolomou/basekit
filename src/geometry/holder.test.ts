@@ -270,7 +270,13 @@ describe('buildHolder', () => {
   })
 
   it('opens one flush magnet pocket in the floor of every mini slot', () => {
-    const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 1, { width: 32 })], maxRows: 1 }
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      groups: [holderGroup('models-1', 1, { width: 32 })],
+      maxRows: 1,
+      magnets: { ...defaults.magnets, depthClearance: 0.2 },
+    }
     const { mesh } = buildHolder(wasm, config)
     const { numProp, vertProperties } = mesh
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
@@ -283,7 +289,7 @@ describe('buildHolder', () => {
         maxZ = Math.max(maxZ, vertProperties[i + 2])
       }
     }
-    expect(minZ).toBeCloseTo(slotFloor - config.magnets.thickness, 2)
+    expect(minZ).toBeCloseTo(slotFloor - config.magnets.thickness - config.magnets.depthClearance, 2)
     expect(maxZ).toBeCloseTo(slotFloor, 2)
   })
 

@@ -52,11 +52,11 @@ function ResetButton({ label, value, onReset }: { label: string; value: string; 
 }
 
 function ResetSlot({ children }: { children?: ReactNode }) {
-  return <span className="flex size-3.5 items-center justify-center">{children}</span>
+  return <span className="col-start-2 row-start-1 flex size-3.5 translate-x-1 items-center justify-center">{children}</span>
 }
 
 const settingColumns = 'grid w-full grid-cols-[minmax(0,1fr)_0.875rem_7rem] items-center gap-2'
-const settingLabel = 'w-full font-normal'
+const settingLabel = 'col-start-1 row-start-1 w-full font-normal'
 
 /**
  * A dimension: type an exact figure, or drag its label to scrub. Typing is the
@@ -126,7 +126,7 @@ export function Dimension({
               ? 'px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase'
               : compact
                 ? 'sr-only'
-                : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`
+                : `${settingLabel} col-span-2 cursor-ew-resize touch-none ${modified ? 'text-modified' : ''}`
           }
         >
           {compactLabel ?? label}
@@ -189,7 +189,7 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel className={`${settingLabel} ${modified ? 'text-modified' : 'col-span-2'}`}>{label}</FieldLabel>
+        <FieldLabel className={`${settingLabel} col-span-2 ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
         {modified && (
           <ResetSlot>
             <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />
@@ -262,7 +262,7 @@ export function ToggleSetting({
   return (
     <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel htmlFor={id} className={`${settingLabel} ${modified ? 'text-modified' : 'col-span-2'}`}>
+        <FieldLabel htmlFor={id} className={`${settingLabel} col-span-2 ${modified ? 'text-modified' : ''}`}>
           {label}
         </FieldLabel>
         {modified && (

@@ -65,7 +65,7 @@ interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
 type HolderMagnetSettings = Pick<HolderConfig, 'magnetCounts' | 'magnets' | 'baseWallThickness' | 'magnetBossWall'>
 
 const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
-  magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, thickness: 2 },
+  magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
   magnetCounts: {},
   baseWallThickness: 2,
   magnetBossWall: 0.9,
@@ -167,12 +167,12 @@ function maxPossibleGroupQuantity(
 
 export function maxHolderSlotDepth(config: HolderConfig): number {
   const engravingDepth = config.engraving.enabled && config.engraving.placement === 'slots' ? ENGRAVING_DEPTH : 0
-  const magnetDepth = config.magnets.enabled ? config.magnets.thickness : 0
+  const magnetDepth = config.magnets.enabled ? config.magnets.thickness + config.magnets.depthClearance : 0
   return config.height - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - Math.max(engravingDepth, magnetDepth)
 }
 
 export function maxHolderMagnetThickness(config: HolderConfig): number {
-  return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS
+  return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - config.magnets.depthClearance
 }
 
 function distributed(points: HolderSlot[], width: number, length: number) {
@@ -574,7 +574,7 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, thickness: 2 },
+    magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
     magnetCounts: {},
     baseWallThickness: 2,
     magnetBossWall: 0.9,
@@ -678,8 +678,9 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
       )
       if (magnetOutlines.length > 0) {
         const magnets = section(CrossSection.union(magnetOutlines))
-        const drill = solidOf(magnets.extrude(config.magnets.thickness + 0.001))
-        const pocketFloor = config.height - config.slotDepth - config.magnets.thickness
+        const pocketDepth = config.magnets.thickness + config.magnets.depthClearance
+        const drill = solidOf(magnets.extrude(pocketDepth + 0.001))
+        const pocketFloor = config.height - config.slotDepth - pocketDepth
         cutters.push(solidOf(drill.translate([0, 0, pocketFloor])))
       }
     }

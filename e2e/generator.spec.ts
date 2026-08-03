@@ -171,6 +171,16 @@ test('aligns toggle and dimension reset columns', async ({ page }) => {
   expect(toggle?.x).toBe(dimension?.x)
 })
 
+test('keeps a long dimension label on one line when its reset appears', async ({ page }) => {
+  const label = page.getByText('Magnet diameter clearance', { exact: true })
+  const before = await label.boundingBox()
+  await page.getByLabel('Magnet diameter clearance in mm').fill('0.25')
+  await expect(page.getByRole('button', { name: /Reset Magnet diameter clearance/ })).toBeVisible()
+  const after = await label.boundingBox()
+
+  expect(after?.height).toBe(before?.height)
+})
+
 test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)

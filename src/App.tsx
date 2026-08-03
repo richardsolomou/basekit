@@ -149,8 +149,13 @@ export function App() {
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness =
-    config.underside === 'well' ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)
+    (config.underside === 'well' ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)) -
+    config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
+  const maxBaseDepthClearance =
+    (config.underside === 'well' ? config.height - config.floorThickness : config.height - 0.4) - config.magnets.thickness
+  const maxHolderDepthClearance = maxHolderMagnetThickness(holder) + holder.magnets.depthClearance - holder.magnets.thickness
+  const maxSharedDepthClearance = Math.max(0, Math.min(0.5, maxBaseDepthClearance, maxHolderDepthClearance))
   const fitSlotDepth = (next: HolderConfig) => ({
     ...next,
     slotDepth: Math.min(next.slotDepth, Math.max(1, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5)),
@@ -219,6 +224,7 @@ export function App() {
             diameter: config.magnets.diameter,
             thickness: config.magnets.thickness,
             clearance: config.magnets.clearance,
+            depthClearance: config.magnets.depthClearance,
           },
         },
         holder.magnetCounts,
@@ -226,7 +232,7 @@ export function App() {
     )
   }
 
-  const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>>) => {
+  const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
     setWorkspace((current) => ({
       ...current,
       shared: { ...current.shared, magnets: { ...current.shared.magnets, ...changes } },
@@ -527,13 +533,22 @@ export function App() {
           aside={<span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>}
         >
           <Dimension
-            label="Magnet fit clearance"
+            label="Magnet diameter clearance"
             value={config.magnets.clearance}
             min={0}
             max={0.6}
             step={0.05}
             defaultValue={BASE_DEFAULTS.magnets.clearance}
             onChange={(clearance) => setSharedMagnets({ clearance })}
+          />
+          <Dimension
+            label="Magnet depth clearance"
+            value={config.magnets.depthClearance}
+            min={0}
+            max={maxSharedDepthClearance}
+            step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.depthClearance}
+            onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
           />
           <Dimension
             label="Wall around pocket"
@@ -887,7 +902,7 @@ export function App() {
             onChange={(thickness) => setSharedMagnets({ thickness })}
           />
           <Dimension
-            label="Magnet fit clearance"
+            label="Magnet diameter clearance"
             value={holder.magnets.clearance}
             min={0}
             max={0.6}
@@ -895,6 +910,16 @@ export function App() {
             defaultValue={BASE_DEFAULTS.magnets.clearance}
             disabled={!holder.magnets.enabled}
             onChange={(clearance) => setSharedMagnets({ clearance })}
+          />
+          <Dimension
+            label="Magnet depth clearance"
+            value={holder.magnets.depthClearance}
+            min={0}
+            max={0.5}
+            step={0.05}
+            defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
+            disabled={!holder.magnets.enabled}
+            onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
           />
         </Section>
         <RepositoryLink />

@@ -15,9 +15,11 @@ export interface MagnetSpec {
   diameter: number
   /** Added to the diameter so a nominal magnet actually drops in. */
   clearance: number
+  /** Added to the pocket depth for adhesive and Z-axis tolerance. */
+  depthClearance: number
   /** Wall left around each pocket, forming the boss that carries it. */
   bossWall: number
-  /** How thick the magnet is. The pocket is cut to match, so it seats flush. */
+  /** Nominal magnet thickness, before depth clearance is added to the pocket. */
   thickness: number
 }
 
@@ -94,6 +96,7 @@ export interface HolderConfig {
     maxCount: number
     diameter: number
     clearance: number
+    depthClearance: number
     thickness: number
   }
   magnetCounts: Record<string, number>

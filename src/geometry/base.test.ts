@@ -139,6 +139,16 @@ describe('buildBase', () => {
     expect(pocket.maxZ - pocket.minZ).toBeCloseTo(thickness, 5)
   })
 
+  it('adds depth clearance behind a flush magnet pocket', () => {
+    const base = preset(ROUND_SIZES[4])
+    const config = { ...base, ribs: { ...base.ribs, count: 0 }, magnets: { ...base.magnets, depthClearance: 0.2 } }
+    const ringRadius = (config.width / 2 - config.wallThickness) / 2
+    const bore = (config.magnets.diameter + config.magnets.clearance) / 2
+    const pocket = pocketAt(build(config).mesh, 0, ringRadius, bore)
+
+    expect(pocket.maxZ - pocket.minZ).toBeCloseTo(config.magnets.thickness + config.magnets.depthClearance, 5)
+  })
+
   it('leaves the centre unbored when magnets are turned off', () => {
     // Ribs and the label would both put geometry at the centre on their own.
     const base = preset(ROUND_SIZES[3])

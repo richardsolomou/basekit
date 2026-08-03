@@ -9,7 +9,7 @@ describe('workspace state', () => {
   it('keeps every setting exposed by both generators synchronized', () => {
     const state = defaultWorkspace()
     state.shared.labelsEnabled = false
-    state.shared.magnets = { diameter: 6, thickness: 1.5, clearance: 0.3 }
+    state.shared.magnets = { diameter: 6, thickness: 1.5, clearance: 0.3, depthClearance: 0.2 }
     const synchronized = synchronizeWorkspace(state)
     expect({ label: synchronized.base.label.enabled, engraving: synchronized.holder.engraving.enabled }).toEqual({
       label: false,

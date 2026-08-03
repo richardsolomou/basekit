@@ -45,11 +45,14 @@ export function TitleBlock({ config, status, name }: Props) {
     )
   }
   const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
-  const thickness = trimNumber(config.magnets.thickness)
+  const pocketDepth = trimNumber(config.magnets.thickness + config.magnets.depthClearance)
 
   return (
     <TitleFrame status={status} name={name}>
-      <Row label="Magnets" value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${thickness}mm`} />
+      <Row
+        label="Magnets"
+        value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${pocketDepth}mm deep`}
+      />
       <Row
         label="Size label"
         value={config.label.enabled && config.underside === 'well' ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'}
