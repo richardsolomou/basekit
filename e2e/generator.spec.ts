@@ -228,7 +228,7 @@ test('fits what it can and reports box overflow', async ({ page }) => {
   await page.getByLabel(/^Maximum rows in/).fill('1')
   await page.getByLabel(/^Maximum rows in/).press('Enter')
   await rebuilt(page, before)
-  await expect(page.getByText('1/5', { exact: true })).toBeVisible()
+  await expect(page.getByText('Only 1 of 5 fit')).toBeVisible()
   await expect(footer(page)).toContainText('4×Ø32')
 })
 
@@ -263,7 +263,7 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await expect(footer(page)).toContainText('5×oval 75×42')
   await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
-  await page.getByRole('option', { name: 'Custom footprint exact shape and size' }).click()
+  await page.getByRole('option', { name: 'Custom size shape, width and depth' }).click()
   await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
   await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })

@@ -61,7 +61,7 @@ const HOLDER_SIZE_OPTIONS: SizeOption[] = [
     group: shapeName(size.shape),
     use: size.use,
   })),
-  { value: CUSTOM_HOLDER_SIZE, label: 'Custom footprint', use: 'exact shape and size' },
+  { value: CUSTOM_HOLDER_SIZE, label: 'Custom size', use: 'shape, width and depth' },
 ]
 
 function holderSizePreset(group: { shape: ShapeKind; width: number; length: number }) {
@@ -545,24 +545,22 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[2.25rem_3rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-            <span>Fit</span>
+          <div className="grid grid-cols-[2.625rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Qty</span>
             <span>Base</span>
           </div>
           {holder.groups.map((group, index) => {
             const groupStandard = holderSizePreset(group)
             const customOpen = customHolderGroups.has(group.id) || !groupStandard
+            const fitted = fittedByGroup.get(group.id) ?? 0
+            const missing = group.quantity - fitted
             return (
               <div
                 key={group.id}
-                className="grid grid-cols-[2.25rem_3rem_minmax(0,1fr)] items-center gap-2 border-b border-border pb-2 last:border-0"
+                className={`grid grid-cols-[2.625rem_minmax(0,1fr)] items-center gap-2 border-b pb-2 last:border-0 ${
+                  missing > 0 ? 'border-destructive/50' : 'border-border'
+                }`}
               >
-                <span
-                  className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {fittedByGroup.get(group.id) ?? 0}/{group.quantity}
-                </span>
                 <Dimension
                   label={`Quantity ${index + 1}`}
                   value={group.quantity}
@@ -605,7 +603,7 @@ export function App() {
                   }}
                 />
                 {customOpen && (
-                  <div className="col-span-3 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(2.25rem+3rem+1rem)]">
+                  <div className="col-span-2 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(2.625rem+0.5rem)]">
                     <CompactChoice
                       label={`Shape ${index + 1}`}
                       value={group.shape}
@@ -660,7 +658,12 @@ export function App() {
                     )}
                   </div>
                 )}
-                <div className="col-span-3 flex justify-end">
+                {missing > 0 && (
+                  <p className="col-span-2 pl-[calc(2.625rem+0.5rem)] text-xs text-destructive">
+                    Only {fitted} of {group.quantity} fit
+                  </p>
+                )}
+                <div className="col-span-2 flex justify-end">
                   <Button
                     size="icon-xs"
                     variant="ghost"
