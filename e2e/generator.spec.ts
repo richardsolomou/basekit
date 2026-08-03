@@ -63,6 +63,19 @@ test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
 })
 
+test('shares and restores the active base configuration', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await pickSize(page, '28.5')
+  await page.getByLabel('Marking text').fill('Shared squad')
+  await page.getByRole('button', { name: 'Copy share link' }).click()
+  await expect(page.getByRole('button', { name: 'Copied share link' })).toBeVisible()
+  const url = await page.evaluate(() => navigator.clipboard.readText())
+  await page.goto(url)
+  await settled(page)
+  await expect(page.getByLabel('Diameter in mm')).toHaveValue('28.5')
+  await expect(page.getByLabel('Marking text')).toHaveValue('Shared squad')
+})
+
 test('keeps a half millimetre size exact', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
@@ -121,6 +134,20 @@ test('loads the Gridfinity holder directly from its route', async ({ page }) => 
   await expect(page).toHaveTitle('Gridfinity Mini Holders')
   await expect(page.getByRole('link', { name: 'Holders' })).toHaveAttribute('aria-current', 'page')
   await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
+})
+
+test('shares and restores the active holder configuration', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await page.getByLabel(/^Quantity 1 in/).fill('4')
+  await page.getByLabel(/^Base Ø 1 in/).fill('40')
+  await page.getByRole('button', { name: 'Copy share link' }).click()
+  const url = await page.evaluate(() => navigator.clipboard.readText())
+  await page.goto(url)
+  await settled(page)
+  await expect(page).toHaveURL(/\/holders\?config=/)
+  await expect(page.getByLabel(/^Quantity 1 in/)).toHaveValue('4')
+  await expect(page.getByLabel(/^Base Ø 1 in/)).toHaveValue('40.0')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {

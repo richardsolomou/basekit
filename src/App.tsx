@@ -1,4 +1,4 @@
-import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
+import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Share2, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
 import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
@@ -33,6 +33,7 @@ import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
+import { shareUrl, sharedConfigFromUrl } from '@/lib/shareConfig'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -85,11 +86,13 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
-  const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
+  const [shared] = useState(() => sharedConfigFromUrl(window.location.href))
+  const [config, setConfig] = useState<BaseConfig>(() => (shared?.model === 'base' ? shared.config : presetFor(DEFAULT_PRESET)))
+  const [holder, setHolder] = useState<HolderConfig>(() => (shared?.model === 'holder' ? shared.config : defaultHolderConfig()))
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
+  const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
@@ -109,6 +112,17 @@ export function App() {
     if (next === model) return
     window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
+  }
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl(partConfig))
+      posthog.capture('configuration_shared', { model })
+      setShareState('copied')
+      window.setTimeout(() => setShareState('idle'), 2000)
+    } catch {
+      setShareState('failed')
+    }
   }
 
   const safeEdgeSize = (next: BaseConfig) => Math.floor((maxProfileSize(next) + 1e-6) * 10) / 10
@@ -743,6 +757,17 @@ export function App() {
           </nav>
         </div>
         <ButtonGroup>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={copyShareLink}
+            aria-label={
+              shareState === 'copied' ? 'Copied share link' : shareState === 'failed' ? 'Could not copy share link' : 'Copy share link'
+            }
+          >
+            <Share2 />
+            <span className="max-sm:sr-only">{shareState === 'copied' ? 'Copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
+          </Button>
           {/* The labels fold away on a phone; the icons and the names still read out. */}
           <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
