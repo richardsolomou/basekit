@@ -71,13 +71,11 @@ export function useExport({ model, base, holder, width, length }: ExportOptions)
     run('3mf', async () => {
       if (plan && plan.modules.length > 1) {
         const meshes = await buildModules()
-        const files = Object.fromEntries(
-          meshes.map((mesh, index) => {
-            const moduleName = `module-${index + 1}-${holderName(plan.modules[index].config)}`
-            return [`${moduleName}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name: moduleName }])]
-          }),
-        )
-        download(`${name}.zip`, zipSync(files))
+        const modules = meshes.map((mesh, index) => ({
+          mesh: asMeshLike(mesh),
+          name: `module-${index + 1}-${holderName(plan.modules[index].config)}`,
+        }))
+        download(`${name}.3mf`, to3mf(modules, true))
         return
       }
       const mesh = await build()

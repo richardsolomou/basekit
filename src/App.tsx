@@ -959,9 +959,7 @@ export function App() {
           </Button>
           <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview || exporting !== undefined}>
             <Box />
-            <span className="max-sm:sr-only">
-              {exporting === '3mf' ? 'Building 3MF' : model === 'holder' && plan.modules.length > 1 ? 'Download 3MFs' : 'Download 3MF'}
-            </span>
+            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Download 3MF'}</span>
           </Button>
         </ButtonGroup>
       </header>

@@ -343,15 +343,20 @@ test('adds another miniature size to the holder', async ({ page }) => {
   ])
 
   const pending3mf = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download 3MFs' }).click()
+  await page.getByRole('button', { name: 'Download 3MF' }).click()
   const saved3mf = await pending3mf
-  expect(saved3mf.suggestedFilename()).toBe('holder-2x4-5x-round-32mm-1x-round-40mm.zip')
+  expect(saved3mf.suggestedFilename()).toBe('holder-2x4-5x-round-32mm-1x-round-40mm.3mf')
   const path3mf = await saved3mf.path()
   if (!path3mf) throw new Error('download has no local path')
-  expect(Object.keys(unzipSync(await readFile(path3mf))).sort()).toEqual([
-    'module-1-holder-1x4-5x-round-32mm.3mf',
-    'module-2-holder-1x1-1x-round-40mm.3mf',
-  ])
+  const archive = unzipSync(await readFile(path3mf))
+  const model = new TextDecoder().decode(archive['3D/3dmodel.model'])
+  const settings = new TextDecoder().decode(archive['Metadata/model_settings.config'])
+  expect(model.match(/<object /g)).toHaveLength(2)
+  expect(settings.match(/<plate>/g)).toHaveLength(2)
+  expect(settings).toContain('<metadata key="plater_name" value="module-1-holder-1x4-5x-round-32mm"/>')
+  expect(settings).toContain('<metadata key="object_id" value="1"/>')
+  expect(settings).toContain('<metadata key="plater_name" value="module-2-holder-1x1-1x-round-40mm"/>')
+  expect(settings).toContain('<metadata key="object_id" value="2"/>')
 })
 
 test('changes holder slots to non-round base shapes', async ({ page }) => {

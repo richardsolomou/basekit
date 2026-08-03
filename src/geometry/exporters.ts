@@ -73,12 +73,34 @@ function modelXml(meshes: { mesh: MeshLike; name: string }[]): string {
 </model>`
 }
 
+function plateSettingsXml(meshes: { name: string }[]): string {
+  const plates = meshes.map(
+    ({ name }, index) => `<plate>
+<metadata key="plater_id" value="${index + 1}"/>
+<metadata key="plater_name" value="${name}"/>
+<metadata key="locked" value="false"/>
+<model_instance>
+<metadata key="object_id" value="${index + 1}"/>
+<metadata key="instance_id" value="0"/>
+<metadata key="identify_id" value="${index + 1}"/>
+</model_instance>
+</plate>`,
+  )
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+${plates.join('\n')}
+<assemble/>
+</config>`
+}
+
 /** 3MF keeps the mesh topology intact and carries millimetre units explicitly. */
-export function to3mf(meshes: { mesh: MeshLike; name: string }[]): Uint8Array {
+export function to3mf(meshes: { mesh: MeshLike; name: string }[], separateBuildPlates = false): Uint8Array {
   const enc = new TextEncoder()
-  return zipSync({
+  const files = {
     '[Content_Types].xml': enc.encode(CONTENT_TYPES),
     _rels: { '.rels': enc.encode(RELS) },
     '3D': { '3dmodel.model': enc.encode(modelXml(meshes)) },
-  })
+    ...(separateBuildPlates ? { Metadata: { 'model_settings.config': enc.encode(plateSettingsXml(meshes)) } } : {}),
+  }
+  return zipSync(files)
 }
