@@ -3,44 +3,45 @@
 
 # Mini Bases
 
-**Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.**
+**Printable miniature bases sized, magnetised, and marked exactly how you need them.**
 
 [mini-bases.ras.sh](https://mini-bases.ras.sh)
 
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/mini-bases/ci.yml?branch=main)](https://github.com/richardsolomou/mini-bases/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/mini-bases)](LICENSE)
 </div>
 
-A base comes out hollowed underneath, with flush magnet pockets for a magnetised tray or display board and its exact size embossed inside. The part is modelled upside down as it prints, so it needs no supports. A `28.5` base says `28.5`, not `29`.
+Mini Bases makes support-free STL and 3MF files for tabletop miniatures. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a base ready for the slicer. The size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
-Nothing is uploaded and there is no backend. Geometry is built in a web worker with [Manifold](https://github.com/elalish/manifold) compiled to WASM, previewed with three.js, and exported straight from the browser.
+Everything runs in the browser. Models are built locally and nothing is uploaded.
 
-## Shapes and sizes
+## Who is it for? 👋
 
-| Shape | Sizes                                                                                               |
-| ----- | --------------------------------------------------------------------------------------------------- |
-| Round | 25, 28.5, 32, 40, 50, 60, 65, 80, 90, 100, 130, 160 — the Games Workshop range                      |
-| Oval  | 60×35, 75×42, 90×52, 105×70, 120×92, 170×105                                                        |
-| Rank  | 20×20, 25×25, 20×40, 25×50, 40×40, 50×50, 50×100, 60×100 — The Old World, Kings of War, historicals |
-| Pill  | 60×35, 75×42, 90×52, 105×70 — the oval footprints, squared off                                      |
-| Hex   | 25, 32, 40, 50, 60 across the corners, so a hex drops into the space of that round                  |
+Mini Bases is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD. It covers round and oval skirmish bases, ranked regiments, pill-shaped footprints, and polygons from triangles to dodecagons.
 
-Every shape starts with sensible presets, and custom footprints from 15–180mm work. Presets scale the magnet and rib layout with the footprint; markings move and shrink automatically to clear them. Profile, bracing, magnet fit, and emboss tolerances remain adjustable.
+The built-in presets include the common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
 
-## Exports
+## How it works ✨
 
-- **STL** — binary, what every slicer wants.
-- **3MF** — keeps the mesh topology and states millimetres explicitly.
+1. **Choose the footprint** from a standard size or enter exact dimensions.
+2. **Match your magnets** by setting their diameter, thickness, fit, and count.
+3. **Tune the print** with the edge profile, wall, recess floor, and internal bracing.
+4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
+5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
-Files are named for what they are: `base-round-28.5mm.stl`, `base-oval-60x35mm.stl`.
+The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
 
-## Development
+A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
+
+## What it does not do
+
+Mini Bases generates the base itself. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
+
+## Development 🛠️
 
 Requires Node 24.x and pnpm 10.33.0. Setup, checks, architecture, and sample exports live in [CONTRIBUTING.md](CONTRIBUTING.md); see [SECURITY.md](SECURITY.md) for vulnerability reports and [GitHub Issues](https://github.com/richardsolomou/mini-bases/issues) for planned work.
 
-## Deployment
+Cloudflare builds the static app with `pnpm build` and serves `dist/`. See the [deployment guide](docs/deployment.md) for Pages setup, custom-domain configuration, and production checks.
 
-Cloudflare builds the repo with `pnpm build` and serves `dist/`. See the [deployment guide](docs/deployment.md) for Pages setup, custom-domain configuration, and production checks. `wrangler.jsonc` describes the equivalent Workers Static Assets deployment.
+## License
 
-## Licence
-
-Mini Bases is licensed under the [GNU Affero General Public License v3.0](LICENSE). Oswald (`src/assets/fonts`) is used under the SIL Open Font Licence; see `src/assets/fonts/OFL.txt`.
+[GNU Affero General Public License v3.0](LICENSE). Oswald (`src/assets/fonts`) is used under the [SIL Open Font Licence](src/assets/fonts/OFL.txt).
