@@ -9,15 +9,19 @@ const drawn = (page: Page) => page.locator('main [data-triangles]')
 /** Footprint and height are read off the dimension leaders drawn on the part. */
 const across = (page: Page) => page.locator('#label-across')
 const tall = (page: Page) => page.locator('#label-height')
-const marking = (page: Page) => page.getByLabel('Marking text')
-const shape = (page: Page, name: string) => page.getByRole('button', { name, exact: true })
+const marking = (page: Page) => page.getByLabel('Label text')
 
 /** Options read "<size> <what it is for>", so anchor on the figure. */
 const sizeOption = (page: Page, label: string) => page.getByRole('option', { name: new RegExp(`^${label.replaceAll('.', '\\.')}\\b`) })
 
 async function pickSize(page: Page, label: string) {
-  await page.getByRole('combobox', { name: 'Standard size' }).click()
+  await page.getByRole('combobox', { name: 'Standard base size' }).click()
   await sizeOption(page, label).click()
+}
+
+async function pickChoice(page: Page, label: string, option: string) {
+  await page.getByRole('combobox', { name: label }).click()
+  await page.getByRole('option', { name: option, exact: true }).click()
 }
 
 /** Geometry is built in a worker, so the drawing settles a moment after a click. */
@@ -71,6 +75,43 @@ test('keeps a half millimetre size exact', async ({ page }) => {
   await expect(marking(page)).toHaveAttribute('placeholder', '28.5')
 })
 
+test('marks and resets a changed value to its default', async ({ page }) => {
+  await pickSize(page, '28.5')
+  const reset = page.getByRole('button', { name: 'Reset Diameter to 32.0 mm' })
+  await expect(reset).toBeVisible()
+  await expect(page.getByText('Diameter', { exact: true })).toHaveClass(/text-modified/)
+  await reset.click()
+  await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('32.0')
+  await expect(reset).not.toBeVisible()
+})
+
+test('marks and resets changed toggles and choices', async ({ page }) => {
+  const markingToggle = page.getByRole('switch', { name: 'Show size label' })
+  await markingToggle.click()
+  const resetMarking = page.getByRole('button', { name: 'Reset Show size label to on' })
+  await expect(resetMarking).toBeVisible()
+  await resetMarking.click()
+  await expect(markingToggle).toBeChecked()
+
+  await pickChoice(page, 'Shape', 'Oval')
+  const resetShape = page.getByRole('button', { name: 'Reset Shape to Round' })
+  await expect(resetShape).toBeVisible()
+  await resetShape.click()
+  await expect(page.getByRole('combobox', { name: 'Shape' })).toContainText('Round')
+})
+
+test('aligns toggle and dimension reset columns', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await page.getByLabel('Between minis in mm').fill('1.5')
+  await page.getByRole('switch', { name: 'Split into modules' }).click()
+  const dimensionReset = await page.getByRole('button', { name: /Reset Between minis/ }).boundingBox()
+  const toggleReset = await page.getByRole('button', { name: /Reset Split into modules/ }).boundingBox()
+  const dimension = await page.getByLabel('Between minis in mm').boundingBox()
+  const toggle = await page.getByRole('switch', { name: 'Split into modules' }).boundingBox()
+  expect(toggleReset?.x).toBe(dimensionReset?.x)
+  expect(toggle?.x).toBe(dimension?.x)
+})
+
 test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
@@ -103,7 +144,7 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   await expect(across(page)).toHaveText('41.5 × 167.5')
   await expect(tall(page)).toHaveText('14')
   await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
-  await expect(footer(page)).toContainText('5 × Ø5.2')
+  await expect(footer(page)).toContainText('5 × 5.2 mm hole')
 
   const previewTriangles = await triangles(page)
   const download = page.waitForEvent('download')
@@ -139,22 +180,22 @@ test('updates integer holder inputs immediately without losing focus', async ({ 
 test('switches between subtractive holder engraving locations', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
-  await expect(page.getByRole('switch', { name: 'Engrave base sizes' })).toBeChecked()
-  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('switch', { name: 'Label base sizes' })).toBeChecked()
+  await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('In slots')
   const before = await triangles(page)
-  await page.getByRole('button', { name: 'On module' }).click()
+  await pickChoice(page, 'Label location', 'On module')
   await rebuilt(page, before)
-  await expect(page.getByRole('button', { name: 'On module' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('On module')
   const moduleTriangles = await triangles(page)
-  await page.getByRole('button', { name: 'In slots' }).click()
+  await pickChoice(page, 'Label location', 'In slots')
   await rebuilt(page, moduleTriangles)
-  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('In slots')
 })
 
 test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
-  const depth = page.getByLabel('Slot depth')
+  const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
@@ -199,7 +240,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
   await page.getByRole('button', { name: 'Add size' }).click()
   await rebuilt(page, before)
   await expect(page.getByLabel(/^Quantity 2 in/)).toHaveValue('1')
-  await expect(page.getByLabel(/^Base Ø 2 in/)).toHaveValue('40.0')
+  await expect(page.getByLabel(/^Base diameter 2 in/)).toHaveValue('40.0')
   await expect(footer(page)).toContainText('5×Ø32 · 1×Ø40')
 
   const pending = page.waitForEvent('download')
@@ -214,17 +255,17 @@ test('adds another miniature size to the holder', async ({ page }) => {
 const SHAPES = [
   { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
   { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },
-  { name: 'Rect', footprint: '25 × 50', mark: '25x50', chip: '50×100' },
+  { name: 'Rectangle', footprint: '25 × 50', mark: '25x50', chip: '50×100' },
   { name: 'Hex', footprint: 'Ø32', mark: '32', chip: '60' },
 ]
 
 for (const entry of SHAPES) {
   test(`starts a ${entry.name.toLowerCase()} base on a standard size`, async ({ page }) => {
-    await shape(page, entry.name).click()
+    await pickChoice(page, 'Shape', entry.name)
     await settled(page)
-    await expect(shape(page, entry.name)).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('combobox', { name: 'Shape' })).toContainText(entry.name)
     // The size list swaps to that family's range.
-    await page.getByRole('combobox', { name: 'Standard size' }).click()
+    await page.getByRole('combobox', { name: 'Standard base size' }).click()
     await expect(sizeOption(page, entry.chip)).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(across(page)).toHaveText(entry.footprint)
@@ -233,7 +274,7 @@ for (const entry of SHAPES) {
 }
 
 test('marks even a cramped rank base', async ({ page }) => {
-  await shape(page, 'Rect').click()
+  await pickChoice(page, 'Shape', 'Rectangle')
   await settled(page)
   await pickSize(page, '20×20')
   await settled(page)
@@ -242,7 +283,7 @@ test('marks even a cramped rank base', async ({ page }) => {
   // A 20mm well is mostly boss and ribs. The marking used to be dropped silently
   // when it would not fit, so compare the triangle count against an unmarked base.
   const withMark = await triangles(page)
-  await page.getByRole('switch', { name: 'Emboss the size inside' }).click()
+  await page.getByRole('switch', { name: 'Show size label' }).click()
   await rebuilt(page, withMark)
   expect(withMark).toBeGreaterThan(await triangles(page))
 })
@@ -251,9 +292,8 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   // The dimension fields clamp to their limits, so no combination can reach an
   // unbuildable base. The geometry does throw outside those bounds, so this guards
   // the clamping rather than the geometry.
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const before = await triangles(page)
-  for (const control of ['Wall in mm', 'Recess floor in mm']) {
+  for (const control of ['Wall thickness in mm', 'Top thickness in mm']) {
     // Well past the maximum: the field clamps, which is the behaviour being guarded.
     await page.getByLabel(control).fill('99')
     await page.getByLabel(control).blur()
@@ -263,10 +303,9 @@ test('still builds with the wall and floor wound to their limits', async ({ page
 })
 
 test('caps the edge profile when the recess floor is thinned', async ({ page }) => {
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const floorBuild = triangles(page)
-  await page.getByLabel('Recess floor in mm').fill('0.4')
-  await page.getByLabel('Recess floor in mm').press('Enter')
+  await page.getByLabel('Top thickness in mm').fill('0.4')
+  await page.getByLabel('Top thickness in mm').press('Enter')
   await rebuilt(page, floorBuild)
 
   const edgeBuild = triangles(page)
@@ -278,7 +317,7 @@ test('caps the edge profile when the recess floor is thinned', async ({ page }) 
 
 test('takes an exact typed dimension', async ({ page }) => {
   // The whole point of a typed field over a slider: 28.5 is reachable.
-  const field = page.getByLabel('Diameter in mm')
+  const field = page.getByLabel('Diameter in mm', { exact: true })
   await field.fill('')
   await field.pressSequentially('28.5')
   await settled(page)
@@ -288,14 +327,14 @@ test('takes an exact typed dimension', async ({ page }) => {
 })
 
 test('clamps a dimension typed past its limit', async ({ page }) => {
-  await page.getByLabel('Diameter in mm').fill('999')
-  await page.getByLabel('Diameter in mm').blur()
+  await page.getByLabel('Diameter in mm', { exact: true }).fill('999')
+  await page.getByLabel('Diameter in mm', { exact: true }).blur()
   await settled(page)
-  await expect(page.getByLabel('Diameter in mm')).toHaveValue('180.0')
+  await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('180.0')
 })
 
 test('scrubs a dimension by dragging its label', async ({ page }) => {
-  const field = page.getByLabel('Diameter in mm')
+  const field = page.getByLabel('Diameter in mm', { exact: true })
   const before = await triangles(page)
   const label = page.getByText('Diameter', { exact: true })
   const box = await label.boundingBox()
@@ -309,8 +348,7 @@ test('scrubs a dimension by dragging its label', async ({ page }) => {
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
-  await page.getByRole('button', { name: 'Solid', exact: true }).click()
+  await pickChoice(page, 'Underside', 'Solid')
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.
   await expect(page.getByText(/solid base has no well/i)).toBeVisible()
@@ -319,12 +357,12 @@ test('takes magnets out of the underside of a solid base', async ({ page }) => {
 test('moves the controls into a drawer on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   // The docked panel is not rendered at all below `md`, so nothing is duplicated.
-  await expect(page.getByLabel('Diameter in mm')).toBeHidden()
+  await expect(page.getByLabel('Diameter in mm', { exact: true })).toBeHidden()
 
   await page.getByRole('button', { name: 'Base settings' }).click()
   const before = await triangles(page)
-  await page.getByLabel('Diameter in mm').fill('60')
-  await page.getByLabel('Diameter in mm').press('Enter')
+  await page.getByLabel('Diameter in mm', { exact: true }).fill('60')
+  await page.getByLabel('Diameter in mm', { exact: true }).press('Enter')
   await rebuilt(page, before)
   await expect(across(page)).toHaveText('Ø60')
 })

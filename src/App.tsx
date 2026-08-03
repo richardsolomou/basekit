@@ -1,15 +1,13 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
-import { Accordion } from '@/components/ui/accordion'
+import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Switch } from '@/components/ui/switch'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
@@ -38,7 +36,7 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
   { value: 'oval', label: 'Oval' },
   { value: 'pill', label: 'Pill' },
-  { value: 'rect', label: 'Rect' },
+  { value: 'rect', label: 'Rectangle' },
   { value: 'polygon', label: 'Hex' },
 ]
 
@@ -50,7 +48,7 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 ]
 
 const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Hollow well' },
+  { value: 'well', label: 'Hollow' },
   { value: 'solid', label: 'Solid' },
 ]
 
@@ -65,6 +63,8 @@ const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
   { value: 'module' as const, label: 'On module' },
 ]
+const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
+const HOLDER_DEFAULTS = defaultHolderConfig()
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
 
@@ -217,7 +217,7 @@ export function App() {
     <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
-        <Section title="Footprint">
+        <Section title="Size & Shape">
           <SizeSelect
             value={standard?.label ?? null}
             options={sizes.map((size) => ({ value: size.label, use: size.use }))}
@@ -226,13 +226,14 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
-          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
+          <Choice label="Shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <Dimension
-            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
+            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Overall width'}
             value={config.width}
             min={15}
             max={180}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.width}
             onChange={(w) => setConfig(resized(config, w, config.length))}
           />
           {elongated && (
@@ -242,6 +243,7 @@ export function App() {
               min={15}
               max={180}
               step={0.5}
+              defaultValue={BASE_DEFAULTS.length}
               onChange={(l) => setConfig(resized(config, config.width, l))}
             />
           )}
@@ -251,16 +253,17 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket
+              {trimNumber(config.magnets.diameter + config.magnets.clearance)} mm hole
             </span>
           }
         >
           <Dimension
-            label="Magnet Ø"
+            label="Magnet diameter"
             value={config.magnets.diameter}
             min={2}
             max={12}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={config.magnets.count === 0}
             onChange={(diameter) => patch({ magnets: { ...config.magnets, diameter } })}
           />
@@ -272,29 +275,25 @@ export function App() {
             // well is deep or it would stand proud of the top face.
             max={hollow ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={config.magnets.count === 0}
             onChange={(thickness) => patch({ magnets: { ...config.magnets, thickness } })}
           />
         </Section>
 
-        <Section title="Marking">
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="marking-enabled" className="font-normal">
-              Emboss the size inside
-            </FieldLabel>
-            <Switch
-              id="marking-enabled"
-              aria-label="Emboss the size inside"
-              checked={config.label.enabled}
-              onCheckedChange={(enabled) => {
-                posthog.capture('base_marking_toggled', { enabled })
-                patch({ label: { ...config.label, enabled } })
-              }}
-            />
-          </Field>
+        <Section title="Size Label">
+          <ToggleSetting
+            label="Show size label"
+            checked={config.label.enabled}
+            defaultChecked={BASE_DEFAULTS.label.enabled}
+            onChange={(enabled) => {
+              posthog.capture('base_marking_toggled', { enabled })
+              patch({ label: { ...config.label, enabled } })
+            }}
+          />
           <Field>
             <FieldLabel htmlFor="marking-text" className="sr-only">
-              Marking text
+              Label text
             </FieldLabel>
             <Input
               id="marking-text"
@@ -308,144 +307,184 @@ export function App() {
           </Field>
         </Section>
 
-        {/* Folds are independent: opening the profile should not shut the tolerances. */}
-        <Accordion multiple className="border-b border-border">
-          <Fold title="Construction" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
-            <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
-            <div aria-hidden="true" className="grid grid-cols-2 gap-2 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-              <div className={`border p-2 ${hollow ? 'border-measure/60 text-measure' : 'border-border'}`}>
-                <div className="mx-auto mb-1 h-3 w-12 border-x border-b border-current" />
-                Recessed
-              </div>
-              <div className={`border p-2 ${hollow ? 'border-border' : 'border-measure/60 text-measure'}`}>
-                <div className="mx-auto mb-1 h-3 w-12 border border-current bg-current/10" />
-                Filled
-              </div>
-            </div>
-            <Dimension label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
-            <Dimension
-              label="Wall"
-              value={config.wallThickness}
-              min={1}
-              max={6}
-              step={0.1}
-              onChange={(wallThickness) => patch({ wallThickness })}
-            />
-            {/* Only a hollowed underside has a floor to set. It is the face the model
+        <Section title="Construction" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(config.height)}mm</span>}>
+          <Choice
+            label="Underside"
+            value={config.underside}
+            defaultValue={BASE_DEFAULTS.underside}
+            options={UNDERSIDES}
+            onChange={(underside) => patch({ underside })}
+          />
+          <Dimension
+            label="Height"
+            value={config.height}
+            min={2}
+            max={12}
+            step={0.25}
+            defaultValue={BASE_DEFAULTS.height}
+            onChange={(height) => patch({ height })}
+          />
+          <Dimension
+            label="Wall thickness"
+            value={config.wallThickness}
+            min={1}
+            max={6}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.wallThickness}
+            onChange={(wallThickness) => patch({ wallThickness })}
+          />
+          {/* Only a hollowed underside has a floor to set. It is the face the model
                 is glued to, and it is never between a magnet and the tray. */}
-            {hollow && (
-              <Dimension
-                label="Recess floor"
-                value={config.floorThickness}
-                min={0.4}
-                max={Math.max(0.5, config.height - 0.5)}
-                step={0.1}
-                onChange={(floorThickness) => patch({ floorThickness })}
-              />
-            )}
-            <Choice label="Bottom edge" value={config.profile} options={PROFILES} onChange={(profile) => patch({ profile })} />
+          {hollow && (
             <Dimension
-              label="Edge size"
-              value={config.profileSize}
-              min={0}
-              max={safeEdgeSize(config)}
-              step={0.1}
-              disabled={config.profile === 'straight'}
-              onChange={(profileSize) => patch({ profileSize })}
-            />
-            {config.shape === 'rect' && (
-              <Dimension
-                label="Corner radius"
-                value={config.cornerRadius}
-                min={0}
-                max={12}
-                step={0.5}
-                onChange={(cornerRadius) => patch({ cornerRadius })}
-              />
-            )}
-            {config.shape === 'polygon' && (
-              <Dimension label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
-            )}
-          </Fold>
-
-          <Fold
-            title="Magnet layout"
-            summary={config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
-          >
-            <Choice
-              label="Magnets per base"
-              hideLabel
-              value={config.magnets.count}
-              options={MAGNET_COUNTS}
-              onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
-            />
-          </Fold>
-
-          <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
-            <Choice
-              label="Spokes"
-              hideLabel
-              value={config.ribs.count}
-              options={RIB_COUNTS}
-              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
-            />
-            <Dimension
-              label="Thickness"
-              value={config.ribs.thickness}
-              min={0.8}
-              max={4}
-              step={0.1}
-              disabled={config.ribs.count === 0}
-              onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
-            />
-            <Dimension
-              label="Height"
-              value={config.ribs.height}
+              label="Top thickness"
+              value={config.floorThickness}
               min={0.4}
-              max={Math.max(0.5, config.height - config.floorThickness)}
+              max={Math.max(0.5, config.height - 0.5)}
               step={0.1}
-              disabled={config.ribs.count === 0}
-              onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+              defaultValue={BASE_DEFAULTS.floorThickness}
+              onChange={(floorThickness) => patch({ floorThickness })}
             />
-          </Fold>
-
-          <Fold title="Tolerances" summary={`Ø${trimNumber(config.magnets.clearance)} fit`}>
+          )}
+          <Choice
+            label="Bottom edge"
+            value={config.profile}
+            defaultValue={BASE_DEFAULTS.profile}
+            options={PROFILES}
+            onChange={(profile) => patch({ profile })}
+          />
+          <Dimension
+            label="Edge size"
+            value={config.profileSize}
+            min={0}
+            max={safeEdgeSize(config)}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.profileSize}
+            disabled={config.profile === 'straight'}
+            onChange={(profileSize) => patch({ profileSize })}
+          />
+          {config.shape === 'rect' && (
             <Dimension
-              label="Magnet fit clearance"
-              value={config.magnets.clearance}
+              label="Corner radius"
+              value={config.cornerRadius}
               min={0}
-              max={0.6}
-              step={0.05}
-              onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
-            />
-            <Dimension
-              label="Wall around pocket"
-              value={config.magnets.bossWall}
-              min={0.4}
-              max={3}
-              step={0.1}
-              onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
-            />
-            <Dimension
-              label="Marking height"
-              value={config.label.height}
-              min={2}
-              max={16}
+              max={12}
               step={0.5}
-              disabled={!config.label.enabled}
-              onChange={(height) => patch({ label: { ...config.label, height } })}
+              defaultValue={BASE_DEFAULTS.cornerRadius}
+              onChange={(cornerRadius) => patch({ cornerRadius })}
             />
+          )}
+          {config.shape === 'polygon' && (
             <Dimension
-              label="Marking emboss"
-              value={config.label.emboss}
-              min={0.2}
-              max={1.5}
-              step={0.1}
-              disabled={!config.label.enabled}
-              onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
+              label="Sides"
+              value={config.sides}
+              min={3}
+              max={12}
+              step={1}
+              unit=""
+              defaultValue={BASE_DEFAULTS.sides}
+              onChange={(sides) => patch({ sides })}
             />
-          </Fold>
-        </Accordion>
+          )}
+        </Section>
+
+        <Section
+          title="Magnet layout"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
+            </span>
+          }
+        >
+          <Choice
+            label="Magnets per base"
+            value={config.magnets.count}
+            defaultValue={BASE_DEFAULTS.magnets.count}
+            options={MAGNET_COUNTS}
+            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+          />
+        </Section>
+
+        <Section
+          title="Internal Supports"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
+            </span>
+          }
+        >
+          <Choice
+            label="Number of supports"
+            value={config.ribs.count}
+            defaultValue={BASE_DEFAULTS.ribs.count}
+            options={RIB_COUNTS}
+            onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+          />
+          <Dimension
+            label="Thickness"
+            value={config.ribs.thickness}
+            min={0.8}
+            max={4}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.ribs.thickness}
+            disabled={config.ribs.count === 0}
+            onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
+          />
+          <Dimension
+            label="Height"
+            value={config.ribs.height}
+            min={0.4}
+            max={Math.max(0.5, config.height - config.floorThickness)}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.ribs.height}
+            disabled={config.ribs.count === 0}
+            onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+          />
+        </Section>
+
+        <Section
+          title="Fit & Detail"
+          aside={<span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>}
+        >
+          <Dimension
+            label="Magnet fit clearance"
+            value={config.magnets.clearance}
+            min={0}
+            max={0.6}
+            step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.clearance}
+            onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
+          />
+          <Dimension
+            label="Wall around pocket"
+            value={config.magnets.bossWall}
+            min={0.4}
+            max={3}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.magnets.bossWall}
+            onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
+          />
+          <Dimension
+            label="Label size"
+            value={config.label.height}
+            min={2}
+            max={16}
+            step={0.5}
+            defaultValue={BASE_DEFAULTS.label.height}
+            disabled={!config.label.enabled}
+            onChange={(height) => patch({ label: { ...config.label, height } })}
+          />
+          <Dimension
+            label="Label thickness"
+            value={config.label.emboss}
+            min={0.2}
+            max={1.5}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.label.emboss}
+            disabled={!config.label.enabled}
+            onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
+          />
+        </Section>
         <RepositoryLink />
       </aside>
     </ScrollArea>
@@ -463,15 +502,15 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_4rem_1fr_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+          <div className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span>Base Ø</span>
+            <span>Base diameter</span>
           </div>
           {holder.groups.map((group, index) => (
             <div
               key={group.id}
-              className="grid grid-cols-[3rem_4rem_1fr_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
+              className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
             >
               <span
                 className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -494,7 +533,7 @@ export function App() {
                 }}
               />
               <Dimension
-                label={`Base Ø ${index + 1}`}
+                label={`Base diameter ${index + 1}`}
                 value={group.diameter}
                 min={15}
                 max={180}
@@ -562,6 +601,7 @@ export function App() {
             max={12}
             step={1}
             unit=""
+            defaultValue={HOLDER_DEFAULTS.maxColumns}
             onChange={(maxColumns) => setHolder({ ...holder, maxColumns: Math.round(maxColumns) })}
           />
           <Dimension
@@ -571,6 +611,7 @@ export function App() {
             max={12}
             step={1}
             unit=""
+            defaultValue={HOLDER_DEFAULTS.maxRows}
             onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
           />
           <Dimension
@@ -579,18 +620,15 @@ export function App() {
             min={0}
             max={10}
             step={0.5}
+            defaultValue={HOLDER_DEFAULTS.spacing}
             onChange={(spacing) => setHolder({ ...holder, spacing })}
           />
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="split-holder-groups" className="font-normal">
-              Split into modules
-            </FieldLabel>
-            <Switch
-              id="split-holder-groups"
-              checked={holder.splitGroups}
-              onCheckedChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
-            />
-          </Field>
+          <ToggleSetting
+            label="Split into modules"
+            checked={holder.splitGroups}
+            defaultChecked={HOLDER_DEFAULTS.splitGroups}
+            onChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
+          />
           <div className="space-y-1 border-y border-border py-3 text-xs">
             {plan.modules.map((module, index) => (
               <div key={`${module.config.groups[0].id}-${module.column}-${module.row}`} className="flex justify-between gap-3">
@@ -608,6 +646,7 @@ export function App() {
             min={7}
             max={42}
             step={7}
+            defaultValue={HOLDER_DEFAULTS.height}
             onChange={(height) => setHolder(fitSlotDepth({ ...holder, height }))}
           />
         </Section>
@@ -619,6 +658,7 @@ export function App() {
             min={1}
             max={maxSlotDepth}
             step={0.5}
+            defaultValue={HOLDER_DEFAULTS.slotDepth}
             onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
           />
           <Dimension
@@ -627,22 +667,20 @@ export function App() {
             min={0.1}
             max={2}
             step={0.1}
+            defaultValue={HOLDER_DEFAULTS.slotClearance}
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="holder-engraving" className="font-normal">
-              Engrave base sizes
-            </FieldLabel>
-            <Switch
-              id="holder-engraving"
-              checked={holder.engraving.enabled}
-              onCheckedChange={(enabled) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, enabled } }))}
-            />
-          </Field>
+          <ToggleSetting
+            label="Label base sizes"
+            checked={holder.engraving.enabled}
+            defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
+            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, enabled } }))}
+          />
           {holder.engraving.enabled && (
             <Choice
-              label="Engraving location"
+              label="Label location"
               value={holder.engraving.placement}
+              defaultValue={HOLDER_DEFAULTS.engraving.placement}
               options={ENGRAVING_PLACEMENTS}
               onChange={(placement) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, placement } }))}
             />
@@ -653,26 +691,23 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              Ø{trimNumber(holder.magnets.diameter + holder.magnets.clearance)} pocket
+              {trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole
             </span>
           }
         >
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="holder-magnets" className="font-normal">
-              Slot magnets
-            </FieldLabel>
-            <Switch
-              id="holder-magnets"
-              checked={holder.magnets.enabled}
-              onCheckedChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
-            />
-          </Field>
+          <ToggleSetting
+            label="Slot magnets"
+            checked={holder.magnets.enabled}
+            defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
+            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
+          />
           <Dimension
-            label="Magnet Ø"
+            label="Magnet diameter"
             value={holder.magnets.diameter}
             min={2}
             max={8}
             step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={!holder.magnets.enabled}
             onChange={(diameter) => setHolder({ ...holder, magnets: { ...holder.magnets, diameter } })}
           />
@@ -682,6 +717,7 @@ export function App() {
             min={0.5}
             max={Math.max(0.5, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10)}
             step={0.1}
+            defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={!holder.magnets.enabled}
             onChange={(thickness) => setHolder({ ...holder, magnets: { ...holder.magnets, thickness } })}
           />
@@ -691,6 +727,7 @@ export function App() {
             min={0}
             max={1}
             step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.clearance}
             disabled={!holder.magnets.enabled}
             onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
           />
