@@ -106,13 +106,13 @@ const ROW_COUNTS = [4, 6, 8]
 export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
 export const RIB_CHOICES = [0, 2, 3, 4, 5, 6, 8]
 
-function closestSpread(ideal: number, counts: number[]): number {
-  return counts.reduce((best, n) => (Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best), counts[0])
+function spreadCount(ideal: number, counts: number[]): number {
+  return counts.reduce((best, count) => (count <= ideal ? count : best), counts[0])
 }
 
 function ringMagnetCount(short: number): number {
   const ideal = (Math.PI * short) / 2 / MAGNET_PITCH
-  return RING_COUNTS.reduce((best, count) => (count <= ideal ? count : best), RING_COUNTS[0])
+  return spreadCount(ideal, RING_COUNTS)
 }
 
 /**
@@ -136,8 +136,8 @@ function magnetCount(width: number, length: number): number {
   const run = long - 8
   const transverseCount = ringMagnetCount(short)
   if (run <= MAGNET_PITCH * END_PAIR_PITCHES && short <= SINGLE_MAGNET_MAX_SPAN && transverseCount === 3) return 2
-  const transverseMinimum = transverseCount % 2 === 0 ? transverseCount : transverseCount + 1
-  return Math.max(transverseMinimum, closestSpread(run / MAGNET_PITCH + 1, ROW_COUNTS))
+  const transverseMinimum = transverseCount % 2 === 0 ? transverseCount : transverseCount - 1
+  return Math.max(transverseMinimum, spreadCount(run / MAGNET_PITCH + 1, ROW_COUNTS))
 }
 
 /**

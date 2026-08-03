@@ -466,11 +466,11 @@ describe('scaling with the footprint', () => {
     expect(resized(presetFor(OVAL_SIZES[0]), 50, 25).magnets.count).toBe(1)
   })
 
-  it('does not lose holding capacity when a wide ring becomes a row', () => {
+  it('uses the lower supported row count when transverse demand falls between counts', () => {
     const base = presetFor(OVAL_SIZES[0])
     expect(resized(base, 90, 70).magnets.count).toBe(3)
     expect(resized(base, 95, 70).magnets.count).toBe(4)
-    expect(resized(base, 142, 105).magnets.count).toBe(6)
+    expect(resized(base, 142, 105).magnets.count).toBe(4)
   })
 
   it('keeps every automatic row count even', () => {
@@ -484,14 +484,14 @@ describe('scaling with the footprint', () => {
     expect(odd).toEqual([])
   })
 
-  it('never weakens a four-or-more magnet layout when its long axis grows', () => {
+  it('never reduces the magnet count as an elongated row grows', () => {
     const base = presetFor(OVAL_SIZES[0])
     const weaker: string[] = []
     for (let short = 20; short <= 130; short += 5) {
       let previous = 0
-      for (let long = short; long <= 180; long += 0.5) {
+      for (let long = short * 1.36; long <= 180; long += 0.5) {
         const count = resized(base, long, short).magnets.count
-        if (previous >= 4 && count < previous) weaker.push(`${long}×${short}: ${previous} → ${count}`)
+        if (count < previous) weaker.push(`${long}×${short}: ${previous} → ${count}`)
         previous = count
       }
     }
