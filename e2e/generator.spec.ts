@@ -34,6 +34,10 @@ async function triangles(page: Page): Promise<number> {
   return Number((await drawn(page).getAttribute('data-triangles')) ?? 0)
 }
 
+async function cameraDistance(page: Page): Promise<number> {
+  return Number((await drawn(page).getAttribute('data-camera-distance')) ?? 0)
+}
+
 /**
  * Waits for a rebuild to land. Polling the triangle count beats waiting for
  * "ready", which is still true from the build before the one being triggered.
@@ -61,6 +65,22 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
   await expect(tall(page)).toHaveText('4')
   await expect(footer(page)).toContainText('base-round-32mm')
   expect(await triangles(page)).toBeGreaterThan(0)
+})
+
+test('uses wider default framing for holders until the viewer zooms', { tag: '@ci' }, async ({ page }) => {
+  const baseDistance = await cameraDistance(page)
+
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance * 1.4, 4)
+
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance, 4)
+
+  await page.locator('canvas').hover()
+  await page.mouse.wheel(0, 300)
+  const chosenDistance = await cameraDistance(page)
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect.poll(() => cameraDistance(page)).toBeCloseTo(chosenDistance, 4)
 })
 
 test('links to the source repository', async ({ page }) => {

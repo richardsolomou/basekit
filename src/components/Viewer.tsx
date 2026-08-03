@@ -14,6 +14,7 @@ const FIELD_OF_VIEW = 38
  * viewer's scroll wheel to fix.
  */
 const REFERENCE_FOOTPRINT = 50
+const HOLDER_ZOOM = 1.4
 
 /**
  * Distance at which the reference footprint fits the *narrower* axis. A phone
@@ -21,9 +22,10 @@ const REFERENCE_FOOTPRINT = 50
  * view is vertical — so fitting the height alone put a 60mm base at twice the
  * width of the screen.
  */
-function framingDistance(aspect: number): number {
+function framingDistance(aspect: number, model: 'base' | 'holder'): number {
   const halfHeight = Math.tan(THREE.MathUtils.degToRad(FIELD_OF_VIEW / 2))
-  return ((REFERENCE_FOOTPRINT / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
+  const distance = ((REFERENCE_FOOTPRINT / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
+  return model === 'holder' ? distance * HOLDER_ZOOM : distance
 }
 
 /** Steep enough to look down into the well, where the size label and supports are. */
@@ -60,18 +62,23 @@ function themeColor(name: string, fallback: string): THREE.Color {
 
 interface Props {
   mesh?: MeshData
+  model: 'base' | 'holder'
   width: number
   length: number
   height: number
   round: boolean
 }
 
-export function Viewer({ mesh, width, length, height, round }: Props) {
+export function Viewer({ mesh, model, width, length, height, round }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const overlay = useRef<SVGSVGElement>(null)
   const part = useRef<THREE.Group>(null)
   const shadowLight = useRef<THREE.DirectionalLight>(null)
   const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
+  const camera = useRef<THREE.PerspectiveCamera>(null)
+  const zoomHeld = useRef(false)
+  const currentModel = useRef(model)
+  currentModel.current = model
 
   useEffect(() => {
     const container = host.current
@@ -91,9 +98,10 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
 
     const world = new THREE.Scene()
 
-    const camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW, 1, 0.5, 2000)
-    camera.up.set(0, 0, 1)
-    camera.position.copy(VIEW_DIRECTION.clone().normalize())
+    const viewCamera = new THREE.PerspectiveCamera(FIELD_OF_VIEW, 1, 0.5, 2000)
+    camera.current = viewCamera
+    viewCamera.up.set(0, 0, 1)
+    viewCamera.position.copy(VIEW_DIRECTION.clone().normalize())
 
     /*
      * Orbit, which pins the up axis: the horizon stays level and a drag always
@@ -103,7 +111,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
      * underneath is still reachable — it just stops at the pole rather than
      * carrying on over the top.
      */
-    const controls = new OrbitControls(camera, renderer.domElement)
+    const controls = new OrbitControls(viewCamera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
     controls.target.set(0, 0, 2)
@@ -149,16 +157,22 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     // footprint, which is what makes a window resize or a phone rotating do the
     // sensible thing. After that the view is theirs and nothing moves it.
     let held = false
+    let distanceBeforeInteraction = 0
     controls.addEventListener('start', () => {
       held = true
+      distanceBeforeInteraction = viewCamera.position.distanceTo(controls.target)
+    })
+    controls.addEventListener('end', () => {
+      const distance = viewCamera.position.distanceTo(controls.target)
+      if (Math.abs(distance - distanceBeforeInteraction) > 0.01) zoomHeld.current = true
     })
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = container
       renderer.setSize(w, h)
-      camera.aspect = w / Math.max(h, 1)
-      camera.updateProjectionMatrix()
-      if (!held) camera.position.setLength(framingDistance(camera.aspect))
+      viewCamera.aspect = w / Math.max(h, 1)
+      viewCamera.updateProjectionMatrix()
+      if (!held) viewCamera.position.setLength(framingDistance(viewCamera.aspect, currentModel.current))
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -173,14 +187,15 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     })
     const scratch = new THREE.Vector3()
     const project = (x: number, y: number, z: number) => {
-      scratch.set(x, y, z).project(camera)
+      scratch.set(x, y, z).project(viewCamera)
       return [((scratch.x + 1) / 2) * container.clientWidth, ((1 - scratch.y) / 2) * container.clientHeight] as const
     }
 
     let raf = 0
     const tick = () => {
       controls.update()
-      renderer.render(world, camera)
+      renderer.render(world, viewCamera)
+      container.dataset.cameraDistance = String(viewCamera.position.length())
 
       const svg = overlay.current
       const halfW = group.userData.halfWidth ?? 0
@@ -233,8 +248,15 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
       controls.dispose()
       renderer.dispose()
       renderer.domElement.remove()
+      camera.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const viewCamera = camera.current
+    if (!viewCamera || zoomHeld.current) return
+    viewCamera.position.setLength(framingDistance(viewCamera.aspect, model))
+  }, [model])
 
   // Swap in new geometry, keeping the camera where it was.
   useEffect(() => {

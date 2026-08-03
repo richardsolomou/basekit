@@ -34,6 +34,8 @@ Slot depth is capped against the holder height, in-slot engraving and magnet thi
 
 The base generator lives at `/`; the Gridfinity holder generator can be opened directly at `/holders`.
 
+The preview starts slightly farther out for holders and returns to the closer base framing when switching back. Once you zoom the camera yourself, that distance is kept across both generators.
+
 Settings changed from their original defaults mark their label and reset action in orange, so numeric values, choices, and toggles can be undone one at a time without rebuilding the rest of the configuration.
 
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
