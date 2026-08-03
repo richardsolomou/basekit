@@ -208,11 +208,11 @@ export function App() {
               step={0.1}
               onChange={(wallThickness) => patch({ wallThickness })}
             />
-            {/* Only a well has a floor over the table; a solid base's pocket opens
-                straight onto the build plate. */}
+            {/* Only a well has a floor. It no longer sits under the magnets, which are
+                bored from the bottom face whatever the underside. */}
             {hollow && (
               <Dimension
-                label="Floor under magnet"
+                label="Well floor"
                 value={config.floorThickness}
                 min={0.4}
                 max={Math.max(0.5, config.height - 0.5)}

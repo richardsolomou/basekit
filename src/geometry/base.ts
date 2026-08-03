@@ -238,17 +238,9 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const bossRadius = pocketRadius + config.magnets.bossWall
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN)
 
-    /*
-     * The boss carries the pocket the full depth of the well, and the pocket is cut
-     * only as deep as the magnet is thick — measured down from the top. So the
-     * magnet always finishes flush with the top of the boss, and a thinner one is
-     * packed out from underneath with solid material rather than left sitting at
-     * the bottom of an open tube.
-     */
-    const seatedThickness = Math.min(config.magnets.thickness, wellDepth)
-
     if (hollow && magnets.length > 0) {
-      // Bosses carry the pockets up through the well so magnets seat against the floor.
+      // The boss is the material above the magnet: the pocket eats through the floor,
+      // so without it a magnet thicker than the floor would open into the well.
       const bossDisc = section(CrossSection.circle(bossRadius, config.segments))
       const bossColumn = solidOf(bossDisc.extrude(wellDepth))
       for (const m of magnets) {
@@ -304,15 +296,19 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       }
     }
 
-    // A well loads magnets from above and floors them on the wall thickness; a solid
-    // base takes them from underneath, so the pocket opens at the build plate.
+    /*
+     * Both undersides load their magnets from the bottom face, so the magnet ends up
+     * flush with the print surface and nothing at all stands between it and the tray.
+     * A thinner magnet is packed out from above rather than sunk deeper, which is the
+     * only arrangement where thickness does not change how hard the base holds. The
+     * 0.4mm keeps a skin over the pocket rather than boring straight through.
+     */
     if (magnets.length > 0) {
-      const depth = hollow ? seatedThickness + 1 : Math.min(config.magnets.thickness, config.height - 0.4)
+      const depth = Math.min(config.magnets.thickness, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))
       const drill = solidOf(pocketDisc.extrude(depth + 0.001))
-      const z = hollow ? config.height - seatedThickness : -0.001
       for (const m of magnets) {
-        solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, z]))))
+        solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, -0.001]))))
       }
     }
 

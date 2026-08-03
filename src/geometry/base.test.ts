@@ -104,7 +104,7 @@ describe('buildBase', () => {
     expect(stats.volume).toBeGreaterThan(0)
   })
 
-  it('drills a pocket at every magnet position, open at the top face so the magnet sits flush', () => {
+  it('drills a pocket at every magnet position, open at the bottom face so the magnet sits flush', () => {
     // Ribs are aimed at the bosses, so they are switched off to isolate the bore.
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 } }
@@ -116,23 +116,32 @@ describe('buildBase', () => {
       const a = Math.PI / 2 + (2 * Math.PI * i) / config.magnets.count
       const pocket = pocketAt(mesh, ringRadius * Math.cos(a), ringRadius * Math.sin(a), pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
-      // Cut down from the top face by exactly the magnet's thickness, so the magnet
-      // finishes flush and the material under it is solid.
-      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.height - config.magnets.thickness, 5)
-      expect(pocket.maxZ, `pocket ${i} opening`).toBeCloseTo(config.height, 5)
+      // Cut up from the bottom face by exactly the magnet's thickness, so the magnet
+      // is flush with the print surface and the material above it is solid.
+      expect(pocket.minZ, `pocket ${i} opening`).toBeCloseTo(0, 5)
+      expect(pocket.maxZ, `pocket ${i} ceiling`).toBeCloseTo(config.magnets.thickness, 5)
       expect(pocket.maxRadius, `pocket ${i} bore`).toBeCloseTo(pocketRadius, 2)
     }
   })
 
-  it.each([1, 1.5, 2, 3])('keeps a %dmm magnet flush with the top of its boss', (thickness) => {
+  it.each([1, 1.5, 2, 3])('keeps a %dmm magnet flush with the bottom of the base', (thickness) => {
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 }, magnets: { ...base.magnets, thickness } }
     const ringRadius = (config.width / 2 - config.wallThickness) / 2
     const bore = (config.magnets.diameter + config.magnets.clearance) / 2
 
     const pocket = pocketAt(build(config).mesh, 0, ringRadius, bore)
-    expect(pocket.maxZ).toBeCloseTo(config.height, 5)
+    // Nothing at all between the magnet and the tray, whatever the magnet measures.
+    expect(pocket.minZ).toBeCloseTo(0, 5)
     expect(pocket.maxZ - pocket.minZ).toBeCloseTo(thickness, 5)
+  })
+
+  it.each([1, 2, 3])('leaves a solid skin over a %dmm magnet rather than boring through', (thickness) => {
+    const base = preset(ROUND_SIZES[4])
+    const config = { ...base, magnets: { ...base.magnets, thickness } }
+    // The pocket must stop short of the top face, or the well would open into it.
+    expect(Math.min(thickness, config.height - 0.4)).toBeLessThan(config.height)
+    expect(build(config).stats.solid).toBe(true)
   })
 
   it('leaves the centre unbored when magnets are turned off', () => {

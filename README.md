@@ -41,7 +41,7 @@ The standard sizes live in a select, each entry saying what the size is normally
 
 The part is lit from a low angle and casts its own shadows, so the marking and the bracing stay readable even looking straight down into the well. The viewport is annotated like a drawing: dimension leaders track the part's silhouette as you orbit and call out the footprint and height, while a title block in the corner names the file and carries the magnet spec and the marking. Every change rebuilds immediately — a rebuild takes about 15 milliseconds, so there is nothing to wait on and no spinner to watch. The camera holds its distance whatever you build, so a 130mm base visibly dwarfs a 25mm one instead of both filling the frame, and orbit reaches the print surface underneath as well as a plan view of the well. On a phone the controls move into a drawer and the viewport takes the screen.
 
-A solid base takes its magnets from underneath instead of from a well, so the pocket opens at the build plate.
+Magnet pockets open at the build plate on both undersides, so the magnet is flush with the bottom of the base and there is no plastic between it and a magnetised tray. A thinner magnet is packed out from above rather than sunk deeper, so changing thickness never changes how hard the base holds.
 
 The marking is placed automatically: it takes the centre of the well when that is free, otherwise it moves into the widest gap between the ribs and bosses and shrinks until it clears them and the wall.
 
