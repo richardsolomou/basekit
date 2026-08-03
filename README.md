@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/favicon.svg" width="80" alt="Mini Bases logo" />
 
-# Mini Bases
+# Mini Bases 🧲
 
 **Printable miniature bases sized, magnetised, and marked exactly how you need them.**
 
