@@ -348,7 +348,7 @@ export function App() {
             </Sheet>
           )}
           <h1 className="text-sm font-medium tracking-[0.18em] uppercase">
-            Base<span className="text-measure">Smith</span>
+            Bas<span className="text-measure">ed</span>
           </h1>
         </div>
         <ButtonGroup>

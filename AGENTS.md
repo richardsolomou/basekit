@@ -1,4 +1,4 @@
-# BaseSmith — Agent Guide
+# Based — Agent Guide
 
 Read [README.md](README.md) first for what the app does and what the controls mean. This file covers the parts that bite.
 

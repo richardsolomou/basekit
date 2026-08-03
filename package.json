@@ -1,9 +1,15 @@
 {
-  "name": "basesmith",
+  "name": "based",
   "version": "0.1.0",
   "private": true,
   "description": "Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.",
+  "homepage": "https://based.ras.sh",
+  "bugs": "https://github.com/richardsolomou/based/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/richardsolomou/based.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
