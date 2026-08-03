@@ -104,7 +104,7 @@ describe('buildBase', () => {
     expect(stats.volume).toBeGreaterThan(0)
   })
 
-  it('drills a pocket at every magnet position, open at the top face so the magnet sits flush', () => {
+  it('drills a pocket at every magnet position, floored on the wall and open at the boss top', () => {
     // Ribs are aimed at the bosses, so they are switched off to isolate the bore.
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 } }
@@ -116,22 +116,22 @@ describe('buildBase', () => {
       const a = Math.PI / 2 + (2 * Math.PI * i) / config.magnets.count
       const pocket = pocketAt(mesh, ringRadius * Math.cos(a), ringRadius * Math.sin(a), pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
-      // Cut down from the top face by exactly the magnet's thickness, so the magnet
-      // finishes flush and the material under it is solid.
-      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.height - config.magnets.thickness, 5)
-      expect(pocket.maxZ, `pocket ${i} opening`).toBeCloseTo(config.height, 5)
+      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.floorThickness, 5)
+      // The boss is only as tall as the magnet, so the bore stops where the magnet does.
+      expect(pocket.maxZ, `pocket ${i} opening`).toBeCloseTo(config.floorThickness + config.magnets.thickness, 5)
       expect(pocket.maxRadius, `pocket ${i} bore`).toBeCloseTo(pocketRadius, 2)
     }
   })
 
-  it.each([1, 1.5, 2, 3])('keeps a %dmm magnet flush with the top of its boss', (thickness) => {
+  it.each([1, 1.5, 2, 3])('holds a %dmm magnet the same distance off the table', (thickness) => {
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 }, magnets: { ...base.magnets, thickness } }
     const ringRadius = (config.width / 2 - config.wallThickness) / 2
     const bore = (config.magnets.diameter + config.magnets.clearance) / 2
 
     const pocket = pocketAt(build(config).mesh, 0, ringRadius, bore)
-    expect(pocket.maxZ).toBeCloseTo(config.height, 5)
+    // Only the floor ever stands between the magnet and the tray, whatever it measures.
+    expect(pocket.minZ).toBeCloseTo(config.floorThickness, 5)
     expect(pocket.maxZ - pocket.minZ).toBeCloseTo(thickness, 5)
   })
 

@@ -239,18 +239,22 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN)
 
     /*
-     * The boss carries the pocket the full depth of the well, and the pocket is cut
-     * only as deep as the magnet is thick — measured down from the top. So the
-     * magnet always finishes flush with the top of the boss, and a thinner one is
-     * packed out from underneath with solid material rather than left sitting at
-     * the bottom of an open tube.
+     * The magnet seats on the floor and the boss rises to meet its top, so it sits
+     * flush in a ring exactly as tall as it is.
+     *
+     * The alternative is to cut the bore down from the top face and pack the space
+     * out underneath, which puts the magnet flush with the base's own top face. It
+     * also strands it: at the default 4mm height a 1mm magnet ends up with 3mm of
+     * plastic between it and the tray instead of 1mm, and pull falls away sharply
+     * with that gap. Holding is the whole job, so the floor wins and the boss is
+     * what moves.
      */
     const seatedThickness = Math.min(config.magnets.thickness, wellDepth)
 
     if (hollow && magnets.length > 0) {
       // Bosses carry the pockets up through the well so magnets seat against the floor.
       const bossDisc = section(CrossSection.circle(bossRadius, config.segments))
-      const bossColumn = solidOf(bossDisc.extrude(wellDepth))
+      const bossColumn = solidOf(bossDisc.extrude(seatedThickness))
       for (const m of magnets) {
         solid = solidOf(solid.add(solidOf(bossColumn.translate([m.x, m.y, config.floorThickness]))))
       }
@@ -310,7 +314,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       const depth = hollow ? seatedThickness + 1 : Math.min(config.magnets.thickness, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))
       const drill = solidOf(pocketDisc.extrude(depth + 0.001))
-      const z = hollow ? config.height - seatedThickness : -0.001
+      const z = hollow ? config.floorThickness : -0.001
       for (const m of magnets) {
         solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, z]))))
       }
