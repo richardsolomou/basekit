@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="public/favicon.svg" width="80" alt="Based logo" />
+  <img src="public/favicon.svg" width="80" alt="Mini Bases logo" />
 
-# Based
+# Mini Bases
 
 **Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.**
 
-[based.ras.sh](https://based.ras.sh)
+[mini-bases.ras.sh](https://mini-bases.ras.sh)
 </div>
 
 A base comes out hollowed underneath. The recess takes magnets, so the model holds itself down on a magnetised tray or display board, and the size sits raised on the recess floor where nothing but the table ever sees it. The whole part is modelled the way it prints, upside down with the recess facing up, so every overhang points at the sky and nothing needs supports. That also means you are looking at the underside when the app opens, which is where the number is, so the slicer shows you which base you are about to print. A `28.5` base says `28.5`, not `29`.
