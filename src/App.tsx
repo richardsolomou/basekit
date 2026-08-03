@@ -658,39 +658,41 @@ export function App() {
                     )}
                   </div>
                 )}
-                {missing > 0 && (
-                  <p className="col-span-2 pl-[calc(3rem+0.5rem)] text-xs text-destructive">
-                    Only {fitted} of {group.quantity} fit
-                  </p>
-                )}
-                <div className="col-span-2 flex justify-end">
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Increase priority of miniature group ${index + 1}`}
-                    disabled={index === 0}
-                    onClick={() => moveGroup(index, -1)}
-                  >
-                    <ChevronUp />
-                  </Button>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Decrease priority of miniature group ${index + 1}`}
-                    disabled={index === holder.groups.length - 1}
-                    onClick={() => moveGroup(index, 1)}
-                  >
-                    <ChevronDown />
-                  </Button>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Remove miniature group ${index + 1}`}
-                    disabled={holder.groups.length === 1}
-                    onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
-                  >
-                    <Trash2 />
-                  </Button>
+                <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 pl-[calc(3rem+0.5rem)]">
+                  {missing > 0 && (
+                    <p className="min-w-0 truncate text-xs text-destructive">
+                      {fitted === 0 ? `None of ${group.quantity} fit` : `Only ${fitted} of ${group.quantity} fit`}
+                    </p>
+                  )}
+                  <div className="ms-auto flex shrink-0">
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Increase priority of miniature group ${index + 1}`}
+                      disabled={index === 0}
+                      onClick={() => moveGroup(index, -1)}
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Decrease priority of miniature group ${index + 1}`}
+                      disabled={index === holder.groups.length - 1}
+                      onClick={() => moveGroup(index, 1)}
+                    >
+                      <ChevronDown />
+                    </Button>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Remove miniature group ${index + 1}`}
+                      disabled={holder.groups.length === 1}
+                      onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )

@@ -245,6 +245,22 @@ test('fits what it can and reports box overflow', async ({ page }) => {
   await expect(footer(page)).toContainText('4×Ø32')
 })
 
+test('uses clear wording when no holder miniatures fit', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  await page.getByLabel(/^Maximum columns in/).fill('1')
+  await page.getByLabel(/^Maximum columns in/).press('Enter')
+  const constrained = await triangles(page)
+  await page.getByLabel(/^Maximum rows in/).fill('1')
+  await page.getByLabel(/^Maximum rows in/).press('Enter')
+  await rebuilt(page, constrained)
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: '90 Greater daemons, big characters' }).click()
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('90')
+  await expect(page.getByText('None of 5 fit')).toBeVisible()
+  await expect(page.getByText(/Only 0 of/)).not.toBeVisible()
+})
+
 test('adds another miniature size to the holder', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
