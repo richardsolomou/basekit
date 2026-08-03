@@ -1,5 +1,6 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
+import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
 import { baseOutline, defaultLabel } from './outline'
 import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { curveTolerance } from './quality'
@@ -11,8 +12,6 @@ export interface BuildResult {
   stats: BaseStats
 }
 
-/** Clearance kept between the label and the well wall, a boss or a rib. */
-const LABEL_MARGIN = 0.8
 const PLA_DENSITY = 1.24e-3 // g/mm³
 /** Beyond this width-to-length ratio, magnets line up along the long axis instead of on a ring. */
 const ELONGATED_RATIO = 1.35
@@ -103,14 +102,8 @@ export function ribAngles(count: number, magnets: Circle[]): number[] {
   return spokes(best)
 }
 
-function boxHitsCircle(cx: number, cy: number, hw: number, hh: number, c: Circle, pad: number): boolean {
-  const dx = Math.max(Math.abs(c.x - cx) - hw, 0)
-  const dy = Math.max(Math.abs(c.y - cy) - hh, 0)
-  return Math.hypot(dx, dy) < c.r + pad
-}
-
 /** Approximates each rib spoke as overlapping discs, so label fitting only sees circles. */
-function ribObstacles(angles: number[], length: number, thickness: number): Circle[] {
+function ribObstacles(angles: number[], length: number, thickness: number): LabelCircle[] {
   if (!Number.isFinite(length) || length <= 0) return []
   const step = Math.max(0.4, thickness / 2)
   return angles.flatMap((a) => {
@@ -118,75 +111,6 @@ function ribObstacles(angles: number[], length: number, thickness: number): Circ
     for (let r = 0; r <= length; r += step) discs.push({ x: r * Math.cos(a), y: r * Math.sin(a), r: thickness / 2 })
     return discs
   })
-}
-
-function pointInContours(contours: readonly (readonly number[][])[], x: number, y: number): boolean {
-  let inside = false
-  for (const ring of contours) {
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const [xi, yi] = ring[i]
-      const [xj, yj] = ring[j]
-      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
-    }
-  }
-  return inside
-}
-
-/**
- * Finds a spot for the label on the well floor. Every candidate direction is tried
- * at full size before the text is shrunk, so a cramped rank base still gets its
- * number rather than losing it.
- */
-function fitLabel(
-  width: number,
-  height: number,
-  reach: number,
-  inside: (x: number, y: number) => boolean,
-  obstacles: Circle[],
-  angles: number[],
-) {
-  for (let attempt = 0; attempt < 14; attempt++) {
-    const scale = 0.92 ** attempt
-    const hw = (width * scale) / 2
-    const hh = (height * scale) / 2
-    for (const angle of angles) {
-      const feasible: number[] = []
-      for (let rc = 0; rc <= reach; rc += 0.25) {
-        const x = rc * Math.cos(angle)
-        const y = rc * Math.sin(angle)
-        const clearsWall = inside(x - hw, y - hh) && inside(x + hw, y - hh) && inside(x - hw, y + hh) && inside(x + hw, y + hh)
-        if (clearsWall && !obstacles.some((o) => boxHitsCircle(x, y, hw, hh, o, LABEL_MARGIN))) feasible.push(rc)
-      }
-      // Centre it in the clear band rather than hugging whichever end came first.
-      if (feasible.length > 0) {
-        const rc = feasible[Math.floor(feasible.length / 2)]
-        return { scale, x: rc * Math.cos(angle), y: rc * Math.sin(angle) }
-      }
-    }
-  }
-  return undefined
-}
-
-/**
- * Directions the label may sit along, widest gap first.
- *
- * Bisecting the ribs alone used to work only because the ribs and the bosses
- * shared a bearing; now that the spokes deliberately run between the bosses, a
- * rib bisector aims straight at one. So the candidates come from the gaps
- * between every solid thing on the floor. The diagonals stay behind them for a
- * floor with nothing on it at all.
- */
-function labelAngles(spokes: number[], magnets: Circle[]): number[] {
-  const bosses = magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6).map((m) => Math.atan2(m.y, m.x))
-  const solid = [...spokes, ...bosses].map((a) => ((a % TAU) + TAU) % TAU).sort((a, b) => a - b)
-  const gaps = solid
-    .map((angle, i) => {
-      const next = i + 1 < solid.length ? solid[i + 1] : solid[0] + TAU
-      return { middle: (angle + next) / 2, span: next - angle }
-    })
-    .sort((a, b) => b.span - a.span)
-  const fallback = Array.from({ length: 8 }, (_, i) => (Math.PI / 4) * i)
-  return [...gaps.map((gap) => gap.middle), ...fallback]
 }
 
 export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Font): BuildResult {

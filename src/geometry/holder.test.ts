@@ -303,4 +303,17 @@ describe('buildHolder', () => {
     const engraved = buildHolder(wasm, { ...config, engraving: { enabled: true, placement } }, font).stats.volume
     expect(engraved).toBeLessThan(plain)
   })
+
+  it('places in-slot engraving around multi-pocket magnet layouts', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      groups: [holderGroup('models-1', 1, { width: 65 })],
+      maxRows: 2,
+      engraving: { enabled: true, placement: 'slots' as const },
+    }
+    const plain = buildHolder(wasm, { ...config, engraving: { ...config.engraving, enabled: false } }, font).stats.volume
+    const engraved = buildHolder(wasm, config, font).stats.volume
+    expect(holderMagnetPocketCount(config)).toBe(3)
+    expect(engraved).toBeLessThan(plain)
+  })
 })

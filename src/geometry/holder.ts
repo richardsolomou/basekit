@@ -1,6 +1,7 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
 import { magnetPositions } from './base'
+import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
 import { isElongated, trimNumber } from './outline'
 import { DEFAULT_SIZE, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
@@ -20,7 +21,6 @@ const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
-const BASE_LABEL_MARGIN = 0.8
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 
 export interface HolderLayout {
@@ -111,7 +111,7 @@ export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width
   const bossRadius = pocketRadius + base.magnets.bossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - base.wallThickness)
   const halfLength = Math.max(0, slotLength(slot) / 2 - base.wallThickness)
-  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + BASE_LABEL_MARGIN).map(({ x, y }) => ({ x, y }))
+  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN).map(({ x, y }) => ({ x, y }))
 }
 
 export function holderMagnetPocketCount(config: HolderConfig): number {
@@ -671,19 +671,41 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
 
       if (config.engraving.placement === 'slots') {
         const labels: CrossSection[] = []
-        for (const label of new Set(layout.slotCenters.map(holderGroupSizeLabel))) {
-          const matching = layout.slotCenters.filter((slot) => holderGroupSizeLabel(slot) === label)
-          const narrow = Math.min(...matching.map((slot) => Math.min(slotWidth(slot), slotLength(slot))))
-          const wide = Math.min(...matching.map((slot) => slotWidth(slot)))
+        for (const slot of layout.slotCenters) {
+          const label = holderGroupSizeLabel(slot)
+          const narrow = Math.min(slotWidth(slot), slotLength(slot))
           const height = Math.min(4, narrow * 0.14)
-          const glyph = textSection(label.replace(/^Ø/, ''), height, wide * 0.55, 0, narrow * 0.24)
-          for (const slot of matching) {
-            labels.push(section(glyph.translate([slot.x, slot.y])))
-          }
+          const polygons = textPolygons(font, label.replace(/^Ø/, ''), height)
+          if (polygons.length === 0) continue
+          const room = section(
+            slotOutline(wasm, slot, 0, segmentsFor(Math.max(slotWidth(slot), slotLength(slot)), 64)).offset(-LABEL_MARGIN),
+          )
+          if (room.isEmpty()) continue
+          const roomBounds = room.bounds()
+          const reach = Math.hypot((roomBounds.max[0] - roomBounds.min[0]) / 2, (roomBounds.max[1] - roomBounds.min[1]) / 2)
+          const contours = room.toPolygons()
+          const obstacles: LabelCircle[] = config.magnets.enabled
+            ? holderSlotMagnetCenters(slot).map((center) => ({ ...center, r: (config.magnets.diameter + config.magnets.clearance) / 2 }))
+            : []
+          const fit = fitLabel(
+            polygonsWidth(polygons),
+            height,
+            reach,
+            (x, y) => pointInContours(contours, x, y),
+            obstacles,
+            labelAngles([], obstacles),
+          )
+          if (!fit) continue
+          const placed: Polygon[] = polygons.map((polygon) =>
+            polygon.map(([px, py]): [number, number] => [slot.x + px * fit.scale + fit.x, slot.y + py * fit.scale + fit.y]),
+          )
+          labels.push(section(CrossSection.ofPolygons(placed, 'EvenOdd')))
         }
-        const outlines = section(CrossSection.union(labels))
-        const cut = solidOf(outlines.extrude(depth + 0.01))
-        cutters.push(solidOf(cut.translate([0, 0, config.height - config.slotDepth - depth])))
+        if (labels.length > 0) {
+          const outlines = section(CrossSection.union(labels))
+          const cut = solidOf(outlines.extrude(depth + 0.01))
+          cutters.push(solidOf(cut.translate([0, 0, config.height - config.slotDepth - depth])))
+        }
       } else {
         const text = [...new Set(config.groups.map(holderGroupSizeLabel))].join(' / ')
         let placed: CrossSection | undefined
