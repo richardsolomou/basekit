@@ -2,8 +2,8 @@ import { defaultHolderConfig } from '../geometry/holder'
 import { DEFAULT_PRESET, presetFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
-const SHARED_SETTINGS_KEY = 'mini-bases.shared-settings'
-const SHARED_SETTINGS_VERSION = 1
+const WORKSPACE_KEY = 'mini-bases.workspace'
+const WORKSPACE_VERSION = 1
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -22,34 +22,9 @@ export interface SharedSettings {
   magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
-function isSharedSettings(value: unknown): value is SharedSettings {
-  if (typeof value !== 'object' || value === null) return false
-  const settings = value as Partial<SharedSettings>
-  const magnets = settings.magnets
-  return (
-    typeof settings.labelsEnabled === 'boolean' &&
-    typeof magnets === 'object' &&
-    magnets !== null &&
-    [magnets.diameter, magnets.thickness, magnets.clearance, magnets.depthClearance].every(
-      (number) => typeof number === 'number' && Number.isFinite(number),
-    )
-  )
-}
-
-function loadSharedSettings(storage: SettingsStorage): SharedSettings | undefined {
+export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceState): void {
   try {
-    const saved = storage.getItem(SHARED_SETTINGS_KEY)
-    if (saved === null) return undefined
-    const parsed = JSON.parse(saved) as { version?: unknown; shared?: unknown }
-    return parsed.version === SHARED_SETTINGS_VERSION && isSharedSettings(parsed.shared) ? parsed.shared : undefined
-  } catch {
-    return undefined
-  }
-}
-
-export function saveSharedSettings(storage: SettingsStorage, shared: SharedSettings): void {
-  try {
-    storage.setItem(SHARED_SETTINGS_KEY, JSON.stringify({ version: SHARED_SETTINGS_VERSION, shared }))
+    storage.setItem(WORKSPACE_KEY, JSON.stringify({ version: WORKSPACE_VERSION, workspace }))
   } catch {
     // Storage can be unavailable in privacy-restricted browser contexts.
   }
@@ -90,7 +65,31 @@ export function defaultWorkspace(): WorkspaceState {
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
-  const workspace = defaultWorkspace()
-  const shared = loadSharedSettings(storage)
-  return shared === undefined ? workspace : synchronizeWorkspace({ ...workspace, shared })
+  try {
+    const saved = storage.getItem(WORKSPACE_KEY)
+    if (saved === null) return defaultWorkspace()
+    const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
+    if (parsed.version !== WORKSPACE_VERSION || !isWorkspaceState(parsed.workspace, defaultWorkspace())) return defaultWorkspace()
+    return synchronizeWorkspace(parsed.workspace)
+  } catch {
+    return defaultWorkspace()
+  }
+}
+
+function hasShape(value: unknown, template: unknown): boolean {
+  if (typeof template === 'number') return typeof value === 'number' && Number.isFinite(value)
+  if (Array.isArray(template)) return Array.isArray(value) && (template.length === 0 || value.every((item) => hasShape(item, template[0])))
+  if (typeof template !== 'object' || template === null) return typeof value === typeof template
+  if (typeof value !== 'object' || value === null) return false
+  return Object.entries(template).every(([key, child]) => hasShape((value as Record<string, unknown>)[key], child))
+}
+
+function isWorkspaceState(value: unknown, template: WorkspaceState): value is WorkspaceState {
+  if (!hasShape(value, template)) return false
+  const workspace = value as WorkspaceState
+  return (
+    ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
+    workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
+    Object.values(workspace.holder.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
+  )
 }

@@ -137,12 +137,21 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
-test('remembers shared settings on reload', async ({ page }) => {
+test('remembers workspace settings on reload', async ({ page }) => {
+  await page.getByRole('combobox', { name: 'Standard base size' }).click()
+  await page.getByRole('option', { name: /^Custom\b/ }).click()
+  await page.getByLabel('Diameter in mm', { exact: true }).fill('37')
+  await page.getByLabel('Diameter in mm', { exact: true }).press('Enter')
+  const height = page.getByLabel('Height in mm').first()
+  await height.fill('5')
+  await height.press('Enter')
   await page.getByLabel('Magnet diameter in mm').fill('7')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
   await page.getByRole('switch', { name: 'Show size label' }).click()
   await page.reload()
   await settled(page)
+  await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('37.0')
+  await expect(page.getByLabel('Height in mm').first()).toHaveValue('5.0')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
   await expect(page.getByRole('switch', { name: 'Show size label' })).not.toBeChecked()
 })

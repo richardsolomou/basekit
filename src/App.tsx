@@ -37,7 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveSharedSettings, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -115,7 +115,10 @@ export function App() {
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
-  const [customBaseSize, setCustomBaseSize] = useState(false)
+  const [customBaseSize, setCustomBaseSize] = useState(() => {
+    const { width, length } = footprint(workspace.base)
+    return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
+  })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
@@ -133,7 +136,7 @@ export function App() {
     document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
   }, [model])
 
-  useEffect(() => saveSharedSettings(window.localStorage, workspace.shared), [workspace.shared])
+  useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
