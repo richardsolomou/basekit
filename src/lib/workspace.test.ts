@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { defaultWorkspace, synchronizeWorkspace } from './workspace'
+import { defaultWorkspace, loadWorkspace, saveSharedSettings, synchronizeWorkspace } from './workspace'
+
+function memoryStorage() {
+  const values = new Map<string, string>()
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  }
+}
 
 describe('workspace state', () => {
   it('starts both generators at their defaults', () => {
@@ -17,5 +25,20 @@ describe('workspace state', () => {
     })
     expect(synchronized.base.magnets).toMatchObject(synchronized.shared.magnets)
     expect(synchronized.holder.magnets).toMatchObject(synchronized.shared.magnets)
+  })
+
+  it('restores shared settings from browser storage', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    workspace.shared.labelsEnabled = false
+    workspace.shared.magnets = { diameter: 6, thickness: 2, clearance: 0.3, depthClearance: 0.2 }
+    saveSharedSettings(storage, workspace.shared)
+    expect(loadWorkspace(storage).shared).toEqual(workspace.shared)
+  })
+
+  it('ignores invalid browser storage', () => {
+    const storage = memoryStorage()
+    storage.setItem('mini-bases.shared-settings', '{"version":1,"shared":{"labelsEnabled":false}}')
+    expect(loadWorkspace(storage)).toEqual(defaultWorkspace())
   })
 })

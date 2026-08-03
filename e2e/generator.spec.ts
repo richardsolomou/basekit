@@ -137,14 +137,14 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
-test('resets generator settings on reload', async ({ page }) => {
+test('remembers shared settings on reload', async ({ page }) => {
   await page.getByLabel('Magnet diameter in mm').fill('7')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
   await page.getByRole('switch', { name: 'Show size label' }).click()
   await page.reload()
   await settled(page)
-  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('5.0')
-  await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
+  await expect(page.getByRole('switch', { name: 'Show size label' })).not.toBeChecked()
 })
 
 test('shares the size label preference between bases and holders', async ({ page }) => {

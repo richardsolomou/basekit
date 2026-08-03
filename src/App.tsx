@@ -37,7 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { defaultWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import { loadWorkspace, saveSharedSettings, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -106,7 +106,7 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [workspace, setWorkspaceState] = useState(defaultWorkspace)
+  const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
@@ -132,6 +132,8 @@ export function App() {
   useEffect(() => {
     document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
   }, [model])
+
+  useEffect(() => saveSharedSettings(window.localStorage, workspace.shared), [workspace.shared])
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
