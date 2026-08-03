@@ -6,6 +6,7 @@ import { buildBase, magnetPositions, ribAngles } from './base'
 import { toStl } from './exporters'
 import { loadManifold } from './manifold'
 import { defaultLabel, trimNumber } from './outline'
+import { maxProfileSize, profileSteps } from './profile'
 import {
   MAGNET_CHOICES,
   OVAL_SIZES,
@@ -17,6 +18,7 @@ import {
   ROUND_SIZES,
   type SizePreset,
 } from './presets'
+import { EXPORT_CURVE_TOLERANCE, exportSegmentsFor, previewSegmentsFor } from './quality'
 import type { BaseConfig } from './types'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
@@ -300,6 +302,18 @@ describe('buildBase', () => {
   it('rejects a floor that leaves no well', () => {
     expect(() => build({ ...preset(ROUND_32), floorThickness: 4 })).toThrow(/No room left for a well/)
   })
+
+  it('rejects an edge profile that cuts through the wall at the well floor', () => {
+    const config = { ...preset(ROUND_32), profileSize: 3, floorThickness: 0.4 }
+    expect(() => build(config)).toThrow(/Edge profile leaves too little wall at the well floor/)
+  })
+
+  it('accepts the UI limit for a round edge in an export mesh', () => {
+    const base = { ...preset(ROUND_32), profile: 'round' as const, floorThickness: 0.4 }
+    const profileSize = Math.floor(maxProfileSize(base) * 10) / 10
+    const config = { ...base, profileSize, segments: exportSegmentsFor(base.width) }
+    expect(() => build(config)).not.toThrow()
+  })
 })
 
 describe('labels', () => {
@@ -324,6 +338,25 @@ describe('labels', () => {
     const config = presetFor(ROUND_SIZES[1])
     const plain = { ...config, label: { ...config.label, enabled: false } }
     expect(build(config).stats.volume).toBeGreaterThan(build(plain).stats.volume)
+  })
+})
+
+describe('curve tolerance', () => {
+  it.each([15, 32, 180])('keeps an exported %dmm curve within 1µm of true', (diameter) => {
+    const segments = exportSegmentsFor(diameter)
+    const error = (diameter / 2) * (1 - Math.cos(Math.PI / segments))
+    expect(error).toBeLessThanOrEqual(EXPORT_CURVE_TOLERANCE)
+  })
+
+  it('uses fewer segments in the preview', () => {
+    expect(previewSegmentsFor(180)).toBeLessThan(exportSegmentsFor(180))
+  })
+
+  it('keeps an exported round edge profile within 1µm of true', () => {
+    const radius = 3
+    const arcSegments = profileSteps(4, 'round', radius, EXPORT_CURVE_TOLERANCE).length - 2
+    const error = radius * (1 - Math.cos(Math.PI / (4 * arcSegments)))
+    expect(error).toBeLessThanOrEqual(EXPORT_CURVE_TOLERANCE)
   })
 })
 

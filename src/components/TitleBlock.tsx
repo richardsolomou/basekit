@@ -5,9 +5,9 @@ import type { BaseConfig } from '@/geometry/types'
 interface Props {
   config: BaseConfig
   /**
-   * Only whether the config builds. There is deliberately no pending state: a
-   * rebuild takes about 15ms, so a spinner would strobe on every drag step
-   * without ever telling anyone anything.
+   * Only whether the config builds. There is deliberately no pending preview
+   * state: a typical rebuild takes about 15ms, so a spinner would strobe on every
+   * drag step without ever telling anyone anything.
    */
   status: 'ready' | 'blocked'
   name: string

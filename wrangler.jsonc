@@ -2,7 +2,7 @@
 // Worker script to run in front of it. Cloudflare builds this repo with
 // `pnpm build` and serves ./dist.
 {
-  "name": "basesmith",
+  "name": "mini-bases",
   "compatibility_date": "2026-06-01",
   "assets": {
     "directory": "./dist",

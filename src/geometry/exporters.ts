@@ -8,7 +8,7 @@ export interface MeshLike {
 }
 
 /** Binary STL. Slicers all read it, so it stays the default despite losing topology. */
-export function toStl(mesh: MeshLike, header = 'basesmith'): Uint8Array {
+export function toStl(mesh: MeshLike, header = 'mini-bases'): Uint8Array {
   const triangles = mesh.triVerts.length / 3
   const out = new DataView(new ArrayBuffer(84 + triangles * 50))
   new Uint8Array(out.buffer).set(new TextEncoder().encode(header.slice(0, 80)))
@@ -67,7 +67,7 @@ function modelXml(meshes: { mesh: MeshLike; name: string }[]): string {
   const items = meshes.map((_, index) => `<item objectid="${index + 1}"/>`)
   return `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
-<metadata name="Application">BaseSmith</metadata>
+<metadata name="Application">Mini Bases</metadata>
 <resources>${objects.join('')}</resources>
 <build>${items.join('')}</build>
 </model>`

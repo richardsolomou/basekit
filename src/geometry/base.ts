@@ -1,7 +1,8 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
 import { baseOutline, defaultLabel } from './outline'
-import { profileSteps } from './profile'
+import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
+import { curveTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseConfig, BaseStats } from './types'
 
@@ -204,13 +205,19 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const hollow = config.underside === 'well'
     const wellDepth = config.height - config.floorThickness
     if (hollow && wellDepth < 0.2) throw new Error('No room left for a well — thin the floor')
+    const tolerance = curveTolerance(Math.max(config.width, config.length), config.segments)
+    const wallAtFloor =
+      config.wallThickness - profileInsetAt(config.height, config.profile, config.profileSize, config.floorThickness, tolerance)
+    if (hollow && wallAtFloor < MIN_PROFILE_WALL - 1e-6) {
+      throw new Error('Edge profile leaves too little wall at the well floor — reduce the edge size')
+    }
 
     const outline = section(baseOutline(wasm, config))
 
     // Loft the body as the convex hull of the outline offset at each profile height.
     // Every supported footprint is convex, so the hull is exactly the intended solid.
     const points: Vec3[] = []
-    for (const step of profileSteps(config.height, config.profile, config.profileSize, config.segments)) {
+    for (const step of profileSteps(config.height, config.profile, config.profileSize, tolerance)) {
       const ring = step.inset > 0 ? section(outline.offset(-step.inset, 'Miter', 2, config.segments)) : outline
       for (const contour of ring.toPolygons()) {
         for (const [x, y] of contour) points.push([x, y, step.z])

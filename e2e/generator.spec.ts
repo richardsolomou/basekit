@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 
 /** The drawing's title block carries the filename, the spec and the status. */
@@ -79,6 +80,16 @@ test('exports a 3MF as well', async ({ page }) => {
   expect((await download).suggestedFilename()).toBe('base-round-32mm.3mf')
 })
 
+test('exports finer circular geometry than the preview', async ({ page }) => {
+  const previewTriangles = await triangles(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save STL' }).click()
+  const path = await (await pending).path()
+  if (!path) throw new Error('download has no local path')
+  const stl = await readFile(path)
+  expect(stl.readUInt32LE(80)).toBeGreaterThan(previewTriangles)
+})
+
 const SHAPES = [
   { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
   { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },
@@ -128,6 +139,20 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   }
   await rebuilt(page, before)
   await expect(footer(page)).not.toContainText(/blocked/i)
+})
+
+test('caps the edge profile when the recess floor is thinned', async ({ page }) => {
+  await page.getByRole('button', { name: 'PROFILE' }).click()
+  const floorBuild = triangles(page)
+  await page.getByLabel('Recess floor in mm').fill('0.4')
+  await page.getByLabel('Recess floor in mm').press('Enter')
+  await rebuilt(page, floorBuild)
+
+  const edgeBuild = triangles(page)
+  await page.getByLabel('Edge size in mm').fill('3')
+  await page.getByLabel('Edge size in mm').press('Enter')
+  await rebuilt(page, edgeBuild)
+  await expect(page.getByLabel('Edge size in mm')).toHaveValue('1.7')
 })
 
 test('takes an exact typed dimension', async ({ page }) => {
