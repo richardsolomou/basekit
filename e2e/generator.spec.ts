@@ -10,7 +10,6 @@ const drawn = (page: Page) => page.locator('main [data-triangles]')
 const across = (page: Page) => page.locator('#label-across')
 const tall = (page: Page) => page.locator('#label-height')
 const marking = (page: Page) => page.getByLabel('Marking text')
-const shape = (page: Page, name: string) => page.getByRole('button', { name, exact: true })
 
 /** Options read "<size> <what it is for>", so anchor on the figure. */
 const sizeOption = (page: Page, label: string) => page.getByRole('option', { name: new RegExp(`^${label.replaceAll('.', '\\.')}\\b`) })
@@ -18,6 +17,11 @@ const sizeOption = (page: Page, label: string) => page.getByRole('option', { nam
 async function pickSize(page: Page, label: string) {
   await page.getByRole('combobox', { name: 'Standard size' }).click()
   await sizeOption(page, label).click()
+}
+
+async function pickChoice(page: Page, label: string, option: string) {
+  await page.getByRole('combobox', { name: label }).click()
+  await page.getByRole('option', { name: option, exact: true }).click()
 }
 
 /** Geometry is built in a worker, so the drawing settles a moment after a click. */
@@ -89,11 +93,11 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
   await resetMarking.click()
   await expect(markingToggle).toBeChecked()
 
-  await page.getByRole('button', { name: 'Oval' }).click()
+  await pickChoice(page, 'Base shape', 'Oval')
   const resetShape = page.getByRole('button', { name: 'Reset Base shape to Round' })
   await expect(resetShape).toBeVisible()
   await resetShape.click()
-  await expect(page.getByRole('button', { name: 'Round' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Base shape' })).toContainText('Round')
 })
 
 test('aligns toggle and dimension reset columns', async ({ page }) => {
@@ -177,15 +181,15 @@ test('switches between subtractive holder engraving locations', async ({ page })
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   await expect(page.getByRole('switch', { name: 'Engrave base sizes' })).toBeChecked()
-  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Engraving location' })).toContainText('In slots')
   const before = await triangles(page)
-  await page.getByRole('button', { name: 'On module' }).click()
+  await pickChoice(page, 'Engraving location', 'On module')
   await rebuilt(page, before)
-  await expect(page.getByRole('button', { name: 'On module' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Engraving location' })).toContainText('On module')
   const moduleTriangles = await triangles(page)
-  await page.getByRole('button', { name: 'In slots', exact: true }).click()
+  await pickChoice(page, 'Engraving location', 'In slots')
   await rebuilt(page, moduleTriangles)
-  await expect(page.getByRole('button', { name: 'In slots', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('combobox', { name: 'Engraving location' })).toContainText('In slots')
 })
 
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
@@ -241,9 +245,9 @@ const SHAPES = [
 
 for (const entry of SHAPES) {
   test(`starts a ${entry.name.toLowerCase()} base on a standard size`, async ({ page }) => {
-    await shape(page, entry.name).click()
+    await pickChoice(page, 'Base shape', entry.name)
     await settled(page)
-    await expect(shape(page, entry.name)).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('combobox', { name: 'Base shape' })).toContainText(entry.name)
     // The size list swaps to that family's range.
     await page.getByRole('combobox', { name: 'Standard size' }).click()
     await expect(sizeOption(page, entry.chip)).toBeVisible()
@@ -254,7 +258,7 @@ for (const entry of SHAPES) {
 }
 
 test('marks even a cramped rank base', async ({ page }) => {
-  await shape(page, 'Rect').click()
+  await pickChoice(page, 'Base shape', 'Rect')
   await settled(page)
   await pickSize(page, '20×20')
   await settled(page)
@@ -331,7 +335,7 @@ test('scrubs a dimension by dragging its label', async ({ page }) => {
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
   await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
-  await page.getByRole('button', { name: 'Solid', exact: true }).click()
+  await pickChoice(page, 'Underside', 'Solid')
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.
   await expect(page.getByText(/solid base has no well/i)).toBeVisible()

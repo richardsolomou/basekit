@@ -5,7 +5,6 @@ import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/componen
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 /** A group of always-visible controls, with an optional figure in the header. */
 export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
@@ -176,21 +175,8 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
   )
 }
 
-/**
- * Chip groups lay out on a grid rather than wrapping, so a trailing item never
- * stretches across a row on its own. Prefers the widest split that comes out even.
- */
-function columns(count: number): number {
-  return [6, 5, 4, 3].find((n) => count % n === 0) ?? Math.min(count, 4)
-}
-
-/** The column count is data-driven, so it goes through a style rather than a class. */
-const gridOf = (count: number) => ({ gridTemplateColumns: `repeat(${columns(count)}, minmax(0, 1fr))` })
-
 interface ChoiceProps<T extends string | number> {
-  /** Names the group for a screen reader; `hideLabel` when the chips read for themselves. */
   label: string
-  hideLabel?: boolean
   value: T
   defaultValue?: T
   options: readonly { value: T; label: string }[]
@@ -198,41 +184,39 @@ interface ChoiceProps<T extends string | number> {
 }
 
 /**
- * Single-select toggle group. Values travel as strings because the group works in
- * strings, and are mapped back through the options so numbers survive the trip.
+ * Inline choice. Values travel as strings because Select works in strings, and
+ * are mapped back through the options so numbers survive the trip.
  */
-export function Choice<T extends string | number>({ label, hideLabel, value, defaultValue, options, onChange }: ChoiceProps<T>) {
+export function Choice<T extends string | number>({ label, value, defaultValue, options, onChange }: ChoiceProps<T>) {
   const modified = defaultValue !== undefined && value !== defaultValue
   const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
   return (
-    <Field>
+    <Field orientation="horizontal">
       <div className={settingColumns}>
-        <FieldLabel className={hideLabel && !modified ? 'sr-only' : `flex-1 font-normal ${modified ? 'text-modified' : ''}`}>
-          {label}
-        </FieldLabel>
+        <FieldLabel className={`font-normal ${modified ? 'text-modified' : ''}`}>{label}</FieldLabel>
         <ResetSlot>{modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}</ResetSlot>
-        <span />
+        <Select
+          value={String(value)}
+          onValueChange={(next) => {
+            const picked = options.find((option) => String(option.value) === String(next))
+            if (picked) onChange(picked.value)
+          }}
+        >
+          <SelectTrigger aria-label={label} className="w-28">
+            <SelectValue>
+              <span className="readout truncate text-xs">{selectedLabel}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((option) => (
+              <SelectItem key={String(option.value)} value={String(option.value)}>
+                <span className="readout text-xs">{option.label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <ToggleGroup
-        variant="outline"
-        size="sm"
-        spacing={1}
-        aria-label={label}
-        value={[String(value)]}
-        // Clicking the active item clears the group; keep the current value instead.
-        onValueChange={(next) => {
-          const picked = options.find((option) => String(option.value) === next[0])
-          if (picked) onChange(picked.value)
-        }}
-        className="grid w-full"
-        style={gridOf(options.length)}
-      >
-        {options.map((option) => (
-          <ToggleGroupItem key={String(option.value)} value={String(option.value)} className="readout min-w-0 text-xs">
-            {option.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
     </Field>
   )
 }

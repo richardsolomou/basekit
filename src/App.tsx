@@ -49,7 +49,7 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 ]
 
 const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Hollow well' },
+  { value: 'well', label: 'Hollow' },
   { value: 'solid', label: 'Solid' },
 ]
 
@@ -222,14 +222,7 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
-          <Choice
-            label="Base shape"
-            hideLabel
-            value={config.shape}
-            defaultValue={BASE_DEFAULTS.shape}
-            options={SHAPES}
-            onChange={changeShape}
-          />
+          <Choice label="Base shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <Dimension
             label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
             value={config.width}
@@ -409,7 +402,6 @@ export function App() {
           >
             <Choice
               label="Magnets per base"
-              hideLabel
               value={config.magnets.count}
               defaultValue={BASE_DEFAULTS.magnets.count}
               options={MAGNET_COUNTS}
@@ -420,7 +412,6 @@ export function App() {
           <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
             <Choice
               label="Spokes"
-              hideLabel
               value={config.ribs.count}
               defaultValue={BASE_DEFAULTS.ribs.count}
               options={RIB_COUNTS}
