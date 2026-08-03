@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
+import { unzipSync } from 'fflate'
 
 /** The drawing's title block carries the filename, the spec and the status. */
 const footer = (page: Page) => page.locator('footer')
@@ -94,6 +95,106 @@ test('exports finer circular geometry than the preview', async ({ page }) => {
   expect(stl.readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
+test('builds and exports an automatically sized Gridfinity holder', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await rebuilt(page, before)
+  await expect(page).toHaveURL(/\/holders$/)
+  await expect(across(page)).toHaveText('41.5 × 167.5')
+  await expect(tall(page)).toHaveText('14')
+  await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
+  await expect(footer(page)).toContainText('5 × Ø5.2')
+
+  const previewTriangles = await triangles(page)
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save STL' }).click()
+  const saved = await download
+  expect(saved.suggestedFilename()).toBe('holder-gridfinity-1x4-5x32mm.stl')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
+})
+
+test('loads the Gridfinity holder directly from its route', async ({ page }) => {
+  await page.goto('/holders')
+  await settled(page)
+  await expect(page).toHaveTitle('Gridfinity Mini Holders')
+  await expect(page.getByRole('button', { name: 'Gridfinity holder' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
+})
+
+test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await settled(page)
+  await expect(page.getByLabel(/^Maximum columns in/)).toHaveValue('7')
+  await expect(page.getByLabel(/^Maximum rows in/)).toHaveValue('5')
+  const quantity = page.getByLabel(/^Quantity 1 in/)
+  const before = await triangles(page)
+  await quantity.fill('4')
+  await rebuilt(page, before)
+  await expect(quantity).toBeFocused()
+  await expect(quantity).toHaveValue('4')
+})
+
+test('switches between subtractive holder engraving locations', async ({ page }) => {
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await settled(page)
+  await expect(page.getByRole('switch', { name: 'Engrave base sizes' })).toBeChecked()
+  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+  const before = await triangles(page)
+  await page.getByRole('button', { name: 'On module' }).click()
+  await rebuilt(page, before)
+  await expect(page.getByRole('button', { name: 'On module' })).toHaveAttribute('aria-pressed', 'true')
+  const moduleTriangles = await triangles(page)
+  await page.getByRole('button', { name: 'In slots' }).click()
+  await rebuilt(page, moduleTriangles)
+  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('moves to a second column when the row constraint requires it', async ({ page }) => {
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await settled(page)
+  const before = await triangles(page)
+  await page.getByLabel(/^Maximum rows in/).fill('3')
+  await page.getByLabel(/^Maximum rows in/).press('Enter')
+  await rebuilt(page, before)
+  await expect(across(page)).toHaveText('83.5 × 83.5')
+  await expect(footer(page)).toContainText('1 in 2 × 2')
+})
+
+test('fits what it can and reports box overflow', async ({ page }) => {
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await settled(page)
+  await page.getByLabel(/^Maximum columns in/).fill('1')
+  await page.getByLabel(/^Maximum columns in/).press('Enter')
+  const before = await triangles(page)
+  await page.getByLabel(/^Maximum rows in/).fill('1')
+  await page.getByLabel(/^Maximum rows in/).press('Enter')
+  await rebuilt(page, before)
+  await expect(page.getByText('1/5', { exact: true })).toBeVisible()
+  await expect(footer(page)).toContainText('4×Ø32')
+})
+
+test('adds another miniature size to the holder', async ({ page }) => {
+  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await settled(page)
+  await expect(page.getByRole('switch', { name: 'Split into modules' })).toBeChecked()
+  const before = await triangles(page)
+  await page.getByRole('button', { name: 'Add size' }).click()
+  await rebuilt(page, before)
+  await expect(page.getByLabel(/^Quantity 2 in/)).toHaveValue('1')
+  await expect(page.getByLabel(/^Base Ø 2 in/)).toHaveValue('40.0')
+  await expect(footer(page)).toContainText('5×Ø32 · 1×Ø40')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save STLs' }).click()
+  const saved = await pending
+  expect(saved.suggestedFilename()).toBe('holder-gridfinity-2x4-5x32-1x40mm.zip')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect(Object.keys(unzipSync(await readFile(path))).filter((name) => name.endsWith('.stl'))).toHaveLength(2)
+})
+
 const SHAPES = [
   { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
   { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },
@@ -139,7 +240,7 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   for (const control of ['Wall in mm', 'Recess floor in mm']) {
     // Well past the maximum: the field clamps, which is the behaviour being guarded.
     await page.getByLabel(control).fill('99')
-    await page.getByLabel(control).press('Enter')
+    await page.getByLabel(control).blur()
   }
   await rebuilt(page, before)
   await expect(footer(page)).not.toContainText(/blocked/i)
@@ -154,22 +255,25 @@ test('caps the edge profile when the recess floor is thinned', async ({ page }) 
 
   const edgeBuild = triangles(page)
   await page.getByLabel('Edge size in mm').fill('3')
-  await page.getByLabel('Edge size in mm').press('Enter')
+  await page.getByLabel('Edge size in mm').blur()
   await rebuilt(page, edgeBuild)
   await expect(page.getByLabel('Edge size in mm')).toHaveValue('1.7')
 })
 
 test('takes an exact typed dimension', async ({ page }) => {
   // The whole point of a typed field over a slider: 28.5 is reachable.
-  await page.getByLabel('Across in mm').fill('28.5')
-  await page.getByLabel('Across in mm').press('Enter')
+  const field = page.getByLabel('Across in mm')
+  await field.fill('')
+  await field.pressSequentially('28.5')
   await settled(page)
   await expect(across(page)).toHaveText('Ø28.5')
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('28.5')
 })
 
 test('clamps a dimension typed past its limit', async ({ page }) => {
   await page.getByLabel('Across in mm').fill('999')
-  await page.getByLabel('Across in mm').press('Enter')
+  await page.getByLabel('Across in mm').blur()
   await settled(page)
   await expect(page.getByLabel('Across in mm')).toHaveValue('180.0')
 })

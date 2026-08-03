@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/mini-bases/ci.yml?branch=main)](https://github.com/richardsolomou/mini-bases/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/mini-bases)](LICENSE)
 </div>
 
-Mini Bases makes support-free STL and 3MF files for tabletop miniatures. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a base ready for the slicer. The size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+Mini Bases makes support-free STL and 3MF files for tabletop miniatures and Gridfinity holders for storing them. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -28,13 +28,17 @@ The built-in presets include the common Games Workshop, The Old World, Kings of 
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
+Gridfinity holders take one or more quantities and round mini-base diameters, then plan them inside the available box. Miniature groups default to ordinary independent Gridfinity modules, shown with clearance between them in the preview and exported as separate STL files in one archive; splitting can be disabled to combine sizes in one holder. Subtractive size engraving defaults to every miniature slot and can instead be placed once in free space on its module or disabled. Maximum rows and columns define the box, and requests that do not fit report the omitted models instead of blocking the rest of the plan. Spacing controls the material left between neighbouring miniatures. Fit clearance belongs to the recess rather than the packing distance. Every slot gets a flush magnet pocket, and every 42mm Gridfinity cell gets its own profiled locating foot.
+
+The base generator lives at `/`; the Gridfinity holder generator can be opened directly at `/holders`.
+
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
 
 ## What it does not do
 
-Mini Bases generates the base itself. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
+Mini Bases generates bases and holders for them. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
 
 ## Development 🛠️
 
