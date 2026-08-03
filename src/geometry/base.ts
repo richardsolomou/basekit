@@ -304,8 +304,8 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       }
     }
 
-    // A well loads magnets from above and floors them on the wall thickness; a solid
-    // base takes them from underneath, so the pocket opens at the build plate.
+    // Both undersides open their pockets on the face that meets the tray, which is
+    // the top of the model as built, since the part is modelled the way it prints.
     if (magnets.length > 0) {
       const depth = hollow ? seatedThickness + 1 : Math.min(config.magnets.thickness, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))

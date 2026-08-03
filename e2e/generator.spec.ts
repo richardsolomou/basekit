@@ -121,7 +121,7 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   // the clamping rather than the geometry.
   await page.getByRole('button', { name: 'PROFILE' }).click()
   const before = await triangles(page)
-  for (const control of ['Wall in mm', 'Floor under magnet in mm']) {
+  for (const control of ['Wall in mm', 'Recess floor in mm']) {
     // Well past the maximum: the field clamps, which is the behaviour being guarded.
     await page.getByLabel(control).fill('99')
     await page.getByLabel(control).press('Enter')

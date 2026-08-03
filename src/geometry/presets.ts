@@ -159,7 +159,7 @@ export function segmentsFor(size: number): number {
 
 /**
  * Defaults follow the Games Workshop look: full size at the top face, a 1mm taper
- * down to the table, 3mm of well for basing material over a 1mm floor.
+ * at the rim, 3mm of recess for the magnets over a 1mm floor.
  */
 export function presetFor(preset: SizePreset): BaseConfig {
   const width = preset.width
@@ -177,7 +177,7 @@ export function presetFor(preset: SizePreset): BaseConfig {
     wallThickness: 2,
     floorThickness: 1,
     magnets: { count: magnetCount(width, length), diameter: 5, clearance: 0.2, bossWall: 0.9, thickness: 2 },
-    // Low ribs brace the thin floor without walling the well off from basing material.
+    // Low ribs stiffen the thin floor the recess leaves, without filling the recess.
     ribs: { count: ribCount(width, length), thickness: 1.6, height: 1.2 },
     label: { enabled: true, height: labelHeight(width, length), emboss: 0.6 },
     segments: segmentsFor(Math.max(width, length)),
