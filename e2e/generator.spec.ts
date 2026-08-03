@@ -97,7 +97,7 @@ test('exports finer circular geometry than the preview', async ({ page }) => {
 
 test('builds and exports an automatically sized Gridfinity holder', async ({ page }) => {
   const before = await triangles(page)
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await rebuilt(page, before)
   await expect(page).toHaveURL(/\/holders$/)
   await expect(across(page)).toHaveText('41.5 × 167.5')
@@ -119,12 +119,12 @@ test('loads the Gridfinity holder directly from its route', async ({ page }) => 
   await page.goto('/holders')
   await settled(page)
   await expect(page).toHaveTitle('Gridfinity Mini Holders')
-  await expect(page.getByRole('button', { name: 'Gridfinity holder' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('link', { name: 'Holders' })).toHaveAttribute('aria-current', 'page')
   await expect(footer(page)).toContainText('holder-gridfinity-1x4-5x32mm')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   await expect(page.getByLabel(/^Maximum columns in/)).toHaveValue('7')
   await expect(page.getByLabel(/^Maximum rows in/)).toHaveValue('5')
@@ -137,7 +137,7 @@ test('updates integer holder inputs immediately without losing focus', async ({ 
 })
 
 test('switches between subtractive holder engraving locations', async ({ page }) => {
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   await expect(page.getByRole('switch', { name: 'Engrave base sizes' })).toBeChecked()
   await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
@@ -152,7 +152,7 @@ test('switches between subtractive holder engraving locations', async ({ page })
 })
 
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   const before = await triangles(page)
   await page.getByLabel(/^Maximum rows in/).fill('3')
@@ -163,7 +163,7 @@ test('moves to a second column when the row constraint requires it', async ({ pa
 })
 
 test('fits what it can and reports box overflow', async ({ page }) => {
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   await page.getByLabel(/^Maximum columns in/).fill('1')
   await page.getByLabel(/^Maximum columns in/).press('Enter')
@@ -176,7 +176,7 @@ test('fits what it can and reports box overflow', async ({ page }) => {
 })
 
 test('adds another miniature size to the holder', async ({ page }) => {
-  await page.getByRole('button', { name: 'Gridfinity holder' }).click()
+  await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   await expect(page.getByRole('switch', { name: 'Split into modules' })).toBeChecked()
   const before = await triangles(page)

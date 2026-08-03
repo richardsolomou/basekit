@@ -58,8 +58,8 @@ const counts = (values: number[]) => values.map((value) => ({ value, label: valu
 const MAGNET_COUNTS = counts(MAGNET_CHOICES)
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
-  { value: 'base' as const, label: 'Mini base' },
-  { value: 'holder' as const, label: 'Gridfinity holder' },
+  { value: 'base' as const, label: 'Bases', href: '/' },
+  { value: 'holder' as const, label: 'Holders', href: '/holders' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -675,8 +675,8 @@ export function App() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-4">
           {/* Same panel, same order; on a narrow screen it slides in from the left
               instead of standing beside the sheet. */}
           {!docked && (
@@ -696,10 +696,25 @@ export function App() {
               </SheetContent>
             </Sheet>
           )}
-          <h1 className="text-sm font-medium tracking-[0.18em] uppercase">
+          <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase">
             Mini <span className="text-measure">Bases</span>
           </h1>
-          <Choice label="Model type" hideLabel value={model} options={MODELS} onChange={changeModel} />
+          <nav aria-label="Generators" className="flex self-stretch">
+            {MODELS.map((item) => (
+              <a
+                key={item.value}
+                href={item.href}
+                aria-current={model === item.value ? 'page' : undefined}
+                onClick={(event) => {
+                  event.preventDefault()
+                  changeModel(item.value)
+                }}
+                className="note relative flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
         </div>
         <ButtonGroup>
           {/* The labels fold away on a phone; the icons and the names still read out. */}
