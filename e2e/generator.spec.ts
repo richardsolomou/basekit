@@ -69,11 +69,25 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
 
 test('uses wider default framing for holders until the viewer zooms', { tag: '@ci' }, async ({ page }) => {
   const baseDistance = await cameraDistance(page)
+  const baseTriangles = await triangles(page)
+  await page.evaluate((distance) => {
+    const viewport = document.querySelector<HTMLElement>('[data-triangles]')!
+    viewport.dataset.zoomedBeforeMeshSwap = 'false'
+    new MutationObserver(() => {
+      if (viewport.dataset.meshModel === 'base' && Math.abs(Number(viewport.dataset.cameraDistance) - distance) > 1) {
+        viewport.dataset.zoomedBeforeMeshSwap = 'true'
+      }
+    }).observe(viewport, { attributes: true, attributeFilter: ['data-camera-distance'] })
+  }, baseDistance)
 
   await page.getByRole('link', { name: 'Holders' }).click()
+  await rebuilt(page, baseTriangles)
   await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance * 1.4, 4)
+  await expect(drawn(page)).toHaveAttribute('data-zoomed-before-mesh-swap', 'false')
 
+  const holderTriangles = await triangles(page)
   await page.getByRole('link', { name: 'Bases' }).click()
+  await rebuilt(page, holderTriangles)
   await expect.poll(() => cameraDistance(page)).toBeCloseTo(baseDistance, 4)
 
   await page.locator('canvas').hover()

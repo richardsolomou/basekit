@@ -11,16 +11,18 @@ export function useGenerator(config: PartConfig) {
   const worker = useRef<Worker>(null)
   const nextId = useRef(0)
   const latestPreview = useRef(0)
+  const latestConfig = useRef(config)
   const building = useRef(false)
   const queued = useRef<PartConfig>(undefined)
 
-  const [preview, setPreview] = useState<MeshData>()
+  const [preview, setPreview] = useState<{ mesh: MeshData; kind: 'base' | 'holder' }>()
   const [error, setError] = useState<string>()
 
   /** Sends one config and remembers it is the one whose reply matters. */
   const send = useCallback((next: PartConfig) => {
     const id = ++nextId.current
     latestPreview.current = id
+    latestConfig.current = next
     building.current = true
     worker.current?.postMessage({ id, config: next } satisfies WorkerRequest)
   }, [])
@@ -42,7 +44,7 @@ export function useGenerator(config: PartConfig) {
       if (reply.kind === 'error') {
         setError(reply.message)
       } else {
-        setPreview(reply.mesh)
+        setPreview({ mesh: reply.mesh, kind: latestConfig.current.kind === 'holder' ? 'holder' : 'base' })
         setError(undefined)
       }
       drain()
@@ -58,5 +60,5 @@ export function useGenerator(config: PartConfig) {
     else send(config)
   }, [config, send])
 
-  return { preview, error }
+  return { preview: preview?.mesh, previewKind: preview?.kind, error }
 }

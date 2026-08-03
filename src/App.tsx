@@ -107,7 +107,7 @@ export function App() {
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
-  const { preview, error } = useGenerator(partConfig)
+  const { preview, previewKind, error } = useGenerator(partConfig)
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -891,6 +891,7 @@ export function App() {
           <Viewer
             mesh={preview}
             model={model}
+            meshModel={previewKind}
             width={partWidth}
             length={partLength}
             height={partHeight}

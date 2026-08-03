@@ -63,13 +63,14 @@ function themeColor(name: string, fallback: string): THREE.Color {
 interface Props {
   mesh?: MeshData
   model: 'base' | 'holder'
+  meshModel?: 'base' | 'holder'
   width: number
   length: number
   height: number
   round: boolean
 }
 
-export function Viewer({ mesh, model, width, length, height, round }: Props) {
+export function Viewer({ mesh, model, meshModel, width, length, height, round }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const overlay = useRef<SVGSVGElement>(null)
   const part = useRef<THREE.Group>(null)
@@ -77,8 +78,7 @@ export function Viewer({ mesh, model, width, length, height, round }: Props) {
   const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
   const camera = useRef<THREE.PerspectiveCamera>(null)
   const zoomHeld = useRef(false)
-  const currentModel = useRef(model)
-  currentModel.current = model
+  const framedModel = useRef(model)
 
   useEffect(() => {
     const container = host.current
@@ -172,7 +172,7 @@ export function Viewer({ mesh, model, width, length, height, round }: Props) {
       renderer.setSize(w, h)
       viewCamera.aspect = w / Math.max(h, 1)
       viewCamera.updateProjectionMatrix()
-      if (!held) viewCamera.position.setLength(framingDistance(viewCamera.aspect, currentModel.current))
+      if (!held) viewCamera.position.setLength(framingDistance(viewCamera.aspect, framedModel.current))
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -252,12 +252,6 @@ export function Viewer({ mesh, model, width, length, height, round }: Props) {
     }
   }, [])
 
-  useEffect(() => {
-    const viewCamera = camera.current
-    if (!viewCamera || zoomHeld.current) return
-    viewCamera.position.setLength(framingDistance(viewCamera.aspect, model))
-  }, [model])
-
   // Swap in new geometry, keeping the camera where it was.
   useEffect(() => {
     const group = part.current
@@ -304,11 +298,20 @@ export function Viewer({ mesh, model, width, length, height, round }: Props) {
 
     group.userData = { halfWidth: width / 2, halfLength: length / 2, height }
 
+    const viewCamera = camera.current
+    if (viewCamera && meshModel && meshModel !== framedModel.current) {
+      framedModel.current = meshModel
+      if (!zoomHeld.current) viewCamera.position.setLength(framingDistance(viewCamera.aspect, meshModel))
+    }
+
     // The triangle count of what is actually in the scene, which is the only
     // honest signal that a rebuild has landed — the status word reads "ready"
     // from the build before the one being waited on. The e2e suite polls it.
-    if (host.current) host.current.dataset.triangles = String(mesh.indices.length / 3)
-  }, [mesh, width, length, height])
+    if (host.current) {
+      host.current.dataset.triangles = String(mesh.indices.length / 3)
+      if (meshModel) host.current.dataset.meshModel = meshModel
+    }
+  }, [mesh, meshModel, width, length, height])
 
   const across = round ? `Ø${trimNumber(width)}` : `${trimNumber(width)} × ${trimNumber(length)}`
 
