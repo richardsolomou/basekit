@@ -52,7 +52,7 @@ function ResetButton({ label, value, onReset }: { label: string; value: string; 
 }
 
 function ResetSlot({ children }: { children?: ReactNode }) {
-  return <span className="col-start-2 row-start-1 flex size-3.5 translate-x-1 items-center justify-center">{children}</span>
+  return <span className="col-start-2 row-start-1 flex size-3.5 items-center justify-center">{children}</span>
 }
 
 const settingColumns = 'grid w-full grid-cols-[minmax(0,1fr)_0.875rem_7rem] items-center gap-2'

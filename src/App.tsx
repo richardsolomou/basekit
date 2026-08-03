@@ -355,7 +355,7 @@ export function App() {
 
         <Section title="Size Label">
           <ToggleSetting
-            label="Show size label"
+            label="Size labels"
             checked={config.label.enabled}
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
@@ -388,7 +388,7 @@ export function App() {
             onChange={(underside) => patch({ underside })}
           />
           <Dimension
-            label="Height"
+            label="Base height"
             value={config.height}
             min={2}
             max={12}
@@ -461,7 +461,7 @@ export function App() {
         </Section>
 
         <Section
-          title="Magnet layout"
+          title="Magnet Layout"
           aside={
             <span className="readout text-xs text-muted-foreground">
               {config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
@@ -493,7 +493,7 @@ export function App() {
             onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
           />
           <Dimension
-            label="Thickness"
+            label="Support thickness"
             value={config.ribs.thickness}
             min={0.8}
             max={4}
@@ -503,7 +503,7 @@ export function App() {
             onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
           />
           <Dimension
-            label="Height"
+            label="Support height"
             value={config.ribs.height}
             min={0.4}
             max={Math.max(0.5, config.height - config.floorThickness)}
@@ -778,7 +778,7 @@ export function App() {
             onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
           />
           <Dimension
-            label="Between minis"
+            label="Between miniatures"
             value={holder.spacing}
             min={0}
             max={10}
@@ -807,7 +807,7 @@ export function App() {
             ))}
           </div>
           <Dimension
-            label="Height"
+            label="Holder height"
             value={holder.height}
             min={7}
             max={42}
@@ -837,7 +837,7 @@ export function App() {
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <ToggleSetting
-            label="Label base sizes"
+            label="Size labels"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
             onChange={setSharedLabels}
