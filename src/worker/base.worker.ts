@@ -25,7 +25,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     const [wasm, font] = await ready
     const mesh = toMeshData(buildBase(wasm, config, font))
-    send({ id, kind: 'preview', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
+    send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {
     send({ id, kind: 'error', message: error instanceof Error ? error.message : String(error) }, [])
   }

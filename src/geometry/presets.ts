@@ -1,5 +1,6 @@
 import { magnetsRing } from './base'
 import { isElongated } from './outline'
+import { previewSegmentsFor } from './quality'
 import type { BaseConfig, ShapeKind } from './types'
 
 export interface SizePreset {
@@ -152,11 +153,6 @@ function labelHeight(width: number, length: number): number {
   return Math.min(8, Math.max(3.5, Math.min(width, length) * 0.2))
 }
 
-/** Chord error stays under ~0.02mm at print scale. */
-export function segmentsFor(size: number): number {
-  return Math.min(256, Math.max(64, Math.ceil(size * 3.2)))
-}
-
 /**
  * Defaults follow the Games Workshop look: full size at the top face, a 1mm taper
  * at the rim, 3mm of recess for the magnets over a 1mm floor.
@@ -180,7 +176,7 @@ export function presetFor(preset: SizePreset): BaseConfig {
     // Low ribs stiffen the thin floor the recess leaves, without filling the recess.
     ribs: { count: ribCount(width, length), thickness: 1.6, height: 1.2 },
     label: { enabled: true, height: labelHeight(width, length), emboss: 0.6 },
-    segments: segmentsFor(Math.max(width, length)),
+    segments: previewSegmentsFor(Math.max(width, length)),
   }
 }
 
@@ -194,7 +190,7 @@ export function resized(config: BaseConfig, width: number, length: number): Base
     magnets: { ...config.magnets, count: magnetCount(width, effective) },
     ribs: { ...config.ribs, count: ribCount(width, effective) },
     label: { ...config.label, height: labelHeight(width, effective) },
-    segments: segmentsFor(Math.max(width, effective)),
+    segments: previewSegmentsFor(Math.max(width, effective)),
   }
 }
 

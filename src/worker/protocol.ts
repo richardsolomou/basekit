@@ -11,4 +11,4 @@ export interface WorkerRequest {
   config: BaseConfig
 }
 
-export type WorkerReply = { id: number; kind: 'preview'; mesh: MeshData } | { id: number; kind: 'error'; message: string }
+export type WorkerReply = { id: number; kind: 'mesh'; mesh: MeshData } | { id: number; kind: 'error'; message: string }

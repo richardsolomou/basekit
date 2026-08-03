@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 
 /** The drawing's title block carries the filename, the spec and the status. */
@@ -77,6 +78,16 @@ test('exports a 3MF as well', async ({ page }) => {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save 3MF' }).click()
   expect((await download).suggestedFilename()).toBe('base-round-32mm.3mf')
+})
+
+test('exports finer circular geometry than the preview', async ({ page }) => {
+  const previewTriangles = await triangles(page)
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save STL' }).click()
+  const path = await (await pending).path()
+  if (!path) throw new Error('download has no local path')
+  const stl = await readFile(path)
+  expect(stl.readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
 const SHAPES = [

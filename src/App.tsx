@@ -24,7 +24,9 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
+import { exportSegmentsFor } from '@/geometry/quality'
 import type { BaseConfig, EdgeProfile, ShapeKind, Underside } from '@/geometry/types'
+import { buildMesh } from '@/lib/buildMesh'
 import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -52,19 +54,11 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const MAGNET_COUNTS = counts(MAGNET_CHOICES)
 const RIB_COUNTS = counts(RIB_CHOICES)
-const QUALITY_STEPS = [96, 160, 256]
-
-/**
- * How far a flat segment departs from the true curve, in microns. Naming the tiers
- * by the error they actually produce beats vague adjectives — and the number moves
- * with the base, because the same segment count is coarser on a bigger circle.
- */
-function chordError(width: number, segments: number): number {
-  return (width / 2) * (1 - Math.cos(Math.PI / segments)) * 1000
-}
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
+  const [exporting, setExporting] = useState<'stl' | '3mf'>()
+  const [exportError, setExportError] = useState<string>()
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const { preview, error } = useGenerator(config)
@@ -90,16 +84,30 @@ export function App() {
     setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
   }
 
-  const exportStl = () => {
-    if (!preview) return
-    const name = `${baseName(config)}.stl`
-    download(name, toStl(asMeshLike(preview), name))
+  const buildExport = async (format: 'stl' | '3mf') => {
+    setExporting(format)
+    setExportError(undefined)
+    try {
+      return await buildMesh({ ...config, segments: exportSegmentsFor(Math.max(width, length)) })
+    } catch (failure) {
+      setExportError(failure instanceof Error ? failure.message : String(failure))
+    } finally {
+      setExporting(undefined)
+    }
   }
 
-  const export3mf = () => {
-    if (!preview) return
+  const exportStl = async () => {
+    const mesh = await buildExport('stl')
+    if (!mesh) return
+    const name = `${baseName(config)}.stl`
+    download(name, toStl(asMeshLike(mesh), name))
+  }
+
+  const export3mf = async () => {
+    const mesh = await buildExport('3mf')
+    if (!mesh) return
     const name = baseName(config)
-    download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(preview), name }]))
+    download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
   }
 
   const panel = (
@@ -314,18 +322,6 @@ export function App() {
               disabled={!config.label.enabled}
               onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
             />
-            <Choice
-              label="Curve tolerance"
-              value={QUALITY_STEPS.reduce(
-                (best, q) => (Math.abs(q - config.segments) < Math.abs(best - config.segments) ? q : best),
-                QUALITY_STEPS[1],
-              )}
-              options={QUALITY_STEPS.map((segments) => ({
-                value: segments,
-                label: `${Math.max(1, Math.round(chordError(Math.max(width, length), segments)))}µm`,
-              }))}
-              onChange={(segments) => patch({ segments })}
-            />
           </Fold>
         </Accordion>
       </aside>
@@ -359,13 +355,13 @@ export function App() {
         </div>
         <ButtonGroup>
           {/* The labels fold away on a phone; the icons and the names still read out. */}
-          <Button size="sm" onClick={exportStl} disabled={!preview}>
+          <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
-            <span className="max-sm:sr-only">Save STL</span>
+            <span className="max-sm:sr-only">{exporting === 'stl' ? 'Building STL' : 'Save STL'}</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview}>
+          <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview || exporting !== undefined}>
             <Box />
-            <span className="max-sm:sr-only">Save 3MF</span>
+            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Save 3MF'}</span>
           </Button>
         </ButtonGroup>
       </header>
@@ -375,12 +371,12 @@ export function App() {
 
         <main className="relative min-w-0 flex-1">
           <Viewer mesh={preview} width={width} length={length} height={config.height} round={!elongated} />
-          {error && (
+          {(error || exportError) && (
             <div
               role="alert"
               className="absolute inset-x-0 top-0 border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive"
             >
-              {error}. Showing the last base that built.
+              {error ? `${error}. Showing the last base that built.` : `Export failed: ${exportError}`}
             </div>
           )}
           <TitleBlock config={config} status={error ? 'blocked' : 'ready'} name={baseName(config)} />
