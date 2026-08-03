@@ -273,7 +273,7 @@ export function App() {
   }
 
   const basePanel = (
-    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Size & Shape">
@@ -572,7 +572,7 @@ export function App() {
   )
 
   const holderPanel = (
-    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Holder settings" className="pb-4 [counter-reset:schedule]">
         <Section
           title="Miniatures"
@@ -927,7 +927,7 @@ export function App() {
               >
                 <PanelLeft />
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 max-w-[85vw] gap-0 p-0">
+              <SheetContent side="left" className="max-w-[85vw] gap-0 p-0 data-[side=left]:w-81">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">

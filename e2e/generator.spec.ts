@@ -57,6 +57,8 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
+  const panel = page.getByRole('complementary', { name: 'Base settings' }).locator('xpath=ancestor::*[@data-slot="scroll-area"]')
+  await expect.poll(async () => (await panel.boundingBox())?.width).toBe(344.25)
   await expect(across(page)).toHaveText('Ø32')
   await expect(tall(page)).toHaveText('4')
   await expect(footer(page)).toContainText('base-round-32mm')
@@ -550,6 +552,7 @@ test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ pag
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toBeHidden()
 
   await page.getByRole('button', { name: 'Base settings' }).click()
+  await expect.poll(async () => (await page.locator('[data-slot="sheet-content"]').boundingBox())?.width).toBe(331.5)
   await pickSize(page, 'Custom')
   const before = await triangles(page)
   await page.getByLabel('Diameter in mm', { exact: true }).fill('60')
