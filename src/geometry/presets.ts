@@ -220,3 +220,7 @@ export function resized(config: BaseConfig, width: number, length: number): Base
 }
 
 export const DEFAULT_PRESET = ROUND_SIZES[2]
+
+export function footprintKey(shape: ShapeKind, width: number, length: number): string {
+  return `${shape}:${width}x${isElongated(shape) ? length : width}`
+}

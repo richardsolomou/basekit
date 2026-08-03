@@ -10,8 +10,6 @@ export type Underside = 'well' | 'solid'
 export interface MagnetSpec {
   /** 0 disables pockets. 1 sits at the centre, more spread over the footprint. */
   count: number
-  /** Upper bound for counts chosen automatically from the footprint. */
-  maxCount: number
   diameter: number
   /** Added to the diameter so a nominal magnet actually drops in. */
   clearance: number
@@ -91,11 +89,13 @@ export interface HolderConfig {
   height: number
   magnets: {
     enabled: boolean
-    maxCount: number
     diameter: number
     clearance: number
     thickness: number
   }
+  magnetCounts: Record<string, number>
+  baseWallThickness: number
+  magnetBossWall: number
   segments: number
 }
 

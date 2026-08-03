@@ -23,6 +23,7 @@ import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/ge
 import {
   DEFAULT_PRESET,
   DEFAULT_SIZE,
+  footprintKey,
   MAGNET_CHOICES,
   presetFor,
   resized,
@@ -36,6 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
+import { loadWorkspace, saveWorkspace } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -68,7 +70,6 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
 
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const MAGNET_COUNTS = counts(MAGNET_CHOICES)
-const AUTOMATIC_MAGNET_LIMITS = counts([1, 2, 3, 4, 6, 8])
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
@@ -82,6 +83,11 @@ const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+
+function withRememberedMagnetCount(config: BaseConfig, magnetCounts: Record<string, number>): BaseConfig {
+  const count = magnetCounts[footprintKey(config.shape, config.width, config.length)]
+  return count === undefined ? config : { ...config, magnets: { ...config.magnets, count } }
+}
 
 function RepositoryLink() {
   return (
@@ -100,15 +106,22 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
+  const [workspace, setWorkspace] = useState(loadWorkspace)
+  const config = workspace.base
+  const holder = workspace.holder
+  const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
+    setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
+  const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
+    setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(false)
-  const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
   const { preview, error } = useGenerator(partConfig)
+
+  useEffect(() => saveWorkspace(workspace), [workspace])
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -122,6 +135,26 @@ export function App() {
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
+    setWorkspace((current) => {
+      if (next === 'holder') {
+        const groups = [...current.holder.groups]
+        groups[0] = holderGroup(groups[0].id, groups[0].quantity, {
+          shape: current.base.shape,
+          width: current.base.width,
+          length: current.base.length,
+          cornerRadius: current.base.cornerRadius,
+          sides: current.base.sides,
+        })
+        return { ...current, holder: { ...current.holder, groups } }
+      }
+      const group = current.holder.groups[0]
+      const base = resized(
+        { ...current.base, shape: group.shape, cornerRadius: group.cornerRadius, sides: group.sides },
+        group.width,
+        group.length,
+      )
+      return { ...current, base: withRememberedMagnetCount(base, current.holder.magnetCounts) }
+    })
     window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
   }
@@ -135,6 +168,9 @@ export function App() {
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
+  const maxBaseMagnetThickness =
+    config.underside === 'well' ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)
+  const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
   const fitSlotDepth = (next: HolderConfig) => ({
     ...next,
     slotDepth: Math.min(next.slotDepth, Math.max(1, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5)),
@@ -193,7 +229,54 @@ export function App() {
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
-    setConfig(presetFor(size))
+    const next = presetFor(size)
+    setConfig(
+      withRememberedMagnetCount(
+        {
+          ...next,
+          magnets: {
+            ...next.magnets,
+            diameter: config.magnets.diameter,
+            thickness: config.magnets.thickness,
+            clearance: config.magnets.clearance,
+          },
+        },
+        holder.magnetCounts,
+      ),
+    )
+  }
+
+  const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>>) => {
+    setWorkspace((current) => ({
+      base: { ...current.base, magnets: { ...current.base.magnets, ...changes } },
+      holder: { ...current.holder, magnets: { ...current.holder.magnets, ...changes } },
+    }))
+  }
+
+  const setSharedMagnetPlacement = (changes: Partial<Pick<BaseConfig, 'wallThickness'> & { bossWall: number }>) => {
+    setWorkspace((current) => {
+      const base = {
+        ...current.base,
+        ...('wallThickness' in changes ? { wallThickness: changes.wallThickness } : {}),
+        magnets: { ...current.base.magnets, ...('bossWall' in changes ? { bossWall: changes.bossWall } : {}) },
+      }
+      return {
+        base: { ...base, profileSize: Math.min(base.profileSize, safeEdgeSize(base)) },
+        holder: {
+          ...current.holder,
+          ...('wallThickness' in changes ? { baseWallThickness: changes.wallThickness } : {}),
+          ...('bossWall' in changes ? { magnetBossWall: changes.bossWall } : {}),
+        },
+      }
+    })
+  }
+
+  const setMagnetCount = (count: number) => {
+    const key = footprintKey(config.shape, config.width, config.length)
+    setWorkspace((current) => ({
+      base: { ...current.base, magnets: { ...current.base.magnets, count } },
+      holder: { ...current.holder, magnetCounts: { ...current.holder.magnetCounts, [key]: count } },
+    }))
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -202,7 +285,8 @@ export function App() {
     posthog.capture('base_shape_selected', { shape })
     const target = DEFAULT_SIZE[shape]
     setCustomBaseSize(false)
-    setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
+    const next = resized({ ...config, shape }, target.width, target.length ?? target.width)
+    setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
   }
 
   const basePanel = (
@@ -234,7 +318,10 @@ export function App() {
               max={180}
               step={0.5}
               defaultValue={BASE_DEFAULTS.width}
-              onChange={(w) => setConfig(resized(config, w, config.length))}
+              onChange={(w) => {
+                const next = resized(config, w, config.length)
+                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+              }}
             />
           )}
           {customBaseSize && elongated && (
@@ -245,7 +332,10 @@ export function App() {
               max={180}
               step={0.5}
               defaultValue={BASE_DEFAULTS.length}
-              onChange={(l) => setConfig(resized(config, config.width, l))}
+              onChange={(l) => {
+                const next = resized(config, config.width, l)
+                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+              }}
             />
           )}
         </Section>
@@ -262,23 +352,21 @@ export function App() {
             label="Magnet diameter"
             value={config.magnets.diameter}
             min={2}
-            max={12}
+            max={8}
             step={0.5}
             defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={config.magnets.count === 0}
-            onChange={(diameter) => patch({ magnets: { ...config.magnets, diameter } })}
+            onChange={(diameter) => setSharedMagnets({ diameter })}
           />
           <Dimension
             label="Magnet thickness"
             value={config.magnets.thickness}
             min={0.5}
-            // A well seats the magnet on its floor, so it can be no thicker than the
-            // well is deep or it would stand proud of the top face.
-            max={hollow ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)}
-            step={0.5}
+            max={maxSharedMagnetThickness}
+            step={0.1}
             defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={config.magnets.count === 0}
-            onChange={(thickness) => patch({ magnets: { ...config.magnets, thickness } })}
+            onChange={(thickness) => setSharedMagnets({ thickness })}
           />
         </Section>
 
@@ -332,7 +420,7 @@ export function App() {
             max={6}
             step={0.1}
             defaultValue={BASE_DEFAULTS.wallThickness}
-            onChange={(wallThickness) => patch({ wallThickness })}
+            onChange={(wallThickness) => setSharedMagnetPlacement({ wallThickness })}
           />
           {/* Only a hollowed underside has a floor to set. It is the face the model
                 is glued to, and it is never between a magnet and the tray. */}
@@ -398,18 +486,11 @@ export function App() {
           }
         >
           <Choice
-            label="Automatic magnet limit"
-            value={config.magnets.maxCount}
-            defaultValue={BASE_DEFAULTS.magnets.maxCount}
-            options={AUTOMATIC_MAGNET_LIMITS}
-            onChange={setAutomaticMagnetLimit}
-          />
-          <Choice
             label="Magnets per base"
             value={config.magnets.count}
             defaultValue={BASE_DEFAULTS.magnets.count}
             options={MAGNET_COUNTS}
-            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+            onChange={setMagnetCount}
           />
         </Section>
 
@@ -461,7 +542,7 @@ export function App() {
             max={0.6}
             step={0.05}
             defaultValue={BASE_DEFAULTS.magnets.clearance}
-            onChange={(clearance) => patch({ magnets: { ...config.magnets, clearance } })}
+            onChange={(clearance) => setSharedMagnets({ clearance })}
           />
           <Dimension
             label="Wall around pocket"
@@ -470,7 +551,7 @@ export function App() {
             max={3}
             step={0.1}
             defaultValue={BASE_DEFAULTS.magnets.bossWall}
-            onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
+            onChange={(bossWall) => setSharedMagnetPlacement({ bossWall })}
           />
           <Dimension
             label="Label size"
@@ -794,13 +875,6 @@ export function App() {
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
           />
-          <Choice
-            label="Automatic magnets per slot"
-            value={holder.magnets.maxCount}
-            defaultValue={HOLDER_DEFAULTS.magnets.maxCount}
-            options={AUTOMATIC_MAGNET_LIMITS}
-            onChange={setAutomaticMagnetLimit}
-          />
           <Dimension
             label="Magnet diameter"
             value={holder.magnets.diameter}
@@ -809,27 +883,27 @@ export function App() {
             step={0.5}
             defaultValue={BASE_DEFAULTS.magnets.diameter}
             disabled={!holder.magnets.enabled}
-            onChange={(diameter) => setHolder({ ...holder, magnets: { ...holder.magnets, diameter } })}
+            onChange={(diameter) => setSharedMagnets({ diameter })}
           />
           <Dimension
             label="Magnet thickness"
             value={holder.magnets.thickness}
             min={0.5}
-            max={Math.max(0.5, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10)}
+            max={maxSharedMagnetThickness}
             step={0.1}
             defaultValue={BASE_DEFAULTS.magnets.thickness}
             disabled={!holder.magnets.enabled}
-            onChange={(thickness) => setHolder({ ...holder, magnets: { ...holder.magnets, thickness } })}
+            onChange={(thickness) => setSharedMagnets({ thickness })}
           />
           <Dimension
             label="Magnet fit clearance"
             value={holder.magnets.clearance}
             min={0}
-            max={1}
+            max={0.6}
             step={0.05}
             defaultValue={BASE_DEFAULTS.magnets.clearance}
             disabled={!holder.magnets.enabled}
-            onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
+            onChange={(clearance) => setSharedMagnets({ clearance })}
           />
         </Section>
         <RepositoryLink />

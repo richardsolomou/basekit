@@ -98,9 +98,10 @@ describe('holderLayout', () => {
     expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 }))).toHaveLength(2)
   })
 
-  it('caps holder slot magnets with the same automatic limit as bases', () => {
+  it('uses a saved base magnet count for the matching holder slot', () => {
     const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
-    expect(holderSlotMagnetCenters(oval, 2)).toHaveLength(2)
+    const config = { ...defaultHolderConfig(), magnetCounts: { 'oval:90x52': 2 } }
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(2)
   })
 
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
