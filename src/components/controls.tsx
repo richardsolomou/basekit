@@ -277,17 +277,23 @@ export function SizeSelect({
   options,
   onChange,
   label = 'Standard base size',
+  displayLabel = 'Size',
 }: {
   value: string | null
   options: readonly SizeOption[]
   onChange: (value: string) => void
   label?: string
+  displayLabel?: string
 }) {
+  const id = useId()
   const selected = options.find((option) => option.value === value)
   return (
     <Field>
+      <FieldLabel htmlFor={id} className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+        {displayLabel}
+      </FieldLabel>
       <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger aria-label={label} className="w-full">
+        <SelectTrigger id={id} aria-label={label} className="w-full">
           <SelectValue>
             <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
             <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
