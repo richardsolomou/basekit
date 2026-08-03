@@ -75,6 +75,12 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
   await expect(sizeLabel(page)).toHaveAttribute('placeholder', '28.5')
 })
 
+test('uses an end pair for a medium oval base', async ({ page }) => {
+  await pickChoice(page, 'Shape', 'Oval')
+  await pickSize(page, '90×52')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('2')
+})
+
 test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
   await pickSize(page, 'Custom')

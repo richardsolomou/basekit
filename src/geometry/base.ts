@@ -22,6 +22,10 @@ export interface Circle {
   r: number
 }
 
+interface MagnetPositionOptions {
+  ellipticalRow?: boolean
+}
+
 /** Whether magnets sit on a ring, rather than in a row down the long axis. */
 export function magnetsRing(width: number, length: number): boolean {
   return Math.max(width, length) / Math.min(width, length) <= ELONGATED_RATIO
@@ -31,14 +35,21 @@ export function magnetsRing(width: number, length: number): boolean {
  * Magnet centres. Round-ish footprints get a ring so the pull is even; long ones
  * get a row down the major axis, which is where the material actually is.
  */
-export function magnetPositions(count: number, halfWidth: number, halfLength: number, clear: number): Circle[] {
+export function magnetPositions(
+  count: number,
+  halfWidth: number,
+  halfLength: number,
+  clear: number,
+  options: MagnetPositionOptions = {},
+): Circle[] {
   if (count <= 0) return []
   if (count === 1) return [{ x: 0, y: 0, r: 0 }]
 
   const long = Math.max(halfWidth, halfLength)
   const short = Math.min(halfWidth, halfLength)
   if (!magnetsRing(halfWidth, halfLength)) {
-    const reach = Math.max(long - clear, 0)
+    const ellipseReach = long * Math.sqrt(Math.max(0, 1 - (clear / short) ** 2)) - clear
+    const reach = Math.max(options.ellipticalRow ? ellipseReach : long - clear, 0)
     const alongX = halfWidth >= halfLength
     return Array.from({ length: count }, (_, i) => {
       const t = (2 * i) / (count - 1) - 1
@@ -167,7 +178,9 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
 
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
     const bossRadius = pocketRadius + config.magnets.bossWall
-    const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN)
+    const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
+      ellipticalRow: config.shape === 'oval',
+    })
 
     /*
      * The boss carries the pocket the full depth of the well, and the pocket is cut
@@ -187,7 +200,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       }
     }
 
-    // Single spokes from the centre outwards, phased to run between the bosses.
+    // Single spokes from the centre outwards, phased to run through the bosses.
     // Intersecting the well stops them at the wall.
     const spokeAngles = hollow ? ribAngles(config.ribs.count, magnets) : []
     const ribHeight = Math.min(config.ribs.height, wellDepth)

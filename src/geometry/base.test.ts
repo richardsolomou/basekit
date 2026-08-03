@@ -4,8 +4,9 @@ import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildBase, magnetPositions, ribAngles } from './base'
 import { toStl } from './exporters'
+import { LABEL_MARGIN, pointInContours } from './label'
 import { loadManifold } from './manifold'
-import { defaultLabel, trimNumber } from './outline'
+import { baseOutline, defaultLabel, trimNumber } from './outline'
 import { maxProfileSize, profileSteps } from './profile'
 import {
   MAGNET_CHOICES,
@@ -14,6 +15,7 @@ import {
   POLYGON_SIZES,
   presetFor,
   RECT_SIZES,
+  resized,
   RIB_CHOICES,
   ROUND_SIZES,
   type SizePreset,
@@ -269,11 +271,17 @@ describe('buildBase', () => {
     // The outer two sit off-centre on X with Y still on the axis.
     const centre = pocketAt(mesh, 0, 0, pocketRadius)
     expect(centre.vertices).toBeGreaterThan(0)
-    const reach = 60 / 2 - config.wallThickness - pocketRadius - config.magnets.bossWall - 0.8
+    const reach = magnetPositions(
+      config.magnets.count,
+      config.width / 2 - config.wallThickness,
+      config.length / 2 - config.wallThickness,
+      pocketRadius + config.magnets.bossWall + LABEL_MARGIN,
+      { ellipticalRow: true },
+    )[0].x
     expect(pocketAt(mesh, reach, 0, pocketRadius).vertices).toBeGreaterThan(0)
   })
 
-  it.for([ROUND_SIZES[1], ROUND_SIZES[4], OVAL_SIZES[0]])('welds cleanly on a $label base', (size) => {
+  it.for([ROUND_SIZES[1], ROUND_SIZES[4], ROUND_SIZES[9], OVAL_SIZES[0], OVAL_SIZES[2]])('welds cleanly on a $label base', (size) => {
     // Two vertices at one position mean surfaces meet tangentially, which pinches
     // into a non-manifold edge in any tool that merges vertices by position.
     const { mesh } = build(preset(size))
@@ -390,10 +398,7 @@ describe('rib placement', () => {
   it.each(sizes.map((size) => [`${size.shape} ${size.label}`, size] as const))('runs a spoke through a boss on a %s', (_name, size) => {
     const { spokes, bosses } = layout(size)
     if (bosses.length === 0) return
-    // Coprime counts cannot all line up, but the phase is taken from a boss
-    // bearing, so at least one is always exact rather than merely close.
-    const through = bosses.filter((boss) => spokes.some((angle) => clearance(angle, boss) < 1e-9))
-    expect(through.length).toBeGreaterThan(0)
+    expect(bosses.every((boss) => spokes.some((angle) => clearance(angle, boss) < 1e-9))).toBe(true)
   })
 
   it('lines every spoke up with a boss when the counts match', () => {
@@ -418,6 +423,18 @@ describe('rib placement', () => {
   it('leaves the spokes upright when the only magnet is central', () => {
     expect(ribAngles(3, magnetPositions(1, 16, 16, 4))[0]).toBeCloseTo(Math.PI / 2, 6)
   })
+
+  it('gussets every boss across custom row boundaries', () => {
+    for (let short = 20; short <= 120; short += 5) {
+      for (let long = short * 1.36; long <= 180; long += 5) {
+        const config = resized(presetFor(OVAL_SIZES[0]), long, short)
+        const bossRadius = config.magnets.diameter / 2 + config.magnets.clearance / 2 + config.magnets.bossWall
+        const magnets = magnetPositions(config.magnets.count, long / 2, short / 2, bossRadius)
+        const spokes = ribAngles(config.ribs.count, magnets)
+        expect(magnets.every((boss) => spokes.some((angle) => clearance(angle, boss) < 1e-9))).toBe(true)
+      }
+    }
+  })
 })
 
 describe('scaling with the footprint', () => {
@@ -433,11 +450,99 @@ describe('scaling with the footprint', () => {
     expect(biggest?.magnets.count).toBeGreaterThan(4)
   })
 
+  it('uses an end pair on a 90×52 oval without weakening larger rows', () => {
+    expect(presetFor(OVAL_SIZES[2]).magnets.count).toBe(2)
+    expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(4)
+  })
+
+  it('keeps a 100mm ring on pitch without rounding five magnets up to six', () => {
+    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 5 } })
+    expect(presetFor(ROUND_SIZES[8])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
+    expect(presetFor(OVAL_SIZES[4])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
+  })
+
+  it('uses an end pair when a low-area custom base has a long lever arm', () => {
+    expect(resized(presetFor(OVAL_SIZES[0]), 80, 20).magnets.count).toBe(2)
+    expect(resized(presetFor(OVAL_SIZES[0]), 50, 25).magnets.count).toBe(1)
+  })
+
+  it('uses the lower supported row count when transverse demand falls between counts', () => {
+    const base = presetFor(OVAL_SIZES[0])
+    expect(resized(base, 90, 70).magnets.count).toBe(3)
+    expect(resized(base, 95, 70).magnets.count).toBe(4)
+    expect(resized(base, 142, 105).magnets.count).toBe(4)
+  })
+
+  it('keeps every automatic row count even', () => {
+    const odd: string[] = []
+    for (let short = 20; short <= 120; short += 5) {
+      for (let long = short * 1.36; long <= 180; long += 5) {
+        const count = resized(presetFor(OVAL_SIZES[0]), long, short).magnets.count
+        if (count > 1 && count % 2 !== 0) odd.push(`${long}×${short}: ${count}`)
+      }
+    }
+    expect(odd).toEqual([])
+  })
+
+  it('never reduces the magnet count as an elongated row grows', () => {
+    const base = presetFor(OVAL_SIZES[0])
+    const weaker: string[] = []
+    for (let short = 20; short <= 130; short += 5) {
+      let previous = 0
+      for (let long = short * 1.36; long <= 180; long += 0.5) {
+        const count = resized(base, long, short).magnets.count
+        if (count < previous) weaker.push(`${long}×${short}: ${previous} → ${count}`)
+        previous = count
+      }
+    }
+    expect(weaker).toEqual([])
+  })
+
   it('offers every count a preset can pick', () => {
     const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map(presetFor)
     for (const config of all) {
       expect(MAGNET_CHOICES).toContain(config.magnets.count)
       expect(RIB_CHOICES).toContain(config.ribs.count)
+    }
+  })
+
+  it('keeps every automatic magnet boss inside the real well outline', () => {
+    const configs = [...ROUND_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES, ...POLYGON_SIZES].map(presetFor)
+    const elongatedShapes: BaseConfig['shape'][] = ['oval', 'pill', 'rect']
+    for (const shape of elongatedShapes) {
+      const source = shape === 'oval' ? OVAL_SIZES[0] : shape === 'pill' ? PILL_SIZES[0] : RECT_SIZES[0]
+      for (const short of [20, 35, 45, 46, 60, 70, 90]) {
+        for (const long of [62, 95, 101, 102, 132, 180]) {
+          if (long >= short) configs.push(resized(presetFor(source), long, short))
+        }
+      }
+    }
+    for (const sides of [3, 4, 5, 6, 8, 12]) {
+      for (const width of [25, 40, 50, 60, 100, 160]) configs.push({ ...presetFor(POLYGON_SIZES[0]), sides, width, length: width })
+    }
+
+    for (const config of configs) {
+      const outline = baseOutline(wasm, config)
+      const well = outline.offset(-config.wallThickness, 'Miter', 2, config.segments)
+      const wellBounds = well.bounds()
+      const halfWidth = (wellBounds.max[0] - wellBounds.min[0]) / 2
+      const halfLength = (wellBounds.max[1] - wellBounds.min[1]) / 2
+      const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
+      const bossRadius = pocketRadius + config.magnets.bossWall
+      const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
+        ellipticalRow: config.shape === 'oval',
+      })
+      const contours = well.toPolygons()
+
+      for (const magnet of magnets) {
+        const inside = Array.from({ length: 72 }, (_, index) => {
+          const angle = (index * 2 * Math.PI) / 72
+          return pointInContours(contours, magnet.x + bossRadius * Math.cos(angle), magnet.y + bossRadius * Math.sin(angle))
+        })
+        expect(inside.every(Boolean), `${config.shape} ${config.width}×${config.length}, ${config.sides} sides`).toBe(true)
+      }
+      outline.delete()
+      well.delete()
     }
   })
 })
