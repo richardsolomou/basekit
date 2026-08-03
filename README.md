@@ -36,7 +36,7 @@ The base generator lives at `/`; the Gridfinity holder generator can be opened d
 
 Settings changed from their original defaults mark their label and reset action in orange, so numeric values, choices, and toggles can be undone one at a time without rebuilding the rest of the configuration.
 
-The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
+The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
 

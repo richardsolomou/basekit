@@ -67,9 +67,9 @@ function angleBetween(a: number, b: number): number {
  * bending moment from a magnet being peeled off a tray is highest; the slicer
  * gets one connected perimeter network per layer instead of isolated islands;
  * and the clear floor collects into a few wide gaps rather than twice as many
- * narrow ones, which is what lets the marking stay large.
+ * narrow ones, which is what lets the size label stay large.
  *
- * Bracing the span *between* bosses would be the alternative, but a boss is a
+ * Supporting the span *between* bosses would be the alternative, but a boss is a
  * 7mm inclusion in a plate tens of millimetres across — it barely supports the
  * membrane around it, so the phase makes almost no difference to floor
  * stiffness either way. That leaves the reasons above, and they all point one

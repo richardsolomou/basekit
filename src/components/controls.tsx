@@ -1,6 +1,5 @@
 import { RotateCcw } from 'lucide-react'
 import { useId, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
 import {
@@ -27,28 +26,6 @@ export function Section({ title, children, aside }: { title: string; children: R
       </div>
       <FieldGroup className="gap-3">{children}</FieldGroup>
     </FieldSet>
-  )
-}
-
-/**
- * A fold in the panel's accordion, keeping the fiddly settings out of the way
- * with their current value on the closed row.
- */
-export function Fold({ title, summary, children }: { title: string; summary?: string; children: ReactNode }) {
-  return (
-    <AccordionItem value={title} className="border-t border-b-0 border-border px-5">
-      <AccordionTrigger className="gap-3 py-3 hover:no-underline">
-        <span className="note schedule-index">{title}</span>
-        {summary && (
-          <span className="readout ms-auto pe-2 text-xs text-muted-foreground group-aria-expanded/accordion-trigger:invisible">
-            {summary}
-          </span>
-        )}
-      </AccordionTrigger>
-      <AccordionContent>
-        <FieldGroup className="gap-3 pb-2">{children}</FieldGroup>
-      </AccordionContent>
-    </AccordionItem>
   )
 }
 

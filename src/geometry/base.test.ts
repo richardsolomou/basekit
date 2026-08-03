@@ -165,8 +165,8 @@ describe('buildBase', () => {
     expect(build(config).stats.volume).toBeGreaterThan(withWell)
   })
 
-  it.for([RECT_SIZES[0], RECT_SIZES[1], ROUND_SIZES[0], ROUND_SIZES[1]])('still fits a marking on a cramped $label base', (size) => {
-    // The well of a small base is mostly boss and ribs, and the marking used to be
+  it.for([RECT_SIZES[0], RECT_SIZES[1], ROUND_SIZES[0], ROUND_SIZES[1]])('still fits a size label on a cramped $label base', (size) => {
+    // The well of a small base is mostly boss and ribs, and the label used to be
     // dropped silently when the first direction tried had no room.
     const config = preset(size)
     const plain = { ...config, label: { ...config.label, enabled: false } }
