@@ -208,11 +208,11 @@ export function App() {
               step={0.1}
               onChange={(wallThickness) => patch({ wallThickness })}
             />
-            {/* Only a well has a floor over the table; a solid base's pocket opens
-                straight onto the build plate. */}
+            {/* Only a hollowed underside has a floor to set. It is the face the model
+                is glued to, and it is never between a magnet and the tray. */}
             {hollow && (
               <Dimension
-                label="Floor under magnet"
+                label="Recess floor"
                 value={config.floorThickness}
                 min={0.4}
                 max={Math.max(0.5, config.height - 0.5)}
