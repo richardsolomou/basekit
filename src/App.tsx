@@ -37,7 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import { defaultWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -106,7 +106,7 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [workspace, setWorkspaceState] = useState(loadWorkspace)
+  const [workspace, setWorkspaceState] = useState(defaultWorkspace)
   const config = workspace.base
   const holder = workspace.holder
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
@@ -122,8 +122,6 @@ export function App() {
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : holder
   const { preview, error } = useGenerator(partConfig)
-
-  useEffect(() => saveWorkspace(workspace), [workspace])
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())

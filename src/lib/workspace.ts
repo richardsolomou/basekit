@@ -14,14 +14,6 @@ export interface SharedSettings {
   magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>
 }
 
-interface StorageLike {
-  getItem(key: string): string | null
-  setItem(key: string, value: string): void
-}
-
-const STORAGE_KEY = 'mini-bases-workspace'
-const VERSION = 2
-
 function sharedFromBase(base: BaseConfig): SharedSettings {
   return {
     labelsEnabled: base.label.enabled,
@@ -53,21 +45,4 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
   return synchronizeWorkspace({ base, holder: defaultHolderConfig(), shared: sharedFromBase(base) })
-}
-
-export function loadWorkspace(storage: StorageLike = window.localStorage): WorkspaceState {
-  try {
-    const saved = JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')
-    if (saved?.state?.base && saved.state?.holder?.kind === 'holder') {
-      if (saved.version === VERSION && saved.state.shared) return synchronizeWorkspace(saved.state)
-      if (saved.version === 1) return synchronizeWorkspace({ ...saved.state, shared: sharedFromBase(saved.state.base) })
-    }
-  } catch {}
-  return defaultWorkspace()
-}
-
-export function saveWorkspace(state: WorkspaceState, storage: StorageLike = window.localStorage): void {
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: VERSION, state }))
-  } catch {}
 }

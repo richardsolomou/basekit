@@ -107,7 +107,7 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Shape' })).toContainText('Round')
 })
 
-test('keeps shape and size independent while sharing matching magnet settings', async ({ page }) => {
+test('keeps shape and size independent while sharing matching magnet settings in the session', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
   await pickChoice(page, 'Magnets per base', '2')
@@ -124,18 +124,27 @@ test('keeps shape and size independent while sharing matching magnet settings', 
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('6.0')
   await expect(footer(page)).toContainText('10 × 6.2 mm hole')
 
-  await page.reload()
-  await settled(page)
-  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('90×52')
-  await expect(footer(page)).toContainText('10 × 6.2 mm hole')
   await page.getByLabel('Magnet diameter in mm').fill('7')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
+  await expect(footer(page)).toContainText('10 × 7.2 mm hole')
+  const ninetyByFiftyTwo = await triangles(page)
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^75×42\b/ }).click()
+  await rebuilt(page, ninetyByFiftyTwo)
 
   await page.getByRole('link', { name: 'Bases' }).click()
   await expect(across(page)).toHaveText('90 × 52')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
+})
+
+test('resets generator settings on reload', async ({ page }) => {
+  await page.getByLabel('Magnet diameter in mm').fill('7')
+  await page.getByLabel('Magnet diameter in mm').press('Enter')
+  await page.getByRole('switch', { name: 'Show size label' }).click()
+  await page.reload()
+  await settled(page)
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('5.0')
+  await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
 })
 
 test('shares the size label preference between bases and holders', async ({ page }) => {
