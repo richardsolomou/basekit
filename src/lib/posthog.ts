@@ -1,7 +1,7 @@
 import posthog from 'posthog-js'
 
-const apiKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN ?? import.meta.env.VITE_PUBLIC_POSTHOG_KEY
-const apiHost = import.meta.env.VITE_POSTHOG_HOST ?? import.meta.env.VITE_PUBLIC_POSTHOG_HOST
+const apiKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN
+const apiHost = import.meta.env.VITE_POSTHOG_HOST
 
 if (!apiKey || !apiHost) {
   if (import.meta.env.DEV) {
