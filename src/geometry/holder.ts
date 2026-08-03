@@ -106,14 +106,17 @@ function slotLength(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
   return isElongated(slot.shape) ? slot.length : slot.width
 }
 
-export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
-  const base = presetFor({
-    label: '',
-    shape: slot.shape,
-    width: slotWidth(slot),
-    length: slotLength(slot),
-    use: '',
-  })
+export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>, maxCount = 8) {
+  const base = presetFor(
+    {
+      label: '',
+      shape: slot.shape,
+      width: slotWidth(slot),
+      length: slotLength(slot),
+      use: '',
+    },
+    maxCount,
+  )
   const pocketRadius = (base.magnets.diameter + base.magnets.clearance) / 2
   const bossRadius = pocketRadius + base.magnets.bossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - base.wallThickness)
@@ -124,7 +127,7 @@ export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width
 }
 
 export function holderMagnetPocketCount(config: HolderConfig): number {
-  return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot).length, 0)
+  return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot, config.magnets.maxCount).length, 0)
 }
 
 function maxPossibleGroupQuantity(
@@ -558,7 +561,7 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    magnets: { enabled: true, diameter: 5, clearance: 0.2, thickness: 2 },
+    magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, thickness: 2 },
     segments: 160,
   }
 }
@@ -655,7 +658,9 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
       const radius = (config.magnets.diameter + config.magnets.clearance) / 2
       const magnetDisc = section(CrossSection.circle(radius, segmentsFor(radius * 2, 32)))
       const magnetOutlines = layout.slotCenters.flatMap((slot) =>
-        holderSlotMagnetCenters(slot).map((center) => section(magnetDisc.translate([slot.x + center.x, slot.y + center.y]))),
+        holderSlotMagnetCenters(slot, config.magnets.maxCount).map((center) =>
+          section(magnetDisc.translate([slot.x + center.x, slot.y + center.y])),
+        ),
       )
       if (magnetOutlines.length > 0) {
         const magnets = section(CrossSection.union(magnetOutlines))
@@ -691,7 +696,10 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
           const reach = Math.hypot((roomBounds.max[0] - roomBounds.min[0]) / 2, (roomBounds.max[1] - roomBounds.min[1]) / 2)
           const contours = room.toPolygons()
           const obstacles: LabelCircle[] = config.magnets.enabled
-            ? holderSlotMagnetCenters(slot).map((center) => ({ ...center, r: (config.magnets.diameter + config.magnets.clearance) / 2 }))
+            ? holderSlotMagnetCenters(slot, config.magnets.maxCount).map((center) => ({
+                ...center,
+                r: (config.magnets.diameter + config.magnets.clearance) / 2,
+              }))
             : []
           const fit = fitLabel(
             polygonsWidth(polygons),

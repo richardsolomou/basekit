@@ -68,6 +68,7 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
 
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const MAGNET_COUNTS = counts(MAGNET_CHOICES)
+const AUTOMATIC_MAGNET_LIMITS = counts([1, 2, 3, 4, 6, 8])
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
@@ -396,6 +397,13 @@ export function App() {
             </span>
           }
         >
+          <Choice
+            label="Automatic magnet limit"
+            value={config.magnets.maxCount}
+            defaultValue={BASE_DEFAULTS.magnets.maxCount}
+            options={AUTOMATIC_MAGNET_LIMITS}
+            onChange={setAutomaticMagnetLimit}
+          />
           <Choice
             label="Magnets per base"
             value={config.magnets.count}
@@ -785,6 +793,13 @@ export function App() {
             checked={holder.magnets.enabled}
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
+          />
+          <Choice
+            label="Automatic magnets per slot"
+            value={holder.magnets.maxCount}
+            defaultValue={HOLDER_DEFAULTS.magnets.maxCount}
+            options={AUTOMATIC_MAGNET_LIMITS}
+            onChange={setAutomaticMagnetLimit}
           />
           <Dimension
             label="Magnet diameter"

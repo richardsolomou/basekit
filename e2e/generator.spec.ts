@@ -107,6 +107,17 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Shape' })).toContainText('Round')
 })
 
+test('shares the automatic magnet limit between bases and holders', async ({ page }) => {
+  await pickChoice(page, 'Shape', 'Oval')
+  await pickSize(page, '90×52')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('4')
+  await pickChoice(page, 'Automatic magnet limit', '2')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('2')
+
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect(page.getByRole('combobox', { name: 'Automatic magnets per slot' })).toContainText('2')
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between minis in mm').fill('1.5')
