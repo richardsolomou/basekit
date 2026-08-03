@@ -11,13 +11,18 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 4 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL,
     trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], ...(process.env.CI ? { channel: 'chrome' } : {}) },
+    },
+  ],
   // Tests run against the production build: the WASM and font assets are fetched
   // by the worker at runtime, and only a real build proves they resolve.
   webServer: {
