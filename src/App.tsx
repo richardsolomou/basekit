@@ -497,7 +497,7 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_4rem_1fr_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+          <div className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
             <span>Base Ø</span>
@@ -505,7 +505,7 @@ export function App() {
           {holder.groups.map((group, index) => (
             <div
               key={group.id}
-              className="grid grid-cols-[3rem_4rem_1fr_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
+              className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
             >
               <span
                 className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
