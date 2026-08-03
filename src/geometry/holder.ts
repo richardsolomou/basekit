@@ -118,7 +118,9 @@ export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width
   const bossRadius = pocketRadius + base.magnets.bossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - base.wallThickness)
   const halfLength = Math.max(0, slotLength(slot) / 2 - base.wallThickness)
-  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN).map(({ x, y }) => ({ x, y }))
+  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
+    ellipticalRow: slot.shape === 'oval',
+  }).map(({ x, y }) => ({ x, y }))
 }
 
 export function holderMagnetPocketCount(config: HolderConfig): number {
