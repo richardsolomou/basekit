@@ -34,7 +34,7 @@ export function useGenerator(config: PartConfig) {
   }, [send])
 
   useEffect(() => {
-    const instance = new Worker(new URL('../worker/base.worker.ts', import.meta.url), { type: 'module' })
+    const instance = new Worker(new URL('../worker/geometry.worker.ts', import.meta.url), { type: 'module' })
     worker.current = instance
     instance.onmessage = (event: MessageEvent<WorkerReply>) => {
       const reply = event.data

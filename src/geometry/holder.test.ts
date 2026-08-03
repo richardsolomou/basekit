@@ -162,6 +162,11 @@ describe('holderLayout', () => {
 })
 
 describe('holderPlan', () => {
+  it('reuses a plan for an unchanged configuration', () => {
+    const config = defaultHolderConfig()
+    expect(holderPlan(config)).toBe(holderPlan(config))
+  })
+
   it('keeps separate miniature groups in reusable modules', () => {
     const config = {
       ...defaultHolderConfig(),
