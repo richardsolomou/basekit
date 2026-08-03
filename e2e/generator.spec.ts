@@ -333,7 +333,7 @@ test('clamps a dimension typed past its limit', async ({ page }) => {
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('180.0')
 })
 
-test('scrubs a dimension from the empty space after its label', async ({ page }) => {
+test('scrubs a dimension from the empty reset space after its label', async ({ page }) => {
   const field = page.getByLabel('Diameter in mm', { exact: true })
   const before = await triangles(page)
   const label = page.getByText('Diameter', { exact: true })
@@ -347,7 +347,7 @@ test('scrubs a dimension from the empty space after its label', async ({ page })
   expect(Number(await field.inputValue())).toBeGreaterThan(32)
 })
 
-test('toggles a setting from the empty space after its label', async ({ page }) => {
+test('toggles a setting from the empty reset space after its label', async ({ page }) => {
   const toggle = page.getByRole('switch', { name: 'Show size label' })
   const label = page.getByText('Show size label', { exact: true })
   const box = await label.boundingBox()
