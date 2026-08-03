@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/favicon.svg" width="80" alt="Mini Bases logo" />
 
-# Mini Bases 🧲
+# Mini Bases
 
 **Printable miniature bases sized, magnetised, and marked exactly how you need them.**
 
@@ -20,7 +20,7 @@ Mini Bases is for hobbyists who need replacement, conversion, display, or moveme
 
 The built-in presets include the common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
 
-## How it works ✨
+## How it works 🧲
 
 1. **Choose the footprint** from a standard size or enter exact dimensions.
 2. **Match your magnets** by setting their diameter, thickness, fit, and count.
