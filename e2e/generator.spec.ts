@@ -97,6 +97,7 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
 
 test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
   await pickSize(page, '28.5')
+  await pickSize(page, 'Custom')
   const reset = page.getByRole('button', { name: 'Reset Diameter to 32.0 mm' })
   await expect(reset).toBeVisible()
   await expect(page.getByText('Diameter', { exact: true })).toHaveClass(/text-modified/)
@@ -305,14 +306,20 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   const before = await triangles(page)
+  await pickChoice(page, 'Shape 1', 'Oval')
+  await rebuilt(page, before)
+  const oval = await triangles(page)
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /75×42\b.*Cavalry/ }).click()
-  await rebuilt(page, before)
+  await rebuilt(page, oval)
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('75×42')
   await expect(footer(page)).toContainText('5×oval 75×42')
   await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
-  await page.getByRole('option', { name: 'Custom size shape, width and depth' }).click()
+  await page.getByRole('option', { name: 'Custom exact dimensions' }).click()
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('Custom')
+  await expect(page.getByText('Width', { exact: true })).toBeVisible()
+  await expect(page.getByText('Depth', { exact: true })).toBeVisible()
   await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
   await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })
@@ -392,6 +399,7 @@ test('caps the edge profile when the recess floor is thinned', async ({ page }) 
 
 test('takes an exact typed dimension', async ({ page }) => {
   // The whole point of a typed field over a slider: 28.5 is reachable.
+  await pickSize(page, 'Custom')
   const field = page.getByLabel('Diameter in mm', { exact: true })
   await field.fill('')
   await field.pressSequentially('28.5')
@@ -402,6 +410,7 @@ test('takes an exact typed dimension', async ({ page }) => {
 })
 
 test('clamps a dimension typed past its limit', async ({ page }) => {
+  await pickSize(page, 'Custom')
   await page.getByLabel('Diameter in mm', { exact: true }).fill('999')
   await page.getByLabel('Diameter in mm', { exact: true }).blur()
   await settled(page)
@@ -409,6 +418,7 @@ test('clamps a dimension typed past its limit', async ({ page }) => {
 })
 
 test('scrubs a dimension from the empty reset space after its label', async ({ page }) => {
+  await pickSize(page, 'Custom')
   const field = page.getByLabel('Diameter in mm', { exact: true })
   const before = await triangles(page)
   const label = page.getByText('Diameter', { exact: true })
@@ -444,6 +454,7 @@ test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ pag
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toBeHidden()
 
   await page.getByRole('button', { name: 'Base settings' }).click()
+  await pickSize(page, 'Custom')
   const before = await triangles(page)
   await page.getByLabel('Diameter in mm', { exact: true }).fill('60')
   await page.getByLabel('Diameter in mm', { exact: true }).press('Enter')

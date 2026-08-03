@@ -2,16 +2,7 @@ import { RotateCcw } from 'lucide-react'
 import { useId, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 
 /** A group of always-visible controls, with an optional figure in the header. */
@@ -38,6 +29,7 @@ interface DimensionProps {
   unit?: string
   disabled?: boolean
   compact?: boolean
+  compactLabel?: string
   defaultValue?: number
   onChange: (value: number) => void
 }
@@ -71,7 +63,19 @@ const settingLabel = 'w-full font-normal'
  * point — a slider cannot land on 28.5 reliably, and these are millimetres
  * someone is going to print.
  */
-export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, compact, defaultValue, onChange }: DimensionProps) {
+export function Dimension({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit = 'mm',
+  disabled,
+  compact,
+  compactLabel,
+  defaultValue,
+  onChange,
+}: DimensionProps) {
   const id = useId()
   const [text, setText] = useState<string | undefined>()
   const format = (next: number) => (Number.isInteger(step) ? String(Math.round(next)) : next.toFixed(step < 0.1 ? 2 : 1))
@@ -112,14 +116,20 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
   }
 
   return (
-    <Field orientation="horizontal" data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
+    <Field orientation={compactLabel ? undefined : 'horizontal'} data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
       <div className={compact ? 'contents' : settingColumns}>
         <FieldLabel
           htmlFor={id}
           onPointerDown={startScrub}
-          className={compact ? 'sr-only' : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`}
+          className={
+            compactLabel
+              ? 'px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase'
+              : compact
+                ? 'sr-only'
+                : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`
+          }
         >
-          {label}
+          {compactLabel ?? label}
         </FieldLabel>
         {!compact && modified && (
           <ResetSlot>
@@ -271,8 +281,6 @@ export function ToggleSetting({
 export interface SizeOption {
   value: string
   label?: string
-  itemLabel?: string
-  group?: string
   use: string
 }
 
@@ -288,46 +296,41 @@ export function SizeSelect({
   options,
   onChange,
   label = 'Standard base size',
+  compact = false,
 }: {
   value: string | null
   options: readonly SizeOption[]
   onChange: (value: string) => void
   label?: string
+  compact?: boolean
 }) {
+  const id = useId()
   const selected = options.find((option) => option.value === value)
-  const grouped = options.some((option) => option.group)
-  const optionItem = (option: SizeOption) => (
-    <SelectItem key={option.value} value={option.value} className={option.group ? 'pl-5' : undefined}>
-      <span className={`readout shrink-0 ${option.group ? 'w-16' : ''}`}>{option.itemLabel ?? option.label ?? option.value}</span>
-      <span className="min-w-0 truncate text-muted-foreground">{option.use}</span>
-    </SelectItem>
-  )
   return (
-    <Field>
-      <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger aria-label={label} className="w-full">
-          <SelectValue>
-            <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
-            <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={!grouped} className={grouped ? 'min-w-72' : undefined}>
-          {grouped
-            ? Array.from(new Set(options.map((option) => option.group).filter(Boolean))).map((group) => (
-                <SelectGroup key={group}>
-                  <SelectLabel>{group}</SelectLabel>
-                  {options.filter((option) => option.group === group).map(optionItem)}
-                </SelectGroup>
-              ))
-            : options.map(optionItem)}
-          {grouped && (
-            <>
-              <SelectSeparator />
-              {options.filter((option) => !option.group).map(optionItem)}
-            </>
-          )}
-        </SelectContent>
-      </Select>
+    <Field orientation={compact ? undefined : 'horizontal'} className={compact ? 'min-w-0' : undefined}>
+      <div className={compact ? 'contents' : settingColumns}>
+        {!compact && (
+          <FieldLabel htmlFor={id} className={`${settingLabel} col-span-2`}>
+            Size
+          </FieldLabel>
+        )}
+        <Select value={value} onValueChange={(next) => onChange(String(next))}>
+          <SelectTrigger id={id} aria-label={label} className={compact ? 'w-full min-w-0' : 'w-28'}>
+            <SelectValue>
+              <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
+              <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent align="end" alignItemWithTrigger={false} style={{ width: '20rem', maxWidth: 'calc(100vw - 2rem)' }}>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <span className="readout shrink-0">{option.label ?? option.value}</span>
+                <span className="text-muted-foreground">{option.use}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </Field>
   )
 }
