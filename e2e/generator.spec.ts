@@ -96,6 +96,18 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Round' })).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('aligns toggle and dimension reset columns', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await page.getByLabel('Between minis in mm').fill('1.5')
+  await page.getByRole('switch', { name: 'Split into modules' }).click()
+  const dimensionReset = await page.getByRole('button', { name: /Reset Between minis/ }).boundingBox()
+  const toggleReset = await page.getByRole('button', { name: /Reset Split into modules/ }).boundingBox()
+  const dimension = await page.getByLabel('Between minis in mm').boundingBox()
+  const toggle = await page.getByRole('switch', { name: 'Split into modules' }).boundingBox()
+  expect(toggleReset?.x).toBe(dimensionReset?.x)
+  expect(toggle?.x).toBe(dimension?.x)
+})
+
 test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)

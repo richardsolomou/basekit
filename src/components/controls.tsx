@@ -74,6 +74,12 @@ function ResetButton({ label, value, onReset }: { label: string; value: string; 
   )
 }
 
+function ResetSlot({ children }: { children?: ReactNode }) {
+  return <span className="flex size-3.5 items-center justify-center">{children}</span>
+}
+
+const settingColumns = 'grid w-full grid-cols-[minmax(0,1fr)_0.875rem_7rem] items-center gap-2'
+
 /**
  * A dimension: type an exact figure, or drag its label to scrub. Typing is the
  * point — a slider cannot land on 28.5 reliably, and these are millimetres
@@ -121,45 +127,51 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
 
   return (
     <Field orientation="horizontal" data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
-      <FieldLabel
-        htmlFor={id}
-        onPointerDown={startScrub}
-        className={compact ? 'sr-only' : `cursor-ew-resize touch-none font-normal ${modified ? 'text-modified' : ''}`}
-      >
-        {label}
-      </FieldLabel>
-      {modified && (
-        <ResetButton
-          label={label}
-          value={`${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-          onReset={() => {
-            setText(undefined)
-            onChange(defaultValue)
-          }}
-        />
-      )}
-      <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
-        <InputGroupInput
-          id={id}
-          type="number"
-          inputMode="decimal"
-          aria-label={`${label} in ${unit}`}
-          value={text ?? formatted}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          onChange={(event) => change(event.currentTarget.value)}
-          onBlur={(event) => finish(event.currentTarget.value)}
-          onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
-          className="readout text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-        />
-        {unit && (
-          <InputGroupAddon align="inline-end">
-            <InputGroupText className="text-xs">{unit}</InputGroupText>
-          </InputGroupAddon>
+      <div className={compact ? 'contents' : settingColumns}>
+        <FieldLabel
+          htmlFor={id}
+          onPointerDown={startScrub}
+          className={compact ? 'sr-only' : `cursor-ew-resize touch-none font-normal ${modified ? 'text-modified' : ''}`}
+        >
+          {label}
+        </FieldLabel>
+        {!compact && (
+          <ResetSlot>
+            {modified && (
+              <ResetButton
+                label={label}
+                value={`${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+                onReset={() => {
+                  setText(undefined)
+                  onChange(defaultValue)
+                }}
+              />
+            )}
+          </ResetSlot>
         )}
-      </InputGroup>
+        <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
+          <InputGroupInput
+            id={id}
+            type="number"
+            inputMode="decimal"
+            aria-label={`${label} in ${unit}`}
+            value={text ?? formatted}
+            min={min}
+            max={max}
+            step={step}
+            disabled={disabled}
+            onChange={(event) => change(event.currentTarget.value)}
+            onBlur={(event) => finish(event.currentTarget.value)}
+            onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
+            className="readout text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          {unit && (
+            <InputGroupAddon align="inline-end">
+              <InputGroupText className="text-xs">{unit}</InputGroupText>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
+      </div>
     </Field>
   )
 }
@@ -194,11 +206,12 @@ export function Choice<T extends string | number>({ label, hideLabel, value, def
   const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
   return (
     <Field>
-      <div className="flex items-center gap-2">
+      <div className={settingColumns}>
         <FieldLabel className={hideLabel && !modified ? 'sr-only' : `flex-1 font-normal ${modified ? 'text-modified' : ''}`}>
           {label}
         </FieldLabel>
-        {modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}
+        <ResetSlot>{modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}</ResetSlot>
+        <span />
       </div>
       <ToggleGroup
         variant="outline"
@@ -239,12 +252,16 @@ export function ToggleSetting({
   const modified = checked !== defaultChecked
   return (
     <Field orientation="horizontal">
-      <FieldLabel htmlFor={id} className={`font-normal ${modified ? 'text-modified' : ''}`}>
-        {label}
-      </FieldLabel>
-      {modified && <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />}
-      <div className="flex w-28 shrink-0 justify-end">
-        <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <div className={settingColumns}>
+        <FieldLabel htmlFor={id} className={`font-normal ${modified ? 'text-modified' : ''}`}>
+          {label}
+        </FieldLabel>
+        <ResetSlot>
+          {modified && <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />}
+        </ResetSlot>
+        <div className="flex w-28 justify-start">
+          <Switch id={id} checked={checked} onCheckedChange={onChange} className="ms-px" />
+        </div>
       </div>
     </Field>
   )
