@@ -29,6 +29,7 @@ interface DimensionProps {
   unit?: string
   disabled?: boolean
   compact?: boolean
+  compactLabel?: string
   defaultValue?: number
   onChange: (value: number) => void
 }
@@ -62,7 +63,19 @@ const settingLabel = 'w-full font-normal'
  * point — a slider cannot land on 28.5 reliably, and these are millimetres
  * someone is going to print.
  */
-export function Dimension({ label, value, min, max, step, unit = 'mm', disabled, compact, defaultValue, onChange }: DimensionProps) {
+export function Dimension({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit = 'mm',
+  disabled,
+  compact,
+  compactLabel,
+  defaultValue,
+  onChange,
+}: DimensionProps) {
   const id = useId()
   const [text, setText] = useState<string | undefined>()
   const format = (next: number) => (Number.isInteger(step) ? String(Math.round(next)) : next.toFixed(step < 0.1 ? 2 : 1))
@@ -103,14 +116,20 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
   }
 
   return (
-    <Field orientation="horizontal" data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
+    <Field orientation={compactLabel ? undefined : 'horizontal'} data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
       <div className={compact ? 'contents' : settingColumns}>
         <FieldLabel
           htmlFor={id}
           onPointerDown={startScrub}
-          className={compact ? 'sr-only' : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`}
+          className={
+            compactLabel
+              ? 'px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase'
+              : compact
+                ? 'sr-only'
+                : `${settingLabel} cursor-ew-resize touch-none ${modified ? 'text-modified' : 'col-span-2'}`
+          }
         >
-          {label}
+          {compactLabel ?? label}
         </FieldLabel>
         {!compact && modified && (
           <ResetSlot>

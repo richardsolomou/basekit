@@ -551,7 +551,7 @@ export function App() {
                 <SizeSelect
                   compact
                   label={`Standard base size ${index + 1}`}
-                  value={groupStandard?.label ?? CUSTOM_HOLDER_SIZE}
+                  value={customOpen ? CUSTOM_HOLDER_SIZE : (groupStandard?.label ?? CUSTOM_HOLDER_SIZE)}
                   options={[
                     ...SIZES_BY_SHAPE[group.shape].map((size) => ({ value: size.label, use: size.use })),
                     { value: CUSTOM_HOLDER_SIZE, label: 'Custom', use: 'exact dimensions' },
@@ -581,7 +581,8 @@ export function App() {
                 {customOpen && (
                   <div className="col-span-3 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(3rem+0.5rem)]">
                     <Dimension
-                      label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
+                      label={`${isElongated(group.shape) ? 'Base width' : group.shape === 'round' ? 'Base diameter' : 'Overall width'} ${index + 1}`}
+                      compactLabel={isElongated(group.shape) ? 'Width' : group.shape === 'round' ? 'Diameter' : 'Overall width'}
                       value={group.width}
                       min={15}
                       max={180}
@@ -599,25 +600,23 @@ export function App() {
                       }
                     />
                     {isElongated(group.shape) && (
-                      <>
-                        <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
-                        <Dimension
-                          label={`Base depth ${index + 1}`}
-                          value={group.length}
-                          min={15}
-                          max={180}
-                          step={0.5}
-                          compact
-                          onChange={(baseLength) =>
-                            setHolder({
-                              ...holder,
-                              groups: holder.groups.map((entry, groupIndex) =>
-                                groupIndex === index ? { ...group, length: baseLength } : entry,
-                              ),
-                            })
-                          }
-                        />
-                      </>
+                      <Dimension
+                        label={`Base depth ${index + 1}`}
+                        compactLabel="Depth"
+                        value={group.length}
+                        min={15}
+                        max={180}
+                        step={0.5}
+                        compact
+                        onChange={(baseLength) =>
+                          setHolder({
+                            ...holder,
+                            groups: holder.groups.map((entry, groupIndex) =>
+                              groupIndex === index ? { ...group, length: baseLength } : entry,
+                            ),
+                          })
+                        }
+                      />
                     )}
                   </div>
                 )}
