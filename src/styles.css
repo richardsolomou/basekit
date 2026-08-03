@@ -16,6 +16,7 @@
  * light counterpart. The 3D scene reads the same custom properties.
  */
 :root {
+  font-size: 17px;
   --radius: 0.125rem;
 
   --background: oklch(0.2006 0.0338 251.48);

@@ -60,7 +60,7 @@ test('builds the default base on load', async ({ page }) => {
 })
 
 test('links to the source repository', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'Source' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
+  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
 })
 
 test('keeps a half millimetre size exact', async ({ page }) => {
@@ -75,20 +75,20 @@ test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save STL' }).click()
+  await page.getByRole('button', { name: 'Download STL' }).click()
   expect((await download).suggestedFilename()).toBe('base-round-28.5mm.stl')
 })
 
 test('exports a 3MF as well', async ({ page }) => {
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save 3MF' }).click()
+  await page.getByRole('button', { name: 'Download 3MF' }).click()
   expect((await download).suggestedFilename()).toBe('base-round-32mm.3mf')
 })
 
 test('exports finer circular geometry than the preview', async ({ page }) => {
   const previewTriangles = await triangles(page)
   const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save STL' }).click()
+  await page.getByRole('button', { name: 'Download STL' }).click()
   const path = await (await pending).path()
   if (!path) throw new Error('download has no local path')
   const stl = await readFile(path)
@@ -107,7 +107,7 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
 
   const previewTriangles = await triangles(page)
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save STL' }).click()
+  await page.getByRole('button', { name: 'Download STL' }).click()
   const saved = await download
   expect(saved.suggestedFilename()).toBe('holder-gridfinity-1x4-5x32mm.stl')
   const path = await saved.path()
@@ -187,7 +187,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
   await expect(footer(page)).toContainText('5×Ø32 · 1×Ø40')
 
   const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save STLs' }).click()
+  await page.getByRole('button', { name: 'Download STLs' }).click()
   const saved = await pending
   expect(saved.suggestedFilename()).toBe('holder-gridfinity-2x4-5x32-1x40mm.zip')
   const path = await saved.path()
@@ -235,7 +235,7 @@ test('still builds with the wall and floor wound to their limits', async ({ page
   // The dimension fields clamp to their limits, so no combination can reach an
   // unbuildable base. The geometry does throw outside those bounds, so this guards
   // the clamping rather than the geometry.
-  await page.getByRole('button', { name: 'PROFILE' }).click()
+  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const before = await triangles(page)
   for (const control of ['Wall in mm', 'Recess floor in mm']) {
     // Well past the maximum: the field clamps, which is the behaviour being guarded.
@@ -247,7 +247,7 @@ test('still builds with the wall and floor wound to their limits', async ({ page
 })
 
 test('caps the edge profile when the recess floor is thinned', async ({ page }) => {
-  await page.getByRole('button', { name: 'PROFILE' }).click()
+  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   const floorBuild = triangles(page)
   await page.getByLabel('Recess floor in mm').fill('0.4')
   await page.getByLabel('Recess floor in mm').press('Enter')
@@ -262,7 +262,7 @@ test('caps the edge profile when the recess floor is thinned', async ({ page }) 
 
 test('takes an exact typed dimension', async ({ page }) => {
   // The whole point of a typed field over a slider: 28.5 is reachable.
-  const field = page.getByLabel('Across in mm')
+  const field = page.getByLabel('Diameter in mm')
   await field.fill('')
   await field.pressSequentially('28.5')
   await settled(page)
@@ -272,16 +272,16 @@ test('takes an exact typed dimension', async ({ page }) => {
 })
 
 test('clamps a dimension typed past its limit', async ({ page }) => {
-  await page.getByLabel('Across in mm').fill('999')
-  await page.getByLabel('Across in mm').blur()
+  await page.getByLabel('Diameter in mm').fill('999')
+  await page.getByLabel('Diameter in mm').blur()
   await settled(page)
-  await expect(page.getByLabel('Across in mm')).toHaveValue('180.0')
+  await expect(page.getByLabel('Diameter in mm')).toHaveValue('180.0')
 })
 
 test('scrubs a dimension by dragging its label', async ({ page }) => {
-  const field = page.getByLabel('Across in mm')
+  const field = page.getByLabel('Diameter in mm')
   const before = await triangles(page)
-  const label = page.getByText('Across', { exact: true })
+  const label = page.getByText('Diameter', { exact: true })
   const box = await label.boundingBox()
   if (!box) throw new Error('no label to drag')
   await page.mouse.move(box.x + 10, box.y + box.height / 2)
@@ -293,7 +293,7 @@ test('scrubs a dimension by dragging its label', async ({ page }) => {
 })
 
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await page.getByRole('button', { name: 'PROFILE' }).click()
+  await page.getByRole('button', { name: 'CONSTRUCTION' }).click()
   await page.getByRole('button', { name: 'Solid', exact: true }).click()
   await settled(page)
   // No well means nowhere to emboss, and the copy should say so.
@@ -303,12 +303,12 @@ test('takes magnets out of the underside of a solid base', async ({ page }) => {
 test('moves the controls into a drawer on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   // The docked panel is not rendered at all below `md`, so nothing is duplicated.
-  await expect(page.getByLabel('Across in mm')).toBeHidden()
+  await expect(page.getByLabel('Diameter in mm')).toBeHidden()
 
   await page.getByRole('button', { name: 'Base settings' }).click()
   const before = await triangles(page)
-  await page.getByLabel('Across in mm').fill('60')
-  await page.getByLabel('Across in mm').press('Enter')
+  await page.getByLabel('Diameter in mm').fill('60')
+  await page.getByLabel('Diameter in mm').press('Enter')
   await rebuilt(page, before)
   await expect(across(page)).toHaveText('Ø60')
 })

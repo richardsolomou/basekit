@@ -50,7 +50,7 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 ]
 
 const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Well' },
+  { value: 'well', label: 'Hollow well' },
   { value: 'solid', label: 'Solid' },
 ]
 
@@ -67,6 +67,22 @@ const ENGRAVING_PLACEMENTS = [
 ]
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+
+function RepositoryLink() {
+  return (
+    <div className="flex justify-center px-5 pt-4">
+      <a
+        href="https://github.com/richardsolomou/mini-bases"
+        target="_blank"
+        rel="noreferrer"
+        className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}
+      >
+        <Code2 className="size-3.5" />
+        GitHub
+      </a>
+    </div>
+  )
+}
 
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
@@ -197,7 +213,6 @@ export function App() {
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Footprint">
-          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
           <SizeSelect
             value={standard?.label ?? null}
             options={sizes.map((size) => ({ value: size.label, use: size.use }))}
@@ -206,8 +221,9 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
+          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
           <Dimension
-            label={elongated ? 'Width' : 'Across'}
+            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
             value={config.width}
             min={15}
             max={180}
@@ -234,13 +250,6 @@ export function App() {
             </span>
           }
         >
-          <Choice
-            label="Magnets per base"
-            hideLabel
-            value={config.magnets.count}
-            options={MAGNET_COUNTS}
-            onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
-          />
           <Dimension
             label="Magnet Ø"
             value={config.magnets.diameter}
@@ -290,14 +299,24 @@ export function App() {
               onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
               className="readout"
             />
-            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside back under Profile.</FieldDescription>}
+            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside under Construction.</FieldDescription>}
           </Field>
         </Section>
 
         {/* Folds are independent: opening the profile should not shut the tolerances. */}
         <Accordion multiple className="border-b border-border">
-          <Fold title="Profile" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
+          <Fold title="Construction" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
             <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
+            <div aria-hidden="true" className="grid grid-cols-2 gap-2 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
+              <div className={`border p-2 ${hollow ? 'border-measure/60 text-measure' : 'border-border'}`}>
+                <div className="mx-auto mb-1 h-3 w-12 border-x border-b border-current" />
+                Recessed
+              </div>
+              <div className={`border p-2 ${hollow ? 'border-border' : 'border-measure/60 text-measure'}`}>
+                <div className="mx-auto mb-1 h-3 w-12 border border-current bg-current/10" />
+                Filled
+              </div>
+            </div>
             <Dimension label="Height" value={config.height} min={2} max={12} step={0.25} onChange={(height) => patch({ height })} />
             <Dimension
               label="Wall"
@@ -342,6 +361,19 @@ export function App() {
             {config.shape === 'polygon' && (
               <Dimension label="Sides" value={config.sides} min={3} max={12} step={1} unit="" onChange={(sides) => patch({ sides })} />
             )}
+          </Fold>
+
+          <Fold
+            title="Magnet layout"
+            summary={config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
+          >
+            <Choice
+              label="Magnets per base"
+              hideLabel
+              value={config.magnets.count}
+              options={MAGNET_COUNTS}
+              onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
+            />
           </Fold>
 
           <Fold title="Bracing" summary={config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}>
@@ -409,17 +441,7 @@ export function App() {
             />
           </Fold>
         </Accordion>
-        <div className="flex justify-center px-5 pt-4">
-          <a
-            href="https://github.com/richardsolomou/mini-bases"
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}
-          >
-            <Code2 className="size-3.5" />
-            Source
-          </a>
-        </div>
+        <RepositoryLink />
       </aside>
     </ScrollArea>
   )
@@ -668,6 +690,7 @@ export function App() {
             onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
           />
         </Section>
+        <RepositoryLink />
       </aside>
     </ScrollArea>
   )
@@ -697,7 +720,10 @@ export function App() {
             </Sheet>
           )}
           <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase">
-            Mini <span className="text-measure">Bases</span>
+            <span className="sm:hidden">MB</span>
+            <span className="max-sm:hidden">
+              Mini <span className="text-measure">Bases</span>
+            </span>
           </h1>
           <nav aria-label="Generators" className="flex self-stretch">
             {MODELS.map((item) => (
@@ -721,12 +747,12 @@ export function App() {
           <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
             <span className="max-sm:sr-only">
-              {exporting === 'stl' ? 'Building STL' : model === 'holder' && plan.modules.length > 1 ? 'Save STLs' : 'Save STL'}
+              {exporting === 'stl' ? 'Building STL' : model === 'holder' && plan.modules.length > 1 ? 'Download STLs' : 'Download STL'}
             </span>
           </Button>
           <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview || exporting !== undefined}>
             <Box />
-            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Save 3MF'}</span>
+            <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Download 3MF'}</span>
           </Button>
         </ButtonGroup>
       </header>
