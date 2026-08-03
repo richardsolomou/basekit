@@ -585,7 +585,7 @@ export function defaultHolderConfig(): HolderConfig {
 export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
   const models = config.groups.map(holderGroupNamePart).join('-')
-  return `holder-gridfinity-${layout.unitsWide}x${layout.unitsDeep}-${models}`
+  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
