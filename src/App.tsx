@@ -137,26 +137,6 @@ export function App() {
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
-    setWorkspace((current) => {
-      if (next === 'holder') {
-        const groups = [...current.holder.groups]
-        groups[0] = holderGroup(groups[0].id, groups[0].quantity, {
-          shape: current.base.shape,
-          width: current.base.width,
-          length: current.base.length,
-          cornerRadius: current.base.cornerRadius,
-          sides: current.base.sides,
-        })
-        return { ...current, holder: { ...current.holder, groups } }
-      }
-      const group = current.holder.groups[0]
-      const base = resized(
-        { ...current.base, shape: group.shape, cornerRadius: group.cornerRadius, sides: group.sides },
-        group.width,
-        group.length,
-      )
-      return { ...current, base: withRememberedMagnetCount(base, current.holder.magnetCounts) }
-    })
     window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
   }

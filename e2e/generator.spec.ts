@@ -107,7 +107,7 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Shape' })).toContainText('Round')
 })
 
-test('remembers a base and its magnet settings for matching holders', async ({ page }) => {
+test('keeps shape and size independent while sharing matching magnet settings', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
   await pickChoice(page, 'Magnets per base', '2')
@@ -116,6 +116,10 @@ test('remembers a base and its magnet settings for matching holders', async ({ p
   await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('2')
 
   await page.getByRole('link', { name: 'Holders' }).click()
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('32')
+  await pickChoice(page, 'Shape 1', 'Oval')
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: /^90×52\b/ }).click()
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('90×52')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('6.0')
   await expect(footer(page)).toContainText('10 × 6.2 mm hole')
@@ -130,7 +134,7 @@ test('remembers a base and its magnet settings for matching holders', async ({ p
   await page.getByRole('option', { name: /^75×42\b/ }).click()
 
   await page.getByRole('link', { name: 'Bases' }).click()
-  await expect(across(page)).toHaveText('75 × 42')
+  await expect(across(page)).toHaveText('90 × 52')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
