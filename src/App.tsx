@@ -36,7 +36,7 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
   { value: 'oval', label: 'Oval' },
   { value: 'pill', label: 'Pill' },
-  { value: 'rect', label: 'Rect' },
+  { value: 'rect', label: 'Rectangle' },
   { value: 'polygon', label: 'Hex' },
 ]
 
@@ -212,7 +212,7 @@ export function App() {
     <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
-        <Section title="Footprint">
+        <Section title="Size & Shape">
           <SizeSelect
             value={standard?.label ?? null}
             options={sizes.map((size) => ({ value: size.label, use: size.use }))}
@@ -221,9 +221,9 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
-          <Choice label="Base shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
+          <Choice label="Shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <Dimension
-            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
+            label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Overall width'}
             value={config.width}
             min={15}
             max={180}
@@ -248,12 +248,12 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              Ø{trimNumber(config.magnets.diameter + config.magnets.clearance)} pocket
+              {trimNumber(config.magnets.diameter + config.magnets.clearance)} mm hole
             </span>
           }
         >
           <Dimension
-            label="Magnet Ø"
+            label="Magnet diameter"
             value={config.magnets.diameter}
             min={2}
             max={12}
@@ -276,9 +276,9 @@ export function App() {
           />
         </Section>
 
-        <Section title="Marking">
+        <Section title="Size Label">
           <ToggleSetting
-            label="Emboss the size inside"
+            label="Show size label"
             checked={config.label.enabled}
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
@@ -288,7 +288,7 @@ export function App() {
           />
           <Field>
             <FieldLabel htmlFor="marking-text" className="sr-only">
-              Marking text
+              Label text
             </FieldLabel>
             <Input
               id="marking-text"
@@ -320,7 +320,7 @@ export function App() {
             onChange={(height) => patch({ height })}
           />
           <Dimension
-            label="Wall"
+            label="Wall thickness"
             value={config.wallThickness}
             min={1}
             max={6}
@@ -332,7 +332,7 @@ export function App() {
                 is glued to, and it is never between a magnet and the tray. */}
           {hollow && (
             <Dimension
-              label="Recess floor"
+              label="Top thickness"
               value={config.floorThickness}
               min={0.4}
               max={Math.max(0.5, config.height - 0.5)}
@@ -401,7 +401,7 @@ export function App() {
         </Section>
 
         <Section
-          title="Bracing"
+          title="Internal Supports"
           aside={
             <span className="readout text-xs text-muted-foreground">
               {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
@@ -409,7 +409,7 @@ export function App() {
           }
         >
           <Choice
-            label="Spokes"
+            label="Number of supports"
             value={config.ribs.count}
             defaultValue={BASE_DEFAULTS.ribs.count}
             options={RIB_COUNTS}
@@ -438,7 +438,7 @@ export function App() {
         </Section>
 
         <Section
-          title="Tolerances"
+          title="Fit & Detail"
           aside={<span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>}
         >
           <Dimension
@@ -460,7 +460,7 @@ export function App() {
             onChange={(bossWall) => patch({ magnets: { ...config.magnets, bossWall } })}
           />
           <Dimension
-            label="Marking height"
+            label="Label size"
             value={config.label.height}
             min={2}
             max={16}
@@ -470,7 +470,7 @@ export function App() {
             onChange={(height) => patch({ label: { ...config.label, height } })}
           />
           <Dimension
-            label="Marking emboss"
+            label="Label thickness"
             value={config.label.emboss}
             min={0.2}
             max={1.5}
@@ -500,7 +500,7 @@ export function App() {
           <div className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span>Base Ø</span>
+            <span>Base diameter</span>
           </div>
           {holder.groups.map((group, index) => (
             <div
@@ -528,7 +528,7 @@ export function App() {
                 }}
               />
               <Dimension
-                label={`Base Ø ${index + 1}`}
+                label={`Base diameter ${index + 1}`}
                 value={group.diameter}
                 min={15}
                 max={180}
@@ -666,14 +666,14 @@ export function App() {
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <ToggleSetting
-            label="Engrave base sizes"
+            label="Label base sizes"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
             onChange={(enabled) => setHolder({ ...holder, engraving: { ...holder.engraving, enabled } })}
           />
           {holder.engraving.enabled && (
             <Choice
-              label="Engraving location"
+              label="Label location"
               value={holder.engraving.placement}
               defaultValue={HOLDER_DEFAULTS.engraving.placement}
               options={ENGRAVING_PLACEMENTS}
@@ -686,7 +686,7 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              Ø{trimNumber(holder.magnets.diameter + holder.magnets.clearance)} pocket
+              {trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole
             </span>
           }
         >
@@ -697,7 +697,7 @@ export function App() {
             onChange={(enabled) => setHolder({ ...holder, magnets: { ...holder.magnets, enabled } })}
           />
           <Dimension
-            label="Magnet Ø"
+            label="Magnet diameter"
             value={holder.magnets.diameter}
             min={2}
             max={8}

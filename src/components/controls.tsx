@@ -276,7 +276,7 @@ export function SizeSelect({
   return (
     <Field>
       <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger aria-label="Standard size" className="w-full">
+        <SelectTrigger aria-label="Standard base size" className="w-full">
           <SelectValue>
             <span className="readout shrink-0">{selected?.value ?? 'Custom'}</span>
             <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>

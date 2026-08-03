@@ -40,7 +40,7 @@ export function TitleBlock({ config, status, name }: Props) {
         {plan.omitted.length > 0 && (
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' · ')} />
         )}
-        <Row label="Magnets" value={config.magnets.enabled ? `${layout.slotCenters.length} × Ø${pocket}` : 'none'} />
+        <Row label="Magnets" value={config.magnets.enabled ? `${layout.slotCenters.length} × ${pocket} mm hole` : 'none'} />
       </TitleFrame>
     )
   }
@@ -49,9 +49,9 @@ export function TitleBlock({ config, status, name }: Props) {
 
   return (
     <TitleFrame status={status} name={name}>
-      <Row label="Magnets" value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × Ø${pocket} · ${thickness}mm`} />
+      <Row label="Magnets" value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${thickness}mm`} />
       <Row
-        label="Marking"
+        label="Size label"
         value={config.label.enabled && config.underside === 'well' ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'}
       />
     </TitleFrame>
