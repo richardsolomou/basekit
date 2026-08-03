@@ -81,6 +81,21 @@ test('marks and resets a changed value to its default', async ({ page }) => {
   await expect(reset).not.toBeVisible()
 })
 
+test('marks and resets changed toggles and choices', async ({ page }) => {
+  const markingToggle = page.getByRole('switch', { name: 'Emboss the size inside' })
+  await markingToggle.click()
+  const resetMarking = page.getByRole('button', { name: 'Reset Emboss the size inside to on' })
+  await expect(resetMarking).toBeVisible()
+  await resetMarking.click()
+  await expect(markingToggle).toBeChecked()
+
+  await page.getByRole('button', { name: 'Oval' }).click()
+  const resetShape = page.getByRole('button', { name: 'Reset Base shape to Round' })
+  await expect(resetShape).toBeVisible()
+  await resetShape.click()
+  await expect(page.getByRole('button', { name: 'Round' })).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('names the download after the shape and size', async ({ page }) => {
   await pickSize(page, '28.5')
   await settled(page)
@@ -156,9 +171,9 @@ test('switches between subtractive holder engraving locations', async ({ page })
   await rebuilt(page, before)
   await expect(page.getByRole('button', { name: 'On module' })).toHaveAttribute('aria-pressed', 'true')
   const moduleTriangles = await triangles(page)
-  await page.getByRole('button', { name: 'In slots' }).click()
+  await page.getByRole('button', { name: 'In slots', exact: true }).click()
   await rebuilt(page, moduleTriangles)
-  await expect(page.getByRole('button', { name: 'In slots' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'In slots', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('moves to a second column when the row constraint requires it', async ({ page }) => {

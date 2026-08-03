@@ -1,7 +1,7 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, Dimension, Fold, Section, SizeSelect } from '@/components/controls'
+import { Choice, Dimension, Fold, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { Accordion } from '@/components/ui/accordion'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -9,7 +9,6 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { Switch } from '@/components/ui/switch'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
@@ -223,7 +222,14 @@ export function App() {
               if (size) loadPreset(size)
             }}
           />
-          <Choice label="Base shape" hideLabel value={config.shape} options={SHAPES} onChange={changeShape} />
+          <Choice
+            label="Base shape"
+            hideLabel
+            value={config.shape}
+            defaultValue={BASE_DEFAULTS.shape}
+            options={SHAPES}
+            onChange={changeShape}
+          />
           <Dimension
             label={elongated ? 'Width' : config.shape === 'round' ? 'Diameter' : 'Across'}
             value={config.width}
@@ -279,20 +285,15 @@ export function App() {
         </Section>
 
         <Section title="Marking">
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="marking-enabled" className="font-normal">
-              Emboss the size inside
-            </FieldLabel>
-            <Switch
-              id="marking-enabled"
-              aria-label="Emboss the size inside"
-              checked={config.label.enabled}
-              onCheckedChange={(enabled) => {
-                posthog.capture('base_marking_toggled', { enabled })
-                patch({ label: { ...config.label, enabled } })
-              }}
-            />
-          </Field>
+          <ToggleSetting
+            label="Emboss the size inside"
+            checked={config.label.enabled}
+            defaultChecked={BASE_DEFAULTS.label.enabled}
+            onChange={(enabled) => {
+              posthog.capture('base_marking_toggled', { enabled })
+              patch({ label: { ...config.label, enabled } })
+            }}
+          />
           <Field>
             <FieldLabel htmlFor="marking-text" className="sr-only">
               Marking text
@@ -312,7 +313,13 @@ export function App() {
         {/* Folds are independent: opening the profile should not shut the tolerances. */}
         <Accordion multiple className="border-b border-border">
           <Fold title="Construction" summary={`${trimNumber(config.height)}mm · ${config.profile}`}>
-            <Choice label="Underside" value={config.underside} options={UNDERSIDES} onChange={(underside) => patch({ underside })} />
+            <Choice
+              label="Underside"
+              value={config.underside}
+              defaultValue={BASE_DEFAULTS.underside}
+              options={UNDERSIDES}
+              onChange={(underside) => patch({ underside })}
+            />
             <div aria-hidden="true" className="grid grid-cols-2 gap-2 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
               <div className={`border p-2 ${hollow ? 'border-measure/60 text-measure' : 'border-border'}`}>
                 <div className="mx-auto mb-1 h-3 w-12 border-x border-b border-current" />
@@ -354,7 +361,13 @@ export function App() {
                 onChange={(floorThickness) => patch({ floorThickness })}
               />
             )}
-            <Choice label="Bottom edge" value={config.profile} options={PROFILES} onChange={(profile) => patch({ profile })} />
+            <Choice
+              label="Bottom edge"
+              value={config.profile}
+              defaultValue={BASE_DEFAULTS.profile}
+              options={PROFILES}
+              onChange={(profile) => patch({ profile })}
+            />
             <Dimension
               label="Edge size"
               value={config.profileSize}
@@ -398,6 +411,7 @@ export function App() {
               label="Magnets per base"
               hideLabel
               value={config.magnets.count}
+              defaultValue={BASE_DEFAULTS.magnets.count}
               options={MAGNET_COUNTS}
               onChange={(count) => patch({ magnets: { ...config.magnets, count } })}
             />
@@ -408,6 +422,7 @@ export function App() {
               label="Spokes"
               hideLabel
               value={config.ribs.count}
+              defaultValue={BASE_DEFAULTS.ribs.count}
               options={RIB_COUNTS}
               onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
             />
@@ -612,16 +627,12 @@ export function App() {
             defaultValue={HOLDER_DEFAULTS.spacing}
             onChange={(spacing) => setHolder({ ...holder, spacing })}
           />
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="split-holder-groups" className="font-normal">
-              Split into modules
-            </FieldLabel>
-            <Switch
-              id="split-holder-groups"
-              checked={holder.splitGroups}
-              onCheckedChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
-            />
-          </Field>
+          <ToggleSetting
+            label="Split into modules"
+            checked={holder.splitGroups}
+            defaultChecked={HOLDER_DEFAULTS.splitGroups}
+            onChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
+          />
           <div className="space-y-1 border-y border-border py-3 text-xs">
             {plan.modules.map((module, index) => (
               <div key={`${module.config.groups[0].id}-${module.column}-${module.row}`} className="flex justify-between gap-3">
@@ -663,20 +674,17 @@ export function App() {
             defaultValue={HOLDER_DEFAULTS.slotClearance}
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="holder-engraving" className="font-normal">
-              Engrave base sizes
-            </FieldLabel>
-            <Switch
-              id="holder-engraving"
-              checked={holder.engraving.enabled}
-              onCheckedChange={(enabled) => setHolder({ ...holder, engraving: { ...holder.engraving, enabled } })}
-            />
-          </Field>
+          <ToggleSetting
+            label="Engrave base sizes"
+            checked={holder.engraving.enabled}
+            defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
+            onChange={(enabled) => setHolder({ ...holder, engraving: { ...holder.engraving, enabled } })}
+          />
           {holder.engraving.enabled && (
             <Choice
               label="Engraving location"
               value={holder.engraving.placement}
+              defaultValue={HOLDER_DEFAULTS.engraving.placement}
               options={ENGRAVING_PLACEMENTS}
               onChange={(placement) => setHolder({ ...holder, engraving: { ...holder.engraving, placement } })}
             />
@@ -691,16 +699,12 @@ export function App() {
             </span>
           }
         >
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="holder-magnets" className="font-normal">
-              Slot magnets
-            </FieldLabel>
-            <Switch
-              id="holder-magnets"
-              checked={holder.magnets.enabled}
-              onCheckedChange={(enabled) => setHolder({ ...holder, magnets: { ...holder.magnets, enabled } })}
-            />
-          </Field>
+          <ToggleSetting
+            label="Slot magnets"
+            checked={holder.magnets.enabled}
+            defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
+            onChange={(enabled) => setHolder({ ...holder, magnets: { ...holder.magnets, enabled } })}
+          />
           <Dimension
             label="Magnet Ø"
             value={holder.magnets.diameter}

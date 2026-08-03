@@ -4,6 +4,7 @@ import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 /** A group of always-visible controls, with an optional figure in the header. */
@@ -58,6 +59,20 @@ interface DimensionProps {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 const quantise = (value: number, step: number) => Math.round(value / step) * step
+
+function ResetButton({ label, value, onReset }: { label: string; value: string; onReset: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Reset ${label} to ${value}`}
+      title={`Reset to ${value}`}
+      onClick={onReset}
+      className="shrink-0 text-modified transition-colors hover:text-modified/80"
+    >
+      <RotateCcw className="size-3.5" />
+    </button>
+  )
+}
 
 /**
  * A dimension: type an exact figure, or drag its label to scrub. Typing is the
@@ -114,18 +129,14 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
         {label}
       </FieldLabel>
       {modified && (
-        <button
-          type="button"
-          aria-label={`Reset ${label} to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-          title={`Reset to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-          onClick={() => {
+        <ResetButton
+          label={label}
+          value={`${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+          onReset={() => {
             setText(undefined)
             onChange(defaultValue)
           }}
-          className="shrink-0 text-modified transition-colors hover:text-modified/80"
-        >
-          <RotateCcw className="size-3.5" />
-        </button>
+        />
       )}
       <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
         <InputGroupInput
@@ -169,6 +180,7 @@ interface ChoiceProps<T extends string | number> {
   label: string
   hideLabel?: boolean
   value: T
+  defaultValue?: T
   options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
 }
@@ -177,10 +189,17 @@ interface ChoiceProps<T extends string | number> {
  * Single-select toggle group. Values travel as strings because the group works in
  * strings, and are mapped back through the options so numbers survive the trip.
  */
-export function Choice<T extends string | number>({ label, hideLabel, value, options, onChange }: ChoiceProps<T>) {
+export function Choice<T extends string | number>({ label, hideLabel, value, defaultValue, options, onChange }: ChoiceProps<T>) {
+  const modified = defaultValue !== undefined && value !== defaultValue
+  const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
   return (
     <Field>
-      {!hideLabel && <FieldLabel className="font-normal">{label}</FieldLabel>}
+      <div className="flex items-center gap-2">
+        <FieldLabel className={hideLabel && !modified ? 'sr-only' : `flex-1 font-normal ${modified ? 'text-modified' : ''}`}>
+          {label}
+        </FieldLabel>
+        {modified && <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />}
+      </div>
       <ToggleGroup
         variant="outline"
         size="sm"
@@ -201,6 +220,30 @@ export function Choice<T extends string | number>({ label, hideLabel, value, opt
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+    </Field>
+  )
+}
+
+export function ToggleSetting({
+  label,
+  checked,
+  defaultChecked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  defaultChecked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  const id = useId()
+  const modified = checked !== defaultChecked
+  return (
+    <Field orientation="horizontal">
+      <FieldLabel htmlFor={id} className={`font-normal ${modified ? 'text-modified' : ''}`}>
+        {label}
+      </FieldLabel>
+      {modified && <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />}
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </Field>
   )
 }
