@@ -177,6 +177,19 @@ test('updates integer holder inputs immediately without losing focus', async ({ 
   await expect(quantity).toHaveValue('4')
 })
 
+test('caps oversized holder quantities before rendering', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const quantity = page.getByLabel(/^Quantity 1 in/)
+  const before = await triangles(page)
+  await quantity.fill('100')
+  await rebuilt(page, before)
+  await expect(quantity).toBeFocused()
+  await expect(quantity).toHaveValue('100')
+  await expect(page.getByText(/\d+\/100 fitted/)).toBeVisible()
+  await expect(page.getByText(/Only \d+ of 100 fit/)).toBeVisible()
+})
+
 test('switches between subtractive holder engraving locations', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
@@ -228,8 +241,24 @@ test('fits what it can and reports box overflow', async ({ page }) => {
   await page.getByLabel(/^Maximum rows in/).fill('1')
   await page.getByLabel(/^Maximum rows in/).press('Enter')
   await rebuilt(page, before)
-  await expect(page.getByText('1/5', { exact: true })).toBeVisible()
+  await expect(page.getByText('Only 1 of 5 fit')).toBeVisible()
   await expect(footer(page)).toContainText('4×Ø32')
+})
+
+test('uses clear wording when no holder miniatures fit', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  await page.getByLabel(/^Maximum columns in/).fill('1')
+  await page.getByLabel(/^Maximum columns in/).press('Enter')
+  const constrained = await triangles(page)
+  await page.getByLabel(/^Maximum rows in/).fill('1')
+  await page.getByLabel(/^Maximum rows in/).press('Enter')
+  await rebuilt(page, constrained)
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: '90 Greater daemons, big characters' }).click()
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('90')
+  await expect(page.getByText('None of 5 fit')).toBeVisible()
+  await expect(page.getByText(/Only 0 of/)).not.toBeVisible()
 })
 
 test('adds another miniature size to the holder', async ({ page }) => {
@@ -240,7 +269,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
   await page.getByRole('button', { name: 'Add size' }).click()
   await rebuilt(page, before)
   await expect(page.getByLabel(/^Quantity 2 in/)).toHaveValue('1')
-  await expect(page.getByLabel(/^Base diameter 2 in/)).toHaveValue('40.0')
+  await expect(page.getByRole('combobox', { name: 'Standard base size 2' })).toContainText('40')
   await expect(footer(page)).toContainText('5×Ø32 · 1×Ø40')
 
   const pending = page.waitForEvent('download')
@@ -250,6 +279,22 @@ test('adds another miniature size to the holder', async ({ page }) => {
   const path = await saved.path()
   if (!path) throw new Error('download has no local path')
   expect(Object.keys(unzipSync(await readFile(path))).filter((name) => name.endsWith('.stl'))).toHaveLength(2)
+})
+
+test('changes holder slots to non-round base shapes', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const before = await triangles(page)
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: /75×42\b.*Cavalry/ }).click()
+  await rebuilt(page, before)
+  await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('75×42')
+  await expect(footer(page)).toContainText('5×oval 75×42')
+  await expect(footer(page)).toContainText('holder-gridfinity-4x4-5xoval-75x42mm')
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: 'Custom size shape, width and depth' }).click()
+  await expect(page.getByLabel(/^Base width 1 in/)).toHaveValue('75.0')
+  await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })
 
 const SHAPES = [

@@ -1,7 +1,7 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting, type SizeOption } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -11,7 +11,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
 import { to3mf, toStl } from '@/geometry/exporters'
-import { defaultHolderConfig, holderLayout, holderName, holderPlan, maxHolderMagnetThickness, maxHolderSlotDepth } from '@/geometry/holder'
+import {
+  defaultHolderConfig,
+  holderGroup,
+  holderGroupLabel,
+  holderLayout,
+  holderName,
+  holderPlan,
+  maxHolderMagnetThickness,
+  maxHolderSlotDepth,
+} from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   DEFAULT_PRESET,
@@ -39,6 +48,27 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'rect', label: 'Rectangle' },
   { value: 'polygon', label: 'Hex' },
 ]
+
+const shapeName = (shape: ShapeKind) => SHAPES.find((option) => option.value === shape)?.label ?? shape
+const HOLDER_SIZE_PRESETS = Object.values(SIZES_BY_SHAPE).flat()
+const holderSizeValue = (size: SizePreset) => `${size.shape}:${size.label}`
+const CUSTOM_HOLDER_SIZE = 'custom'
+const HOLDER_SIZE_OPTIONS: SizeOption[] = [
+  ...HOLDER_SIZE_PRESETS.map((size) => ({
+    value: holderSizeValue(size),
+    label: `${shapeName(size.shape)} / ${size.label}`,
+    itemLabel: size.label,
+    group: shapeName(size.shape),
+    use: size.use,
+  })),
+  { value: CUSTOM_HOLDER_SIZE, label: 'Custom size', use: 'shape, width and depth' },
+]
+
+function holderSizePreset(group: { shape: ShapeKind; width: number; length: number }) {
+  return HOLDER_SIZE_PRESETS.find(
+    (size) => size.shape === group.shape && size.width === group.width && (size.length ?? size.width) === group.length,
+  )
+}
 
 const PROFILES: { value: EdgeProfile; label: string }[] = [
   { value: 'taper', label: 'Taper' },
@@ -87,6 +117,7 @@ function RepositoryLink() {
 export function App() {
   const [config, setConfig] = useState<BaseConfig>(presetFor(DEFAULT_PRESET))
   const [holder, setHolder] = useState<HolderConfig>(defaultHolderConfig)
+  const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   const [exporting, setExporting] = useState<'stl' | '3mf'>()
   const [exportError, setExportError] = useState<string>()
@@ -139,6 +170,18 @@ export function App() {
     groups[target] = current
     setHolder({ ...holder, groups })
   }
+  const showCustomHolderGroup = (id: string) =>
+    setCustomHolderGroups((current) => {
+      const next = new Set(current)
+      next.add(id)
+      return next
+    })
+  const hideCustomHolderGroup = (id: string) =>
+    setCustomHolderGroups((current) => {
+      const next = new Set(current)
+      next.delete(id)
+      return next
+    })
   const partWidth = model === 'base' ? width : holderSize.width
   const partLength = model === 'base' ? length : holderSize.length
   const partHeight = model === 'base' ? config.height : holder.height
@@ -502,85 +545,162 @@ export function App() {
           }
         >
           <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-            <span>Fit</span>
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Qty</span>
-            <span>Base diameter</span>
+            <span>Base</span>
           </div>
-          {holder.groups.map((group, index) => (
-            <div
-              key={group.id}
-              className="grid grid-cols-[3rem_3.25rem_minmax(5rem,1fr)_4.75rem] items-center gap-2 border-b border-border pb-2 last:border-0"
-            >
-              <span
-                className={`readout text-xs ${(fittedByGroup.get(group.id) ?? 0) < group.quantity ? 'text-destructive' : 'text-muted-foreground'}`}
+          {holder.groups.map((group, index) => {
+            const groupStandard = holderSizePreset(group)
+            const customOpen = customHolderGroups.has(group.id) || !groupStandard
+            const fitted = fittedByGroup.get(group.id) ?? 0
+            const missing = group.quantity - fitted
+            return (
+              <div
+                key={group.id}
+                className={`grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2 border-b pb-2 last:border-0 ${
+                  missing > 0 ? 'border-destructive/50' : 'border-border'
+                }`}
               >
-                {fittedByGroup.get(group.id) ?? 0}/{group.quantity}
-              </span>
-              <Dimension
-                label={`Quantity ${index + 1}`}
-                value={group.quantity}
-                min={1}
-                max={100}
-                step={1}
-                unit=""
-                compact
-                onChange={(quantity) => {
-                  const groups = holder.groups.map((entry, groupIndex) =>
-                    groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
-                  )
-                  setHolder({ ...holder, groups })
-                }}
-              />
-              <Dimension
-                label={`Base diameter ${index + 1}`}
-                value={group.diameter}
-                min={15}
-                max={180}
-                step={0.5}
-                compact
-                onChange={(diameter) =>
-                  setHolder({
-                    ...holder,
-                    groups: holder.groups.map((entry, groupIndex) => (groupIndex === index ? { ...group, diameter } : entry)),
-                  })
-                }
-              />
-              <div className="flex">
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Increase priority of miniature group ${index + 1}`}
-                  disabled={index === 0}
-                  onClick={() => moveGroup(index, -1)}
-                >
-                  <ChevronUp />
-                </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Decrease priority of miniature group ${index + 1}`}
-                  disabled={index === holder.groups.length - 1}
-                  onClick={() => moveGroup(index, 1)}
-                >
-                  <ChevronDown />
-                </Button>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Remove miniature group ${index + 1}`}
-                  disabled={holder.groups.length === 1}
-                  onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
-                >
-                  <Trash2 />
-                </Button>
+                <Dimension
+                  label={`Quantity ${index + 1}`}
+                  value={group.quantity}
+                  min={1}
+                  max={100}
+                  step={1}
+                  unit=""
+                  compact
+                  onChange={(quantity) => {
+                    const groups = holder.groups.map((entry, groupIndex) =>
+                      groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
+                    )
+                    setHolder({ ...holder, groups })
+                  }}
+                />
+                <SizeSelect
+                  label={`Standard base size ${index + 1}`}
+                  value={groupStandard ? holderSizeValue(groupStandard) : CUSTOM_HOLDER_SIZE}
+                  options={HOLDER_SIZE_OPTIONS}
+                  onChange={(value) => {
+                    if (value === CUSTOM_HOLDER_SIZE) {
+                      showCustomHolderGroup(group.id)
+                      return
+                    }
+                    const size = HOLDER_SIZE_PRESETS.find((candidate) => holderSizeValue(candidate) === value)
+                    if (!size) return
+                    hideCustomHolderGroup(group.id)
+                    setHolder({
+                      ...holder,
+                      groups: holder.groups.map((entry, groupIndex) =>
+                        groupIndex === index
+                          ? holderGroup(group.id, group.quantity, {
+                              shape: size.shape,
+                              width: size.width,
+                              length: size.length ?? size.width,
+                            })
+                          : entry,
+                      ),
+                    })
+                  }}
+                />
+                {customOpen && (
+                  <div className="col-span-2 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(3rem+0.5rem)]">
+                    <CompactChoice
+                      label={`Shape ${index + 1}`}
+                      value={group.shape}
+                      options={SHAPES}
+                      onChange={(shape) =>
+                        setHolder({
+                          ...holder,
+                          groups: holder.groups.map((entry, groupIndex) =>
+                            groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Dimension
+                      label={`${isElongated(group.shape) ? 'Base width' : 'Base diameter'} ${index + 1}`}
+                      value={group.width}
+                      min={15}
+                      max={180}
+                      step={0.5}
+                      compact
+                      onChange={(baseWidth) =>
+                        setHolder({
+                          ...holder,
+                          groups: holder.groups.map((entry, groupIndex) =>
+                            groupIndex === index
+                              ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
+                              : entry,
+                          ),
+                        })
+                      }
+                    />
+                    {isElongated(group.shape) && (
+                      <>
+                        <span className="px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">Depth</span>
+                        <Dimension
+                          label={`Base depth ${index + 1}`}
+                          value={group.length}
+                          min={15}
+                          max={180}
+                          step={0.5}
+                          compact
+                          onChange={(baseLength) =>
+                            setHolder({
+                              ...holder,
+                              groups: holder.groups.map((entry, groupIndex) =>
+                                groupIndex === index ? { ...group, length: baseLength } : entry,
+                              ),
+                            })
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 pl-[calc(3rem+0.5rem)]">
+                  {missing > 0 && (
+                    <p className="min-w-0 truncate text-xs text-destructive">
+                      {fitted === 0 ? `None of ${group.quantity} fit` : `Only ${fitted} of ${group.quantity} fit`}
+                    </p>
+                  )}
+                  <div className="ms-auto flex shrink-0">
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Increase priority of miniature group ${index + 1}`}
+                      disabled={index === 0}
+                      onClick={() => moveGroup(index, -1)}
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Decrease priority of miniature group ${index + 1}`}
+                      disabled={index === holder.groups.length - 1}
+                      onClick={() => moveGroup(index, 1)}
+                    >
+                      <ChevronDown />
+                    </Button>
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Remove miniature group ${index + 1}`}
+                      disabled={holder.groups.length === 1}
+                      onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setHolder({ ...holder, groups: [...holder.groups, { id: crypto.randomUUID(), quantity: 1, diameter: 40 }] })}
+            onClick={() => setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })}
           >
             <Plus /> Add size
           </Button>
@@ -631,10 +751,13 @@ export function App() {
           />
           <div className="space-y-1 border-y border-border py-3 text-xs">
             {plan.modules.map((module, index) => (
-              <div key={`${module.config.groups[0].id}-${module.column}-${module.row}`} className="flex justify-between gap-3">
+              <div
+                key={`${module.config.groups[0].id}-${module.column}-${module.row}`}
+                className="flex flex-wrap justify-between gap-x-3 gap-y-1"
+              >
                 <span className="text-muted-foreground">Module {index + 1}</span>
-                <span className="readout">
-                  {module.config.groups.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' + ')} ·{' '}
+                <span className="readout text-right">
+                  {module.config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' + ')} ·{' '}
                   {module.layout.unitsWide}×{module.layout.unitsDeep}
                 </span>
               </div>

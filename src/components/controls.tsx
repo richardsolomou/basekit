@@ -3,7 +3,16 @@ import { useId, useState, type PointerEvent as ReactPointerEvent, type ReactNode
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 
 /** A group of always-visible controls, with an optional figure in the header. */
@@ -224,6 +233,32 @@ export function Choice<T extends string | number>({ label, value, defaultValue, 
   )
 }
 
+export function CompactChoice<T extends string | number>({ label, value, options, onChange }: Omit<ChoiceProps<T>, 'defaultValue'>) {
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
+  return (
+    <Select
+      value={String(value)}
+      onValueChange={(next) => {
+        const picked = options.find((option) => String(option.value) === String(next))
+        if (picked) onChange(picked.value)
+      }}
+    >
+      <SelectTrigger aria-label={label} className="w-full min-w-0">
+        <SelectValue>
+          <span className="readout truncate text-xs">{selectedLabel}</span>
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={String(option.value)} value={String(option.value)}>
+            <span className="readout text-xs">{option.label}</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function ToggleSetting({
   label,
   checked,
@@ -258,6 +293,9 @@ export function ToggleSetting({
 
 export interface SizeOption {
   value: string
+  label?: string
+  itemLabel?: string
+  group?: string
   use: string
 }
 
@@ -272,28 +310,45 @@ export function SizeSelect({
   value,
   options,
   onChange,
+  label = 'Standard base size',
 }: {
   value: string | null
   options: readonly SizeOption[]
   onChange: (value: string) => void
+  label?: string
 }) {
   const selected = options.find((option) => option.value === value)
+  const grouped = options.some((option) => option.group)
+  const optionItem = (option: SizeOption) => (
+    <SelectItem key={option.value} value={option.value} className={option.group ? 'pl-5' : undefined}>
+      <span className={`readout shrink-0 ${option.group ? 'w-16' : ''}`}>{option.itemLabel ?? option.label ?? option.value}</span>
+      <span className="min-w-0 truncate text-muted-foreground">{option.use}</span>
+    </SelectItem>
+  )
   return (
     <Field>
       <Select value={value} onValueChange={(next) => onChange(String(next))}>
-        <SelectTrigger aria-label="Standard base size" className="w-full">
+        <SelectTrigger aria-label={label} className="w-full">
           <SelectValue>
-            <span className="readout shrink-0">{selected?.value ?? 'Custom'}</span>
+            <span className="readout shrink-0">{selected?.label ?? selected?.value ?? 'Custom'}</span>
             <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <span className="readout w-16 shrink-0">{option.value}</span>
-              <span className="text-muted-foreground">{option.use}</span>
-            </SelectItem>
-          ))}
+        <SelectContent alignItemWithTrigger={!grouped} className={grouped ? 'min-w-72' : undefined}>
+          {grouped
+            ? Array.from(new Set(options.map((option) => option.group).filter(Boolean))).map((group) => (
+                <SelectGroup key={group}>
+                  <SelectLabel>{group}</SelectLabel>
+                  {options.filter((option) => option.group === group).map(optionItem)}
+                </SelectGroup>
+              ))
+            : options.map(optionItem)}
+          {grouped && (
+            <>
+              <SelectSeparator />
+              {options.filter((option) => !option.group).map(optionItem)}
+            </>
+          )}
         </SelectContent>
       </Select>
     </Field>

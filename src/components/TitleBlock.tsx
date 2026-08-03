@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
-import { holderLayout, holderPlan } from '@/geometry/holder'
+import { holderGroupLabel, holderLayout, holderPlan } from '@/geometry/holder'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -32,13 +32,13 @@ export function TitleBlock({ config, status, name }: Props) {
     const layout = holderLayout(config)
     const plan = holderPlan(config)
     const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
-    const slots = config.groups.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' · ')
+    const slots = config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')
     return (
       <TitleFrame status={status} name={name}>
         <Row label="Models" value={slots} />
         <Row label="Modules" value={`${plan.modules.length} in ${layout.unitsWide} × ${layout.unitsDeep}`} />
         {plan.omitted.length > 0 && (
-          <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×Ø${trimNumber(group.diameter)}`).join(' · ')} />
+          <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
         <Row label="Magnets" value={config.magnets.enabled ? `${layout.slotCenters.length} × ${pocket} mm hole` : 'none'} />
       </TitleFrame>
