@@ -37,7 +37,7 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { defaultWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -84,11 +84,6 @@ const HOLDER_DEFAULTS = defaultHolderConfig()
 
 const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
 
-function withRememberedMagnetCount(config: BaseConfig, magnetCounts: Record<string, number>): BaseConfig {
-  const count = magnetCounts[footprintKey(config.shape, config.width, config.length)]
-  return count === undefined ? config : { ...config, magnets: { ...config.magnets, count } }
-}
-
 function RepositoryLink() {
   return (
     <div className="flex justify-center px-5 pt-4">
@@ -106,7 +101,7 @@ function RepositoryLink() {
 }
 
 export function App() {
-  const [workspace, setWorkspaceState] = useState(defaultWorkspace)
+  const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
@@ -115,7 +110,10 @@ export function App() {
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
-  const [customBaseSize, setCustomBaseSize] = useState(false)
+  const [customBaseSize, setCustomBaseSize] = useState(() => {
+    const { width, length } = footprint(workspace.base)
+    return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
+  })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
@@ -132,6 +130,8 @@ export function App() {
   useEffect(() => {
     document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
   }, [model])
+
+  useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
@@ -215,21 +215,7 @@ export function App() {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
     const next = presetFor(size)
-    setConfig(
-      withRememberedMagnetCount(
-        {
-          ...next,
-          magnets: {
-            ...next.magnets,
-            diameter: config.magnets.diameter,
-            thickness: config.magnets.thickness,
-            clearance: config.magnets.clearance,
-            depthClearance: config.magnets.depthClearance,
-          },
-        },
-        holder.magnetCounts,
-      ),
-    )
+    setConfig(next)
   }
 
   const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
@@ -250,19 +236,20 @@ export function App() {
 
   const setSharedMagnetPlacement = (changes: Partial<Pick<BaseConfig, 'wallThickness'> & { bossWall: number }>) => {
     setWorkspace((current) => {
+      const shared = {
+        ...current.shared,
+        ...('wallThickness' in changes ? { wallThickness: changes.wallThickness } : {}),
+        ...('bossWall' in changes ? { magnetBossWall: changes.bossWall } : {}),
+      }
       const base = {
         ...current.base,
-        ...('wallThickness' in changes ? { wallThickness: changes.wallThickness } : {}),
-        magnets: { ...current.base.magnets, ...('bossWall' in changes ? { bossWall: changes.bossWall } : {}) },
+        wallThickness: shared.wallThickness,
+        magnets: { ...current.base.magnets, bossWall: shared.magnetBossWall },
       }
       return {
         ...current,
+        shared,
         base: { ...base, profileSize: Math.min(base.profileSize, safeEdgeSize(base)) },
-        holder: {
-          ...current.holder,
-          ...('wallThickness' in changes ? { baseWallThickness: changes.wallThickness } : {}),
-          ...('bossWall' in changes ? { magnetBossWall: changes.bossWall } : {}),
-        },
       }
     })
   }
@@ -271,8 +258,7 @@ export function App() {
     const key = footprintKey(config.shape, config.width, config.length)
     setWorkspace((current) => ({
       ...current,
-      base: { ...current.base, magnets: { ...current.base.magnets, count } },
-      holder: { ...current.holder, magnetCounts: { ...current.holder.magnetCounts, [key]: count } },
+      shared: { ...current.shared, magnetCounts: { ...current.shared.magnetCounts, [key]: count } },
     }))
   }
 
@@ -283,11 +269,11 @@ export function App() {
     const target = DEFAULT_SIZE[shape]
     setCustomBaseSize(false)
     const next = resized({ ...config, shape }, target.width, target.length ?? target.width)
-    setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+    setConfig(next)
   }
 
   const basePanel = (
-    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Size & Shape">
@@ -317,7 +303,7 @@ export function App() {
               defaultValue={BASE_DEFAULTS.width}
               onChange={(w) => {
                 const next = resized(config, w, config.length)
-                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+                setConfig(next)
               }}
             />
           )}
@@ -331,7 +317,7 @@ export function App() {
               defaultValue={BASE_DEFAULTS.length}
               onChange={(l) => {
                 const next = resized(config, config.width, l)
-                setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
+                setConfig(next)
               }}
             />
           )}
@@ -369,7 +355,7 @@ export function App() {
 
         <Section title="Size Label">
           <ToggleSetting
-            label="Show size label"
+            label="Size labels"
             checked={config.label.enabled}
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
@@ -402,7 +388,7 @@ export function App() {
             onChange={(underside) => patch({ underside })}
           />
           <Dimension
-            label="Height"
+            label="Base height"
             value={config.height}
             min={2}
             max={12}
@@ -475,7 +461,7 @@ export function App() {
         </Section>
 
         <Section
-          title="Magnet layout"
+          title="Magnet Layout"
           aside={
             <span className="readout text-xs text-muted-foreground">
               {config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
@@ -507,7 +493,7 @@ export function App() {
             onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
           />
           <Dimension
-            label="Thickness"
+            label="Support thickness"
             value={config.ribs.thickness}
             min={0.8}
             max={4}
@@ -517,7 +503,7 @@ export function App() {
             onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
           />
           <Dimension
-            label="Height"
+            label="Support height"
             value={config.ribs.height}
             min={0.4}
             max={Math.max(0.5, config.height - config.floorThickness)}
@@ -586,7 +572,7 @@ export function App() {
   )
 
   const holderPanel = (
-    <ScrollArea className="h-full w-80 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Holder settings" className="pb-4 [counter-reset:schedule]">
         <Section
           title="Miniatures"
@@ -792,7 +778,7 @@ export function App() {
             onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
           />
           <Dimension
-            label="Between minis"
+            label="Between miniatures"
             value={holder.spacing}
             min={0}
             max={10}
@@ -821,7 +807,7 @@ export function App() {
             ))}
           </div>
           <Dimension
-            label="Height"
+            label="Holder height"
             value={holder.height}
             min={7}
             max={42}
@@ -851,7 +837,7 @@ export function App() {
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <ToggleSetting
-            label="Label base sizes"
+            label="Size labels"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
             onChange={setSharedLabels}
@@ -941,7 +927,7 @@ export function App() {
               >
                 <PanelLeft />
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 max-w-[85vw] gap-0 p-0">
+              <SheetContent side="left" className="max-w-[85vw] gap-0 p-0 data-[side=left]:w-81">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">

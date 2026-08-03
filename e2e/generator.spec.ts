@@ -57,6 +57,8 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
+  const panel = page.getByRole('complementary', { name: 'Base settings' }).locator('xpath=ancestor::*[@data-slot="scroll-area"]')
+  await expect.poll(async () => (await panel.boundingBox())?.width).toBe(344.25)
   await expect(across(page)).toHaveText('Ø32')
   await expect(tall(page)).toHaveText('4')
   await expect(footer(page)).toContainText('base-round-32mm')
@@ -65,6 +67,15 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
 
 test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
+})
+
+test('opens selects from their visible labels', async ({ page }) => {
+  await page.getByText('Shape', { exact: true }).click()
+  await expect(page.getByRole('option', { name: 'Round', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.getByText('Size', { exact: true }).click()
+  await expect(sizeOption(page, '32')).toBeVisible()
 })
 
 test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
@@ -93,9 +104,9 @@ test('marks and resets a changed value to its default', { tag: '@ci' }, async ({
 })
 
 test('marks and resets changed toggles and choices', async ({ page }) => {
-  const labelToggle = page.getByRole('switch', { name: 'Show size label' })
+  const labelToggle = page.getByRole('switch', { name: 'Size labels' })
   await labelToggle.click()
-  const resetLabel = page.getByRole('button', { name: 'Reset Show size label to on' })
+  const resetLabel = page.getByRole('button', { name: 'Reset Size labels to on' })
   await expect(resetLabel).toBeVisible()
   await resetLabel.click()
   await expect(labelToggle).toBeChecked()
@@ -137,35 +148,44 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
-test('resets generator settings on reload', async ({ page }) => {
+test('remembers workspace settings on reload', async ({ page }) => {
+  await page.getByRole('combobox', { name: 'Standard base size' }).click()
+  await page.getByRole('option', { name: /^Custom\b/ }).click()
+  await page.getByLabel('Diameter in mm', { exact: true }).fill('37')
+  await page.getByLabel('Diameter in mm', { exact: true }).press('Enter')
+  const height = page.getByLabel('Base height in mm')
+  await height.fill('5')
+  await height.press('Enter')
   await page.getByLabel('Magnet diameter in mm').fill('7')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
-  await page.getByRole('switch', { name: 'Show size label' }).click()
+  await page.getByRole('switch', { name: 'Size labels' }).click()
   await page.reload()
   await settled(page)
-  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('5.0')
-  await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
+  await expect(page.getByLabel('Diameter in mm', { exact: true })).toHaveValue('37.0')
+  await expect(page.getByLabel('Base height in mm')).toHaveValue('5.0')
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
+  await expect(page.getByRole('switch', { name: 'Size labels' })).not.toBeChecked()
 })
 
 test('shares the size label preference between bases and holders', async ({ page }) => {
-  await page.getByRole('switch', { name: 'Show size label' }).click()
+  await page.getByRole('switch', { name: 'Size labels' }).click()
   await page.getByRole('link', { name: 'Holders' }).click()
-  await expect(page.getByRole('switch', { name: 'Label base sizes' })).not.toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Size labels' })).not.toBeChecked()
   const withoutLabels = await triangles(page)
 
-  await page.getByRole('switch', { name: 'Label base sizes' }).click()
+  await page.getByRole('switch', { name: 'Size labels' }).click()
   await rebuilt(page, withoutLabels)
   await page.getByRole('link', { name: 'Bases' }).click()
-  await expect(page.getByRole('switch', { name: 'Show size label' })).toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
 })
 
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
-  await page.getByLabel('Between minis in mm').fill('1.5')
+  await page.getByLabel('Between miniatures in mm').fill('1.5')
   await page.getByRole('switch', { name: 'Split into modules' }).click()
-  const dimensionReset = await page.getByRole('button', { name: /Reset Between minis/ }).boundingBox()
+  const dimensionReset = await page.getByRole('button', { name: /Reset Between miniatures/ }).boundingBox()
   const toggleReset = await page.getByRole('button', { name: /Reset Split into modules/ }).boundingBox()
-  const dimension = await page.getByLabel('Between minis in mm').boundingBox()
+  const dimension = await page.getByLabel('Between miniatures in mm').boundingBox()
   const toggle = await page.getByRole('switch', { name: 'Split into modules' }).boundingBox()
   expect(toggleReset?.x).toBe(dimensionReset?.x)
   expect(toggle?.x).toBe(dimension?.x)
@@ -262,7 +282,7 @@ test('caps oversized holder quantities before rendering', async ({ page }) => {
 test('switches between subtractive holder engraving locations', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
-  await expect(page.getByRole('switch', { name: 'Label base sizes' })).toBeChecked()
+  await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
   await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('In slots')
   const before = await triangles(page)
   await pickChoice(page, 'Label location', 'On module')
@@ -443,7 +463,7 @@ test('marks even a cramped rank base', async ({ page }) => {
   // A 20mm well is mostly boss and ribs. The label used to be dropped silently
   // when it would not fit, so compare the triangle count against an unmarked base.
   const withMark = await triangles(page)
-  await page.getByRole('switch', { name: 'Show size label' }).click()
+  await page.getByRole('switch', { name: 'Size labels' }).click()
   await rebuilt(page, withMark)
   expect(withMark).toBeGreaterThan(await triangles(page))
 })
@@ -511,8 +531,8 @@ test('scrubs a dimension from the empty reset space after its label', async ({ p
 })
 
 test('toggles a setting from the empty reset space after its label', async ({ page }) => {
-  const toggle = page.getByRole('switch', { name: 'Show size label' })
-  const label = page.getByText('Show size label', { exact: true })
+  const toggle = page.getByRole('switch', { name: 'Size labels' })
+  const label = page.getByText('Size labels', { exact: true })
   const box = await label.boundingBox()
   if (!box) throw new Error('no label to click')
   await page.mouse.click(box.x + box.width - 5, box.y + box.height / 2)
@@ -532,6 +552,7 @@ test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ pag
   await expect(page.getByLabel('Diameter in mm', { exact: true })).toBeHidden()
 
   await page.getByRole('button', { name: 'Base settings' }).click()
+  await expect.poll(async () => (await page.locator('[data-slot="sheet-content"]').boundingBox())?.width).toBe(331.5)
   await pickSize(page, 'Custom')
   const before = await triangles(page)
   await page.getByLabel('Diameter in mm', { exact: true }).fill('60')
