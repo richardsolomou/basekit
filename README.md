@@ -30,6 +30,8 @@ The built-in presets include the common Games Workshop, The Old World, Kings of 
 
 Gridfinity holders take one or more quantities and round mini-base diameters, then plan them inside the available box. Miniature groups default to ordinary independent Gridfinity modules, shown with clearance between them in the preview and exported as separate STL files in one archive; splitting can be disabled to combine sizes in one holder. Subtractive size engraving defaults to every miniature slot and can instead be placed once in free space on its module or disabled. Maximum rows and columns define the box, and requests that do not fit report the omitted models instead of blocking the rest of the plan. Spacing controls the material left between neighbouring miniatures. Fit clearance belongs to the recess rather than the packing distance. Every slot gets a flush magnet pocket, and every 42mm Gridfinity cell gets its own profiled locating foot.
 
+Slot depth is capped against the holder height, in-slot engraving and magnet thickness so every cut leaves printable material above the Gridfinity feet.
+
 The base generator lives at `/`; the Gridfinity holder generator can be opened directly at `/holders`.
 
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the marking. Presets scale the magnet and rib layout with the footprint; the marking moves and shrinks automatically when the centre is occupied.
