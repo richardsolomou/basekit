@@ -101,6 +101,7 @@ const SINGLE_MAGNET_MAX_SPAN = MAGNET_PITCH * 2
 
 const RING_COUNTS = [3, 4, 5, 6, 8]
 const ROW_COUNTS = [4, 6, 8]
+const ROW_LIMIT_COUNTS = [1, 2, ...ROW_COUNTS]
 
 /** Every count the pickers offer, including ones no preset picks by itself. */
 export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
@@ -122,7 +123,7 @@ function ringMagnetCount(short: number): number {
  * run to spread over. Four magnets on a 160mm titanic base was the old ceiling
  * and nowhere near enough to hold one down.
  */
-function magnetCount(width: number, length: number): number {
+function magnetCount(width: number, length: number, maxCount: number): number {
   const short = Math.min(width, length)
   const long = Math.max(width, length)
   if (short < 20) return 0
@@ -130,14 +131,15 @@ function magnetCount(width: number, length: number): number {
 
   if (magnetsRing(width, length)) {
     // Ring magnets sit a quarter of the short side out from the centre.
-    return ringMagnetCount(short)
+    return Math.min(ringMagnetCount(short), maxCount)
   }
   // A row runs the long axis, stopping a boss-width short of each end.
   const run = long - 8
   const transverseCount = ringMagnetCount(short)
-  if (run <= MAGNET_PITCH * END_PAIR_PITCHES && short <= SINGLE_MAGNET_MAX_SPAN && transverseCount === 3) return 2
+  if (run <= MAGNET_PITCH * END_PAIR_PITCHES && short <= SINGLE_MAGNET_MAX_SPAN && transverseCount === 3) return Math.min(2, maxCount)
   const transverseMinimum = transverseCount % 2 === 0 ? transverseCount : transverseCount - 1
-  return Math.max(transverseMinimum, spreadCount(run / MAGNET_PITCH + 1, ROW_COUNTS))
+  const natural = Math.max(transverseMinimum, spreadCount(run / MAGNET_PITCH + 1, ROW_COUNTS))
+  return spreadCount(Math.min(natural, maxCount), ROW_LIMIT_COUNTS)
 }
 
 /**
@@ -151,8 +153,8 @@ function magnetCount(width: number, length: number): number {
  * With no ring and no row there is nothing to line up with and the count just
  * follows the span.
  */
-function ribCount(width: number, length: number): number {
-  const magnets = magnetCount(width, length)
+function ribCount(width: number, length: number, maxMagnets: number): number {
+  const magnets = magnetCount(width, length, maxMagnets)
   const short = Math.min(width, length)
 
   if (magnets >= 2) {
@@ -173,7 +175,7 @@ function labelHeight(width: number, length: number): number {
  * Defaults follow the Games Workshop look: full size at the top face, a 1mm taper
  * at the rim, 3mm of recess for the magnets over a 1mm floor.
  */
-export function presetFor(preset: SizePreset): BaseConfig {
+export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
   const width = preset.width
   const length = preset.length ?? preset.width
   return {
@@ -188,9 +190,16 @@ export function presetFor(preset: SizePreset): BaseConfig {
     underside: 'well',
     wallThickness: 2,
     floorThickness: 1,
-    magnets: { count: magnetCount(width, length), diameter: 5, clearance: 0.2, bossWall: 0.9, thickness: 2 },
+    magnets: {
+      count: magnetCount(width, length, maxMagnets),
+      maxCount: maxMagnets,
+      diameter: 5,
+      clearance: 0.2,
+      bossWall: 0.9,
+      thickness: 2,
+    },
     // Low ribs stiffen the thin floor the recess leaves, without filling the recess.
-    ribs: { count: ribCount(width, length), thickness: 1.6, height: 1.2 },
+    ribs: { count: ribCount(width, length, maxMagnets), thickness: 1.6, height: 1.2 },
     label: { enabled: true, height: labelHeight(width, length), emboss: 0.6 },
     segments: previewSegmentsFor(Math.max(width, length)),
   }
@@ -203,11 +212,15 @@ export function resized(config: BaseConfig, width: number, length: number): Base
     ...config,
     width,
     length: effective,
-    magnets: { ...config.magnets, count: magnetCount(width, effective) },
-    ribs: { ...config.ribs, count: ribCount(width, effective) },
+    magnets: { ...config.magnets, count: magnetCount(width, effective, config.magnets.maxCount) },
+    ribs: { ...config.ribs, count: ribCount(width, effective, config.magnets.maxCount) },
     label: { ...config.label, height: labelHeight(width, effective) },
     segments: previewSegmentsFor(Math.max(width, effective)),
   }
 }
 
 export const DEFAULT_PRESET = ROUND_SIZES[2]
+
+export function footprintKey(shape: ShapeKind, width: number, length: number): string {
+  return `${shape}:${width}x${isElongated(shape) ? length : width}`
+}

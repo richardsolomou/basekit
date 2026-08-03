@@ -38,6 +38,8 @@ Settings changed from their original defaults mark their label and reset action 
 
 Narrow elongated bases up to roughly three magnet pitches use a pair at the usable ends, where they provide the widest support and anti-tip lever arm without unnecessary holding force in the middle. Longer or wider rows use even counts based on both axes, rounding down between pitch thresholds because hollow miniatures rarely need the extra pull. Ring layouts follow the same roughly 31mm pitch, with every magnet boss directly aligned to a support rib. A single central magnet is reserved for bases that are small in both area and span.
 
+Base and holder settings share one workspace for the current browser session. Each generator keeps its own active shape and size, while size-label visibility, magnet dimensions and per-footprint magnet counts stay in sync between them. Reloading starts both generators from their defaults.
+
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.

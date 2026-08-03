@@ -281,6 +281,10 @@ describe('buildBase', () => {
     expect(pocketAt(mesh, reach, 0, pocketRadius).vertices).toBeGreaterThan(0)
   })
 
+  it('caps the automatic magnet count for a large oval', () => {
+    expect(presetFor(OVAL_SIZES[3], 2).magnets.count).toBe(2)
+  })
+
   it.for([ROUND_SIZES[1], ROUND_SIZES[4], ROUND_SIZES[9], OVAL_SIZES[0], OVAL_SIZES[2]])('welds cleanly on a $label base', (size) => {
     // Two vertices at one position mean surfaces meet tangentially, which pinches
     // into a non-manifold edge in any tool that merges vertices by position.
