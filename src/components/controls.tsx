@@ -3,7 +3,16 @@ import { useId, useState, type PointerEvent as ReactPointerEvent, type ReactNode
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 
 /** A group of always-visible controls, with an optional figure in the header. */
@@ -285,6 +294,8 @@ export function ToggleSetting({
 export interface SizeOption {
   value: string
   label?: string
+  itemLabel?: string
+  group?: string
   use: string
 }
 
@@ -307,6 +318,13 @@ export function SizeSelect({
   label?: string
 }) {
   const selected = options.find((option) => option.value === value)
+  const grouped = options.some((option) => option.group)
+  const optionItem = (option: SizeOption) => (
+    <SelectItem key={option.value} value={option.value} className={option.group ? 'pl-5' : undefined}>
+      <span className={`readout shrink-0 ${option.group ? 'w-16' : ''}`}>{option.itemLabel ?? option.label ?? option.value}</span>
+      <span className="min-w-0 truncate text-muted-foreground">{option.use}</span>
+    </SelectItem>
+  )
   return (
     <Field>
       <Select value={value} onValueChange={(next) => onChange(String(next))}>
@@ -316,13 +334,21 @@ export function SizeSelect({
             <span className="truncate text-muted-foreground">{selected?.use ?? 'off the standard range'}</span>
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <span className="readout w-16 shrink-0">{option.label ?? option.value}</span>
-              <span className="text-muted-foreground">{option.use}</span>
-            </SelectItem>
-          ))}
+        <SelectContent alignItemWithTrigger={!grouped} className={grouped ? 'min-w-72' : undefined}>
+          {grouped
+            ? Array.from(new Set(options.map((option) => option.group).filter(Boolean))).map((group) => (
+                <SelectGroup key={group}>
+                  <SelectLabel>{group}</SelectLabel>
+                  {options.filter((option) => option.group === group).map(optionItem)}
+                </SelectGroup>
+              ))
+            : options.map(optionItem)}
+          {grouped && (
+            <>
+              <SelectSeparator />
+              {options.filter((option) => !option.group).map(optionItem)}
+            </>
+          )}
         </SelectContent>
       </Select>
     </Field>

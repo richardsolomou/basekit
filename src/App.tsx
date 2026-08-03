@@ -1,7 +1,7 @@
 import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { zipSync } from 'fflate'
-import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting, type SizeOption } from '@/components/controls'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -52,11 +52,17 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
 const shapeName = (shape: ShapeKind) => SHAPES.find((option) => option.value === shape)?.label ?? shape
 const HOLDER_SIZE_PRESETS = Object.values(SIZES_BY_SHAPE).flat()
 const holderSizeValue = (size: SizePreset) => `${size.shape}:${size.label}`
-const HOLDER_SIZE_OPTIONS = HOLDER_SIZE_PRESETS.map((size) => ({
-  value: holderSizeValue(size),
-  label: size.label,
-  use: `${shapeName(size.shape)} · ${size.use}`,
-}))
+const CUSTOM_HOLDER_SIZE = 'custom'
+const HOLDER_SIZE_OPTIONS: SizeOption[] = [
+  ...HOLDER_SIZE_PRESETS.map((size) => ({
+    value: holderSizeValue(size),
+    label: `${shapeName(size.shape)} / ${size.label}`,
+    itemLabel: size.label,
+    group: shapeName(size.shape),
+    use: size.use,
+  })),
+  { value: CUSTOM_HOLDER_SIZE, label: 'Custom footprint', use: 'exact shape and size' },
+]
 
 function holderSizePreset(group: { shape: ShapeKind; width: number; length: number }) {
   return HOLDER_SIZE_PRESETS.find(
@@ -168,6 +174,12 @@ export function App() {
     setCustomHolderGroups((current) => {
       const next = new Set(current)
       next.add(id)
+      return next
+    })
+  const hideCustomHolderGroup = (id: string) =>
+    setCustomHolderGroups((current) => {
+      const next = new Set(current)
+      next.delete(id)
       return next
     })
   const partWidth = model === 'base' ? width : holderSize.width
@@ -536,7 +548,7 @@ export function App() {
           <div className="grid grid-cols-[2.25rem_3rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
             <span>Fit</span>
             <span>Qty</span>
-            <span>Standard base size</span>
+            <span>Base</span>
           </div>
           {holder.groups.map((group, index) => {
             const groupStandard = holderSizePreset(group)
@@ -568,11 +580,16 @@ export function App() {
                 />
                 <SizeSelect
                   label={`Standard base size ${index + 1}`}
-                  value={groupStandard ? holderSizeValue(groupStandard) : null}
+                  value={groupStandard ? holderSizeValue(groupStandard) : CUSTOM_HOLDER_SIZE}
                   options={HOLDER_SIZE_OPTIONS}
                   onChange={(value) => {
+                    if (value === CUSTOM_HOLDER_SIZE) {
+                      showCustomHolderGroup(group.id)
+                      return
+                    }
                     const size = HOLDER_SIZE_PRESETS.find((candidate) => holderSizeValue(candidate) === value)
                     if (!size) return
+                    hideCustomHolderGroup(group.id)
                     setHolder({
                       ...holder,
                       groups: holder.groups.map((entry, groupIndex) =>
@@ -644,11 +661,6 @@ export function App() {
                   </div>
                 )}
                 <div className="col-span-3 flex justify-end">
-                  {!customOpen && (
-                    <Button size="xs" variant="ghost" aria-label="Custom footprint" onClick={() => showCustomHolderGroup(group.id)}>
-                      Custom
-                    </Button>
-                  )}
                   <Button
                     size="icon-xs"
                     variant="ghost"
