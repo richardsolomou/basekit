@@ -41,86 +41,98 @@ function validBase(value: unknown): value is BaseConfig {
   )
 }
 
-function changed(value: unknown, defaults: unknown): unknown {
-  if (Array.isArray(value)) return JSON.stringify(value) === JSON.stringify(defaults) ? undefined : value
+function writeChanges(params: URLSearchParams, path: string, value: unknown, defaults: unknown): void {
+  if (Array.isArray(value)) return
   if (value && defaults && typeof value === 'object' && typeof defaults === 'object') {
-    const delta = Object.fromEntries(
-      Object.entries(value)
-        .map(([key, child]) => [key, changed(child, (defaults as Record<string, unknown>)[key])])
-        .filter(([, child]) => child !== undefined),
-    )
-    return Object.keys(delta).length === 0 ? undefined : delta
-  }
-  return Object.is(value, defaults) ? undefined : value
-}
-
-function restored(defaults: unknown, delta: unknown): unknown {
-  if (Array.isArray(defaults)) return Array.isArray(delta) ? delta : defaults
-  if (defaults && typeof defaults === 'object') {
-    const changes = delta && typeof delta === 'object' && !Array.isArray(delta) ? (delta as Record<string, unknown>) : {}
-    return Object.fromEntries(
-      Object.entries(defaults).map(([key, child]) => [key, Object.hasOwn(changes, key) ? restored(child, changes[key]) : child]),
-    )
-  }
-  return delta === undefined ? defaults : delta
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  const base64 = value.replaceAll('-', '+').replaceAll('_', '/')
-  const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='))
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
-}
-
-export function encodeSharedProject(project: SharedProject): string {
-  const payload = {
-    version: 1,
-    model: project.model,
-    base: changed(project.base, baseDefaults) ?? {},
-    holder: changed(project.holder, holderDefaults) ?? {},
-  }
-  return bytesToBase64(new TextEncoder().encode(JSON.stringify(payload)))
-}
-
-export function decodeSharedProject(value: string | null): SharedProject | undefined {
-  if (!value) return undefined
-  try {
-    const payload: unknown = JSON.parse(new TextDecoder().decode(base64ToBytes(value)))
-    if (!payload || typeof payload !== 'object') return undefined
-    const { version, model, base, holder } = payload as Record<string, unknown>
-    if (version !== 1 || (model !== 'base' && model !== 'holder')) return undefined
-    const restoredBase = restored(baseDefaults, base)
-    const restoredHolder = restored(holderDefaults, holder)
-    const labelDelta =
-      base &&
-      typeof base === 'object' &&
-      !Array.isArray(base) &&
-      (base as Record<string, unknown>).label &&
-      typeof (base as Record<string, unknown>).label === 'object'
-        ? ((base as Record<string, { text?: unknown }>).label.text ?? undefined)
-        : undefined
-    if (restoredBase && typeof restoredBase === 'object' && 'label' in restoredBase && typeof labelDelta === 'string') {
-      const restoredConfig = restoredBase as BaseConfig
-      restoredConfig.label.text = labelDelta
+    for (const [key, child] of Object.entries(value)) {
+      writeChanges(params, `${path}.${key}`, child, (defaults as Record<string, unknown>)[key])
     }
-    if (validBase(restoredBase) && validHolder(restoredHolder)) return { model, base: restoredBase, holder: restoredHolder }
-  } catch {
-    return undefined
+    return
   }
-  return undefined
+  if (!Object.is(value, defaults) && value !== undefined) params.set(path, String(value))
 }
 
-export function sharedProjectFromUrl(url: string): SharedProject | undefined {
-  return decodeSharedProject(new URL(url).searchParams.get('share'))
+function readValue(raw: string | null, defaults: unknown): unknown {
+  if (raw === null) return defaults
+  if (typeof defaults === 'number') {
+    const value = Number(raw)
+    return Number.isFinite(value) ? value : defaults
+  }
+  if (typeof defaults === 'boolean') return raw === 'true' ? true : raw === 'false' ? false : defaults
+  return typeof defaults === 'string' ? raw : defaults
+}
+
+function readConfig(params: URLSearchParams, path: string, defaults: unknown): unknown {
+  if (Array.isArray(defaults)) return defaults
+  if (defaults && typeof defaults === 'object') {
+    return Object.fromEntries(Object.entries(defaults).map(([key, child]) => [key, readConfig(params, `${path}.${key}`, child)]))
+  }
+  return readValue(params.get(path), defaults)
+}
+
+function writeGroups(params: URLSearchParams, groups: HolderConfig['groups']): void {
+  if (JSON.stringify(groups) === JSON.stringify(holderDefaults.groups)) return
+  for (const group of groups) params.append('holder.group', `${group.quantity}x${group.diameter}`)
+}
+
+function readGroups(params: URLSearchParams): HolderConfig['groups'] {
+  const values = params.getAll('holder.group')
+  if (values.length === 0) return holderDefaults.groups
+  const groups = values.map((value, index) => {
+    const match = /^(\d+)x(\d+(?:\.\d+)?)$/.exec(value)
+    if (!match) return undefined
+    return { id: `models-${index + 1}`, quantity: Number(match[1]), diameter: Number(match[2]) }
+  })
+  return groups.every((group) => group !== undefined) ? groups : holderDefaults.groups
 }
 
 export function shareUrl(project: SharedProject, origin = window.location.origin): string {
   const url = new URL(project.model === 'holder' ? '/holders' : '/', origin)
-  url.searchParams.set('share', encodeSharedProject(project))
+  const base = {
+    ...project.base,
+    magnets: { ...project.base.magnets, diameter: undefined, thickness: undefined, clearance: undefined },
+  }
+  const holder = {
+    ...project.holder,
+    groups: undefined,
+    magnets: { ...project.holder.magnets, diameter: undefined, thickness: undefined, clearance: undefined },
+  }
+  writeChanges(url.searchParams, 'base', base, baseDefaults)
+  writeChanges(url.searchParams, 'holder', holder, holderDefaults)
+  writeChanges(
+    url.searchParams,
+    'magnet',
+    {
+      diameter: project.base.magnets.diameter,
+      thickness: project.base.magnets.thickness,
+      clearance: project.base.magnets.clearance,
+    },
+    {
+      diameter: baseDefaults.magnets.diameter,
+      thickness: baseDefaults.magnets.thickness,
+      clearance: baseDefaults.magnets.clearance,
+    },
+  )
+  writeGroups(url.searchParams, project.holder.groups)
+  if (url.searchParams.size > 0) url.searchParams.set('v', '1')
   return url.toString()
+}
+
+export function sharedProjectFromUrl(url: string): SharedProject | undefined {
+  const parsed = new URL(url)
+  const params = parsed.searchParams
+  if (params.get('v') !== '1') return undefined
+  const base = readConfig(params, 'base', baseDefaults) as BaseConfig
+  const holder = { ...(readConfig(params, 'holder', holderDefaults) as HolderConfig), groups: readGroups(params) }
+  const magnet = readConfig(params, 'magnet', {
+    diameter: baseDefaults.magnets.diameter,
+    thickness: baseDefaults.magnets.thickness,
+    clearance: baseDefaults.magnets.clearance,
+  }) as Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>
+  base.magnets = { ...base.magnets, ...magnet }
+  holder.magnets = { ...holder.magnets, ...magnet }
+  const text = params.get('base.label.text')
+  if (text !== null) base.label.text = text
+  if (!validBase(base) || !validHolder(holder)) return undefined
+  return { model: parsed.pathname === '/holders' ? 'holder' : 'base', base, holder }
 }

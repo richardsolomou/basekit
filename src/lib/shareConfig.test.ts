@@ -1,41 +1,53 @@
 import { describe, expect, it } from 'vitest'
 import { defaultHolderConfig } from '../geometry/holder'
 import { DEFAULT_PRESET, presetFor, ROUND_SIZES } from '../geometry/presets'
-import { decodeSharedProject, encodeSharedProject, sharedProjectFromUrl, shareUrl } from './shareConfig'
+import { sharedProjectFromUrl, shareUrl } from './shareConfig'
 
 describe('shareable projects', () => {
-  it('round-trips changes to both generators', () => {
+  it('round-trips visible changes to both generators', () => {
     const base = { ...presetFor(ROUND_SIZES[1]), label: { enabled: true, height: 5, emboss: 0.6, text: 'Squad α' } }
     const holder = {
       ...defaultHolderConfig(),
       groups: [
-        { id: 'unit', quantity: 5, diameter: 32 },
-        { id: 'leader', quantity: 1, diameter: 40 },
+        { id: 'models-1', quantity: 5, diameter: 32 },
+        { id: 'models-2', quantity: 1, diameter: 40 },
       ],
     }
     const project = { model: 'holder' as const, base, holder }
-    expect(decodeSharedProject(encodeSharedProject(project))).toEqual(project)
-  })
-
-  it('stores only values changed from the versioned defaults', () => {
-    const project = { model: 'base' as const, base: presetFor(DEFAULT_PRESET), holder: defaultHolderConfig() }
-    const encoded = encodeSharedProject(project)
-    const base64 = encoded.replaceAll('-', '+').replaceAll('_', '/')
-    const json = new TextDecoder().decode(
-      Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')), (character) => character.charCodeAt(0)),
-    )
-    expect(JSON.parse(json)).toEqual({ version: 1, model: 'base', base: {}, holder: {} })
-  })
-
-  it('rejects malformed and unknown payloads', () => {
-    expect(decodeSharedProject('not-base64')).toBeUndefined()
-    expect(decodeSharedProject(btoa(JSON.stringify({ version: 2, model: 'base', base: {}, holder: {} })))).toBeUndefined()
-  })
-
-  it('loads the project independently of its route', () => {
-    const project = { model: 'base' as const, base: presetFor(ROUND_SIZES[2]), holder: defaultHolderConfig() }
     const url = shareUrl(project, 'https://example.com')
+    expect(url).toContain('/holders?')
+    expect(url).toContain('base.width=28.5')
+    expect(url).toContain('base.label.text=Squad+%CE%B1')
+    expect(url).toContain('holder.group=5x32&holder.group=1x40')
     expect(sharedProjectFromUrl(url)).toEqual(project)
-    expect(sharedProjectFromUrl(url.replace('example.com/', 'example.com/holders'))).toEqual(project)
+  })
+
+  it('stores one shared magnet specification', () => {
+    const base = presetFor(DEFAULT_PRESET)
+    base.magnets = { ...base.magnets, diameter: 6, thickness: 3, clearance: 0.1 }
+    const holder = defaultHolderConfig()
+    holder.magnets = { ...holder.magnets, diameter: 6, thickness: 3, clearance: 0.1 }
+    const url = shareUrl({ model: 'base', base, holder }, 'https://example.com')
+    expect(url).toContain('magnet.diameter=6')
+    expect(url).not.toContain('base.magnets.diameter')
+    expect(url).not.toContain('holder.magnets.diameter')
+    expect(sharedProjectFromUrl(url)).toEqual({ model: 'base', base, holder })
+  })
+
+  it('keeps an unchanged project URL clean', () => {
+    const project = { model: 'base' as const, base: presetFor(DEFAULT_PRESET), holder: defaultHolderConfig() }
+    expect(shareUrl(project, 'https://example.com')).toBe('https://example.com/')
+  })
+
+  it('rejects malformed and unknown versions', () => {
+    expect(sharedProjectFromUrl('https://example.com/?base.width=40')).toBeUndefined()
+    expect(sharedProjectFromUrl('https://example.com/?base.width=40&v=2')).toBeUndefined()
+  })
+
+  it('takes the active generator from the route', () => {
+    const project = { model: 'base' as const, base: presetFor(ROUND_SIZES[1]), holder: defaultHolderConfig() }
+    const url = shareUrl(project, 'https://example.com')
+    expect(sharedProjectFromUrl(url)?.model).toBe('base')
+    expect(sharedProjectFromUrl(url.replace('example.com/', 'example.com/holders'))?.model).toBe('holder')
   })
 })

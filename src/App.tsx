@@ -99,10 +99,21 @@ export function App() {
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
-    const syncRoute = () => setModel(modelForPath())
+    const syncRoute = () => {
+      const project = sharedProjectFromUrl(window.location.href)
+      if (project) {
+        setConfig(project.base)
+        setHolder(project.holder)
+      }
+      setModel(modelForPath())
+    }
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
+
+  useEffect(() => {
+    window.history.replaceState(null, '', shareUrl({ model, base: config, holder }))
+  }, [config, holder, model])
 
   useEffect(() => {
     document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
@@ -110,13 +121,13 @@ export function App() {
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    window.history.pushState(null, '', shareUrl({ model: next, base: config, holder }))
     setModel(next)
   }
 
   const copyShareLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl({ model, base: config, holder }))
+      await navigator.clipboard.writeText(window.location.href)
       posthog.capture('configuration_shared', { model })
       setShareState('copied')
       window.setTimeout(() => setShareState('idle'), 2000)
@@ -126,11 +137,19 @@ export function App() {
   }
 
   const safeEdgeSize = (next: BaseConfig) => Math.floor((maxProfileSize(next) + 1e-6) * 10) / 10
-  const patch = (changes: Partial<BaseConfig>) =>
-    setConfig((current) => {
-      const next = { ...current, ...changes }
-      return { ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) }
-    })
+  const patch = (changes: Partial<BaseConfig>) => {
+    const next = { ...config, ...changes }
+    if (changes.magnets) {
+      const { diameter, thickness, clearance } = changes.magnets
+      setHolder((current) => ({ ...current, magnets: { ...current.magnets, diameter, thickness, clearance } }))
+    }
+    setConfig({ ...next, profileSize: Math.min(next.profileSize, safeEdgeSize(next)) })
+  }
+
+  const patchHolderMagnets = (changes: Partial<Pick<HolderConfig['magnets'], 'diameter' | 'thickness' | 'clearance'>>) => {
+    setHolder((current) => ({ ...current, magnets: { ...current.magnets, ...changes } }))
+    setConfig((current) => ({ ...current, magnets: { ...current.magnets, ...changes } }))
+  }
   const { width, length } = footprint(config)
   const holderSize = holderLayout(holder)
   const plan = holderPlan(holder)
@@ -159,7 +178,16 @@ export function App() {
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
-    setConfig(presetFor(size))
+    const preset = presetFor(size)
+    setConfig({
+      ...preset,
+      magnets: {
+        ...preset.magnets,
+        diameter: config.magnets.diameter,
+        thickness: config.magnets.thickness,
+        clearance: config.magnets.clearance,
+      },
+    })
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -680,10 +708,10 @@ export function App() {
             label="Magnet Ø"
             value={holder.magnets.diameter}
             min={2}
-            max={8}
+            max={12}
             step={0.5}
             disabled={!holder.magnets.enabled}
-            onChange={(diameter) => setHolder({ ...holder, magnets: { ...holder.magnets, diameter } })}
+            onChange={(diameter) => patchHolderMagnets({ diameter })}
           />
           <Dimension
             label="Magnet thickness"
@@ -692,16 +720,16 @@ export function App() {
             max={Math.max(0.5, holder.height - holder.slotDepth - 0.4)}
             step={0.1}
             disabled={!holder.magnets.enabled}
-            onChange={(thickness) => setHolder({ ...holder, magnets: { ...holder.magnets, thickness } })}
+            onChange={(thickness) => patchHolderMagnets({ thickness })}
           />
           <Dimension
             label="Magnet fit clearance"
             value={holder.magnets.clearance}
             min={0}
-            max={1}
+            max={0.6}
             step={0.05}
             disabled={!holder.magnets.enabled}
-            onChange={(clearance) => setHolder({ ...holder, magnets: { ...holder.magnets, clearance } })}
+            onChange={(clearance) => patchHolderMagnets({ clearance })}
           />
         </Section>
         <RepositoryLink />

@@ -67,6 +67,8 @@ test('shares and restores the active base configuration', async ({ page, context
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await pickSize(page, '28.5')
   await page.getByLabel('Marking text').fill('Shared squad')
+  await expect(page).toHaveURL(/base.width=28.5/)
+  await expect(page).toHaveURL(/base.label.text=Shared\+squad/)
   await page.getByRole('button', { name: 'Copy share link' }).click()
   await expect(page.getByRole('button', { name: 'Copied share link' })).toBeVisible()
   const url = await page.evaluate(() => navigator.clipboard.readText())
@@ -147,12 +149,23 @@ test('shares and restores both generator configurations', async ({ page, context
   const url = await page.evaluate(() => navigator.clipboard.readText())
   await page.goto(url)
   await settled(page)
-  await expect(page).toHaveURL(/\/holders\?share=/)
+  await expect(page).toHaveURL(/\/holders\?/)
+  await expect(page).toHaveURL(/holder.group=4x40/)
   await expect(page.getByLabel(/^Quantity 1 in/)).toHaveValue('4')
   await expect(page.getByLabel(/^Base Ø 1 in/)).toHaveValue('40.0')
   await page.getByRole('link', { name: 'Bases' }).click()
   await expect(page.getByLabel('Diameter in mm')).toHaveValue('28.5')
   await expect(page.getByLabel('Marking text')).toHaveValue('Shared squad')
+})
+
+test('shares magnet dimensions between bases and holders', async ({ page }) => {
+  await page.getByLabel('Magnet Ø in mm').fill('6')
+  await expect(page).toHaveURL(/magnet.diameter=6/)
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect(page.getByLabel('Magnet Ø in mm')).toHaveValue('6.0')
+  await page.getByLabel('Magnet thickness in mm').fill('3')
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(page.getByLabel('Magnet thickness in mm')).toHaveValue('3.0')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
