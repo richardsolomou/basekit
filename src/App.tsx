@@ -220,21 +220,7 @@ export function App() {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
     const next = presetFor(size)
-    setConfig(
-      withRememberedMagnetCount(
-        {
-          ...next,
-          magnets: {
-            ...next.magnets,
-            diameter: config.magnets.diameter,
-            thickness: config.magnets.thickness,
-            clearance: config.magnets.clearance,
-            depthClearance: config.magnets.depthClearance,
-          },
-        },
-        holder.magnetCounts,
-      ),
-    )
+    setConfig(withRememberedMagnetCount(next, holder.magnetCounts))
   }
 
   const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
@@ -255,19 +241,20 @@ export function App() {
 
   const setSharedMagnetPlacement = (changes: Partial<Pick<BaseConfig, 'wallThickness'> & { bossWall: number }>) => {
     setWorkspace((current) => {
+      const shared = {
+        ...current.shared,
+        ...('wallThickness' in changes ? { wallThickness: changes.wallThickness } : {}),
+        ...('bossWall' in changes ? { magnetBossWall: changes.bossWall } : {}),
+      }
       const base = {
         ...current.base,
-        ...('wallThickness' in changes ? { wallThickness: changes.wallThickness } : {}),
-        magnets: { ...current.base.magnets, ...('bossWall' in changes ? { bossWall: changes.bossWall } : {}) },
+        wallThickness: shared.wallThickness,
+        magnets: { ...current.base.magnets, bossWall: shared.magnetBossWall },
       }
       return {
         ...current,
+        shared,
         base: { ...base, profileSize: Math.min(base.profileSize, safeEdgeSize(base)) },
-        holder: {
-          ...current.holder,
-          ...('wallThickness' in changes ? { baseWallThickness: changes.wallThickness } : {}),
-          ...('bossWall' in changes ? { magnetBossWall: changes.bossWall } : {}),
-        },
       }
     })
   }

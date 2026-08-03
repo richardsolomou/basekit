@@ -17,6 +17,8 @@ describe('workspace state', () => {
   it('keeps every setting exposed by both generators synchronized', () => {
     const state = defaultWorkspace()
     state.shared.labelsEnabled = false
+    state.shared.wallThickness = 2.5
+    state.shared.magnetBossWall = 1.1
     state.shared.magnets = { diameter: 6, thickness: 1.5, clearance: 0.3, depthClearance: 0.2 }
     const synchronized = synchronizeWorkspace(state)
     expect({ label: synchronized.base.label.enabled, engraving: synchronized.holder.engraving.enabled }).toEqual({
@@ -25,6 +27,12 @@ describe('workspace state', () => {
     })
     expect(synchronized.base.magnets).toMatchObject(synchronized.shared.magnets)
     expect(synchronized.holder.magnets).toMatchObject(synchronized.shared.magnets)
+    expect({
+      baseWall: synchronized.base.wallThickness,
+      baseBoss: synchronized.base.magnets.bossWall,
+      holderWall: synchronized.holder.baseWallThickness,
+      holderBoss: synchronized.holder.magnetBossWall,
+    }).toEqual({ baseWall: 2.5, baseBoss: 1.1, holderWall: 2.5, holderBoss: 1.1 })
   })
 
   it('restores the workspace from browser storage', () => {

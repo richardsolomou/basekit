@@ -19,6 +19,8 @@ export interface WorkspaceState {
 
 export interface SharedSettings {
   labelsEnabled: boolean
+  wallThickness: number
+  magnetBossWall: number
   magnets: Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
@@ -33,6 +35,8 @@ export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceStat
 function sharedFromBase(base: BaseConfig): SharedSettings {
   return {
     labelsEnabled: base.label.enabled,
+    wallThickness: base.wallThickness,
+    magnetBossWall: base.magnets.bossWall,
     magnets: {
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
@@ -48,11 +52,14 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
     ...state,
     base: {
       ...state.base,
+      wallThickness: shared.wallThickness,
       label: { ...state.base.label, enabled: shared.labelsEnabled },
-      magnets: { ...state.base.magnets, ...shared.magnets },
+      magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall },
     },
     holder: {
       ...state.holder,
+      baseWallThickness: shared.wallThickness,
+      magnetBossWall: shared.magnetBossWall,
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
