@@ -106,7 +106,11 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
 
   return (
     <Field orientation="horizontal" data-disabled={disabled} className={compact ? 'min-w-0' : undefined}>
-      <FieldLabel htmlFor={id} onPointerDown={startScrub} className={compact ? 'sr-only' : 'cursor-ew-resize touch-none font-normal'}>
+      <FieldLabel
+        htmlFor={id}
+        onPointerDown={startScrub}
+        className={compact ? 'sr-only' : `cursor-ew-resize touch-none font-normal ${modified ? 'text-modified' : ''}`}
+      >
         {label}
       </FieldLabel>
       {modified && (
@@ -118,7 +122,7 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
             setText(undefined)
             onChange(defaultValue)
           }}
-          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+          className="shrink-0 text-modified transition-colors hover:text-modified/80"
         >
           <RotateCcw className="size-3.5" />
         </button>

@@ -43,6 +43,8 @@
   --measure: oklch(0.8172 0.0911 225.35);
   /* Reserved for magnets, so a copper mark always means the same thing. */
   --magnet: oklch(0.7345 0.1099 64.65);
+  /* A setting that has moved away from its original value. */
+  --modified: oklch(0.75 0.16 48);
   /* The part, drawn as pale stock against the blue. */
   --part: oklch(0.8503 0.0159 248.02);
   /* The sheet's ruled grid, a shade above the paper. */
@@ -82,6 +84,7 @@
 
   --color-measure: var(--measure);
   --color-magnet: var(--magnet);
+  --color-modified: var(--modified);
   --color-part: var(--part);
   --color-grid-minor: var(--grid-minor);
   --color-grid-major: var(--grid-major);
