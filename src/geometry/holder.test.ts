@@ -101,6 +101,23 @@ describe('holderLayout', () => {
     expect(holderPlan(config).omitted).toEqual([])
   })
 
+  it('caps impossible high quantities before packing', () => {
+    const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 500, { width: 32 })] }
+    const plan = holderPlan(config)
+    const fitted = plan.modules.reduce(
+      (total, module) => total + module.config.groups.reduce((moduleTotal, group) => moduleTotal + group.quantity, 0),
+      0,
+    )
+    expect(fitted).toBeLessThan(500)
+    expect(plan.omitted.reduce((total, group) => total + group.quantity, 0)).toBe(500 - fitted)
+  })
+
+  it('keeps a hundred model request bounded by actual holder capacity', () => {
+    const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 100, { width: 32 })] }
+    expect(holderLayout(config).slotCenters.length).toBeLessThan(100)
+    expect(holderPlan(config).omitted.reduce((total, group) => total + group.quantity, 0)).toBeGreaterThan(0)
+  })
+
   it('keeps a full wall between every slot and the holder edge', () => {
     const config = defaultHolderConfig()
     const layout = holderLayout(config)

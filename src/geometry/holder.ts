@@ -19,6 +19,7 @@ const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
+const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 
 export interface HolderLayout {
   unitsWide: number
@@ -94,6 +95,28 @@ function slotWidth(slot: Pick<HolderGroup, 'width'>) {
 
 function slotLength(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
   return isElongated(slot.shape) ? slot.length : slot.width
+}
+
+function maxPossibleGroupQuantity(
+  group: Pick<HolderGroup, 'shape' | 'width' | 'length'>,
+  maxColumns: number,
+  maxRows: number,
+  spacing: number,
+) {
+  const width = maxColumns * GRID - GAP
+  const length = maxRows * GRID - GAP
+  const itemWidth = slotWidth(group)
+  const itemLength = slotLength(group)
+  if (itemWidth > width || itemLength > length) return 0
+  const pitchX = itemWidth + spacing
+  const pitchY = itemLength + spacing
+  const aligned = Math.floor((width + spacing) / pitchX) * Math.floor((length + spacing) / pitchY)
+  if ((group.shape !== 'round' && group.shape !== 'polygon') || itemWidth !== itemLength) return Math.max(0, aligned)
+
+  const rowPitch = pitchX * HEX_ROW_HEIGHT
+  const horizontal = Math.floor((width - itemWidth) / pitchX + 1) * Math.floor((length - itemLength) / rowPitch + 1)
+  const vertical = Math.floor((length - itemLength) / pitchX + 1) * Math.floor((width - itemWidth) / rowPitch + 1)
+  return Math.max(0, aligned, horizontal, vertical)
 }
 
 export function maxHolderSlotDepth(config: HolderConfig): number {
@@ -319,7 +342,12 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
   const maxRows = Math.max(1, Math.round(config.maxRows))
   const groups = config.groups
     .filter((group) => group.quantity > 0)
-    .map((group) => ({ ...group, quantity: Math.round(group.quantity), length: slotLength(group) }))
+    .map((group) => ({
+      ...group,
+      quantity: Math.min(Math.round(group.quantity), maxPossibleGroupQuantity(group, maxColumns, maxRows, config.spacing)),
+      length: slotLength(group),
+    }))
+    .filter((group) => group.quantity > 0)
   const slots = groups
     .flatMap((group) =>
       Array.from({ length: group.quantity }, (_, index): HolderSlot => ({ ...group, id: `${group.id}-${index}`, x: 0, y: 0 })),
@@ -368,9 +396,18 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   const key = JSON.stringify(config)
   const cached = planCache.get(key)
   if (cached) return cached
+  const addOmitted = (omitted: HolderGroup[], group: HolderGroup, quantity: number) => {
+    if (quantity <= 0) return
+    const existing = omitted.find((entry) => entry.id === group.id)
+    if (existing) existing.quantity += quantity
+    else omitted.push({ ...group, quantity })
+  }
 
   if (!config.splitGroups) {
-    const groups = config.groups.map((group) => ({ ...group, quantity: Math.max(0, Math.round(group.quantity)) }))
+    const groups = config.groups.map((group) => ({
+      ...group,
+      quantity: Math.min(Math.max(0, Math.round(group.quantity)), maxPossibleGroupQuantity(group, columns, rows, config.spacing)),
+    }))
     let layout: HolderLayout | undefined
     while (groups.some((group) => group.quantity > 0)) {
       const candidate = singleHolderLayout({ ...config, groups })
@@ -418,7 +455,9 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   }
 
   for (const group of config.groups) {
-    let remaining = Math.max(0, Math.round(group.quantity))
+    const requested = Math.max(0, Math.round(group.quantity))
+    let remaining = Math.min(requested, maxPossibleGroupQuantity(group, columns, rows, config.spacing))
+    addOmitted(omitted, group, requested - remaining)
     while (true) {
       if (remaining <= 0) break
       let placed = false
@@ -455,7 +494,7 @@ export function holderPlan(config: HolderConfig): HolderPlan {
         placed = tryRows([rows]) || tryRows(Array.from({ length: rows - 1 }, (_, index) => index + 1))
       }
       if (!placed) {
-        omitted.push({ ...group, quantity: remaining })
+        addOmitted(omitted, group, remaining)
         break
       }
     }

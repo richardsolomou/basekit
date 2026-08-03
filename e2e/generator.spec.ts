@@ -177,6 +177,19 @@ test('updates integer holder inputs immediately without losing focus', async ({ 
   await expect(quantity).toHaveValue('4')
 })
 
+test('caps oversized holder quantities before rendering', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const quantity = page.getByLabel(/^Quantity 1 in/)
+  const before = await triangles(page)
+  await quantity.fill('100')
+  await rebuilt(page, before)
+  await expect(quantity).toBeFocused()
+  await expect(quantity).toHaveValue('100')
+  await expect(page.getByText(/\d+\/100 fitted/)).toBeVisible()
+  await expect(page.getByText(/Only \d+ of 100 fit/)).toBeVisible()
+})
+
 test('switches between subtractive holder engraving locations', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
