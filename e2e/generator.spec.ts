@@ -136,7 +136,7 @@ test('exports finer circular geometry than the preview', { tag: '@ci' }, async (
   expect(stl.readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
-test('builds and exports an automatically sized Gridfinity holder', { tag: '@ci' }, async ({ page }) => {
+test('builds and exports an automatically sized Gridfinity holder', async ({ page }) => {
   const before = await triangles(page)
   await page.getByRole('link', { name: 'Holders' }).click()
   await rebuilt(page, before)
@@ -156,7 +156,7 @@ test('builds and exports an automatically sized Gridfinity holder', { tag: '@ci'
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
-test('loads the Gridfinity holder directly from its route', async ({ page }) => {
+test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, async ({ page }) => {
   await page.goto('/holders')
   await settled(page)
   await expect(page).toHaveTitle('Gridfinity Mini Holders')

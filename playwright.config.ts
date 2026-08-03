@@ -13,7 +13,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL,
     trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure',
