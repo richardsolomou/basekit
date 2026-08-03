@@ -46,10 +46,6 @@ jobs:
 
   end-to-end:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
 
@@ -84,12 +80,12 @@ jobs:
         run: pnpm build
 
       - name: End-to-end
-        run: pnpm test:e2e:run --shard=${{ matrix.shard }}/2
+        run: pnpm test:e2e:run
 
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-traces-${{ matrix.shard }}
+          name: playwright-traces
           path: test-results/
           retention-days: 7
