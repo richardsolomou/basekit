@@ -37,6 +37,7 @@
     "lucide-react": "^1.28.0",
     "manifold-3d": "^3.5.1",
     "opentype.js": "^2.0.0",
+    "posthog-js": "^1.407.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0",

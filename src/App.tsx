@@ -30,6 +30,7 @@ import { buildMesh } from '@/lib/buildMesh'
 import { asMeshLike, download } from '@/lib/download'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
+import posthog from '@/lib/posthog'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'round', label: 'Round' },
@@ -75,11 +76,15 @@ export function App() {
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
 
-  const loadPreset = (size: SizePreset) => setConfig(presetFor(size))
+  const loadPreset = (size: SizePreset) => {
+    posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
+    setConfig(presetFor(size))
+  }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
   const changeShape = (shape: ShapeKind) => {
     if (shape === config.shape) return
+    posthog.capture('base_shape_selected', { shape })
     const target = DEFAULT_SIZE[shape]
     setConfig(resized({ ...config, shape }, target.width, target.length ?? target.width))
   }
@@ -90,6 +95,7 @@ export function App() {
     try {
       return await buildMesh({ ...config, segments: exportSegmentsFor(Math.max(width, length)) })
     } catch (failure) {
+      posthog.captureException(failure, { export_format: format })
       setExportError(failure instanceof Error ? failure.message : String(failure))
     } finally {
       setExporting(undefined)
@@ -101,6 +107,7 @@ export function App() {
     if (!mesh) return
     const name = `${baseName(config)}.stl`
     download(name, toStl(asMeshLike(mesh), name))
+    posthog.capture('base_exported', { format: 'stl', shape: config.shape, width, length, height: config.height })
   }
 
   const export3mf = async () => {
@@ -108,6 +115,7 @@ export function App() {
     if (!mesh) return
     const name = baseName(config)
     download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
+    posthog.capture('base_exported', { format: '3mf', shape: config.shape, width, length, height: config.height })
   }
 
   const panel = (
@@ -190,7 +198,10 @@ export function App() {
               id="marking-enabled"
               aria-label="Emboss the size inside"
               checked={config.label.enabled}
-              onCheckedChange={(enabled) => patch({ label: { ...config.label, enabled } })}
+              onCheckedChange={(enabled) => {
+                posthog.capture('base_marking_toggled', { enabled })
+                patch({ label: { ...config.label, enabled } })
+              }}
             />
           </Field>
           <Field>
