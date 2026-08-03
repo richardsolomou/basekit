@@ -243,7 +243,9 @@ export function ToggleSetting({
         {label}
       </FieldLabel>
       {modified && <ResetButton label={label} value={defaultChecked ? 'on' : 'off'} onReset={() => onChange(defaultChecked)} />}
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <div className="flex w-28 shrink-0 justify-end">
+        <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      </div>
     </Field>
   )
 }
