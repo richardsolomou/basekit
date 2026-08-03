@@ -1,5 +1,7 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
+import { magnetPositions } from './base'
+import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
 import { isElongated, trimNumber } from './outline'
 import { DEFAULT_SIZE, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
@@ -95,6 +97,25 @@ function slotWidth(slot: Pick<HolderGroup, 'width'>) {
 
 function slotLength(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
   return isElongated(slot.shape) ? slot.length : slot.width
+}
+
+export function holderSlotMagnetCenters(slot: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
+  const base = presetFor({
+    label: '',
+    shape: slot.shape,
+    width: slotWidth(slot),
+    length: slotLength(slot),
+    use: '',
+  })
+  const pocketRadius = (base.magnets.diameter + base.magnets.clearance) / 2
+  const bossRadius = pocketRadius + base.magnets.bossWall
+  const halfWidth = Math.max(0, slotWidth(slot) / 2 - base.wallThickness)
+  const halfLength = Math.max(0, slotLength(slot) / 2 - base.wallThickness)
+  return magnetPositions(base.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN).map(({ x, y }) => ({ x, y }))
+}
+
+export function holderMagnetPocketCount(config: HolderConfig): number {
+  return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot).length, 0)
 }
 
 function maxPossibleGroupQuantity(
@@ -627,11 +648,15 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
     if (config.magnets.enabled) {
       const radius = (config.magnets.diameter + config.magnets.clearance) / 2
       const magnetDisc = section(CrossSection.circle(radius, segmentsFor(radius * 2, 32)))
-      const magnetOutlines = layout.slotCenters.map((slot) => section(magnetDisc.translate([slot.x, slot.y])))
-      const magnets = section(CrossSection.union(magnetOutlines))
-      const drill = solidOf(magnets.extrude(config.magnets.thickness + 0.001))
-      const pocketFloor = config.height - config.slotDepth - config.magnets.thickness
-      cutters.push(solidOf(drill.translate([0, 0, pocketFloor])))
+      const magnetOutlines = layout.slotCenters.flatMap((slot) =>
+        holderSlotMagnetCenters(slot).map((center) => section(magnetDisc.translate([slot.x + center.x, slot.y + center.y]))),
+      )
+      if (magnetOutlines.length > 0) {
+        const magnets = section(CrossSection.union(magnetOutlines))
+        const drill = solidOf(magnets.extrude(config.magnets.thickness + 0.001))
+        const pocketFloor = config.height - config.slotDepth - config.magnets.thickness
+        cutters.push(solidOf(drill.translate([0, 0, pocketFloor])))
+      }
     }
 
     if (config.engraving.enabled && font) {
@@ -646,19 +671,41 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
 
       if (config.engraving.placement === 'slots') {
         const labels: CrossSection[] = []
-        for (const label of new Set(layout.slotCenters.map(holderGroupSizeLabel))) {
-          const matching = layout.slotCenters.filter((slot) => holderGroupSizeLabel(slot) === label)
-          const narrow = Math.min(...matching.map((slot) => Math.min(slotWidth(slot), slotLength(slot))))
-          const wide = Math.min(...matching.map((slot) => slotWidth(slot)))
+        for (const slot of layout.slotCenters) {
+          const label = holderGroupSizeLabel(slot)
+          const narrow = Math.min(slotWidth(slot), slotLength(slot))
           const height = Math.min(4, narrow * 0.14)
-          const glyph = textSection(label.replace(/^Ø/, ''), height, wide * 0.55, 0, narrow * 0.24)
-          for (const slot of matching) {
-            labels.push(section(glyph.translate([slot.x, slot.y])))
-          }
+          const polygons = textPolygons(font, label.replace(/^Ø/, ''), height)
+          if (polygons.length === 0) continue
+          const room = section(
+            slotOutline(wasm, slot, 0, segmentsFor(Math.max(slotWidth(slot), slotLength(slot)), 64)).offset(-LABEL_MARGIN),
+          )
+          if (room.isEmpty()) continue
+          const roomBounds = room.bounds()
+          const reach = Math.hypot((roomBounds.max[0] - roomBounds.min[0]) / 2, (roomBounds.max[1] - roomBounds.min[1]) / 2)
+          const contours = room.toPolygons()
+          const obstacles: LabelCircle[] = config.magnets.enabled
+            ? holderSlotMagnetCenters(slot).map((center) => ({ ...center, r: (config.magnets.diameter + config.magnets.clearance) / 2 }))
+            : []
+          const fit = fitLabel(
+            polygonsWidth(polygons),
+            height,
+            reach,
+            (x, y) => pointInContours(contours, x, y),
+            obstacles,
+            labelAngles([], obstacles),
+          )
+          if (!fit) continue
+          const placed: Polygon[] = polygons.map((polygon) =>
+            polygon.map(([px, py]): [number, number] => [slot.x + px * fit.scale + fit.x, slot.y + py * fit.scale + fit.y]),
+          )
+          labels.push(section(CrossSection.ofPolygons(placed, 'EvenOdd')))
         }
-        const outlines = section(CrossSection.union(labels))
-        const cut = solidOf(outlines.extrude(depth + 0.01))
-        cutters.push(solidOf(cut.translate([0, 0, config.height - config.slotDepth - depth])))
+        if (labels.length > 0) {
+          const outlines = section(CrossSection.union(labels))
+          const cut = solidOf(outlines.extrude(depth + 0.01))
+          cutters.push(solidOf(cut.translate([0, 0, config.height - config.slotDepth - depth])))
+        }
       } else {
         const text = [...new Set(config.groups.map(holderGroupSizeLabel))].join(' / ')
         let placed: CrossSection | undefined

@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
-import { holderGroupLabel, holderLayout, holderPlan } from '@/geometry/holder'
+import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -40,7 +40,7 @@ export function TitleBlock({ config, status, name }: Props) {
         {plan.omitted.length > 0 && (
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
-        <Row label="Magnets" value={config.magnets.enabled ? `${layout.slotCenters.length} × ${pocket} mm hole` : 'none'} />
+        <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
       </TitleFrame>
     )
   }

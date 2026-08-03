@@ -297,6 +297,16 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })
 
+test('uses preset magnet layouts in holder slots', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const before = await triangles(page)
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: '65 Large monsters' }).click()
+  await rebuilt(page, before)
+  await expect(footer(page)).toContainText('15 × 5.2 mm hole')
+})
+
 const SHAPES = [
   { name: 'Oval', footprint: '60 × 35', mark: '60x35', chip: '170×105' },
   { name: 'Pill', footprint: '60 × 35', mark: '60x35', chip: '105×70' },

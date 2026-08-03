@@ -7,7 +7,9 @@ import {
   defaultHolderConfig,
   holderGroup,
   holderLayout,
+  holderMagnetPocketCount,
   holderPlan,
+  holderSlotMagnetCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
 } from './holder'
@@ -82,6 +84,17 @@ describe('holderLayout', () => {
       'rect:25x50',
       'rect:25x50',
     ])
+  })
+
+  it('uses the supported base magnet layout for each holder slot', () => {
+    expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 32 }))).toHaveLength(1)
+    const largeRound = holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 65 }))
+    expect(largeRound).toHaveLength(3)
+    expect(largeRound.every((center) => Math.hypot(center.x, center.y) > 1)).toBe(true)
+    const oval = holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 60, length: 35 }))
+    expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0, 0])
+    expect(Math.min(...oval.map((center) => center.x))).toBeLessThan(-20)
+    expect(Math.max(...oval.map((center) => center.x))).toBeGreaterThan(20)
   })
 
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
@@ -262,6 +275,12 @@ describe('buildHolder', () => {
     expect(maxZ).toBeCloseTo(slotFloor, 2)
   })
 
+  it('cuts every default magnet pocket for larger supported bases', () => {
+    const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 2, { width: 65 })], maxRows: 2 }
+    expect(holderMagnetPocketCount(config)).toBe(6)
+    expect(buildHolder(wasm, config).stats.solid).toBe(true)
+  })
+
   it.each([
     { name: 'engraving', config: { ...defaultHolderConfig(), magnets: { ...defaultHolderConfig().magnets, enabled: false } } },
     { name: 'magnets', config: defaultHolderConfig() },
@@ -282,6 +301,19 @@ describe('buildHolder', () => {
     const config = defaultHolderConfig()
     const plain = buildHolder(wasm, { ...config, engraving: { ...config.engraving, enabled: false } }, font).stats.volume
     const engraved = buildHolder(wasm, { ...config, engraving: { enabled: true, placement } }, font).stats.volume
+    expect(engraved).toBeLessThan(plain)
+  })
+
+  it('places in-slot engraving around multi-pocket magnet layouts', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      groups: [holderGroup('models-1', 1, { width: 65 })],
+      maxRows: 2,
+      engraving: { enabled: true, placement: 'slots' as const },
+    }
+    const plain = buildHolder(wasm, { ...config, engraving: { ...config.engraving, enabled: false } }, font).stats.volume
+    const engraved = buildHolder(wasm, config, font).stats.volume
+    expect(holderMagnetPocketCount(config)).toBe(3)
     expect(engraved).toBeLessThan(plain)
   })
 })
