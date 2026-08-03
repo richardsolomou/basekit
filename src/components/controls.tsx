@@ -109,7 +109,21 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
       <FieldLabel htmlFor={id} onPointerDown={startScrub} className={compact ? 'sr-only' : 'cursor-ew-resize touch-none font-normal'}>
         {label}
       </FieldLabel>
-      <InputGroup className={`${compact ? 'w-full min-w-0' : 'w-28 shrink-0'} ${modified ? 'ring-1 ring-measure/60' : ''}`}>
+      {modified && (
+        <button
+          type="button"
+          aria-label={`Reset ${label} to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+          title={`Reset to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
+          onClick={() => {
+            setText(undefined)
+            onChange(defaultValue)
+          }}
+          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <RotateCcw className="size-3.5" />
+        </button>
+      )}
+      <InputGroup className={compact ? 'w-full min-w-0' : 'w-28 shrink-0'}>
         <InputGroupInput
           id={id}
           type="number"
@@ -128,22 +142,6 @@ export function Dimension({ label, value, min, max, step, unit = 'mm', disabled,
         {unit && (
           <InputGroupAddon align="inline-end">
             <InputGroupText className="text-xs">{unit}</InputGroupText>
-          </InputGroupAddon>
-        )}
-        {modified && (
-          <InputGroupAddon align="inline-end">
-            <button
-              type="button"
-              aria-label={`Reset ${label} to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-              title={`Reset to ${format(defaultValue)}${unit ? ` ${unit}` : ''}`}
-              onClick={() => {
-                setText(undefined)
-                onChange(defaultValue)
-              }}
-              className="text-muted-foreground transition-colors hover:text-measure"
-            >
-              <RotateCcw className="size-3" />
-            </button>
           </InputGroupAddon>
         )}
       </InputGroup>
