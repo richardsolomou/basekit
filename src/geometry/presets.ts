@@ -192,6 +192,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
     floorThickness: 1,
     magnets: {
       count: magnetCount(width, length, maxMagnets),
+      layout: 'balanced',
       maxCount: maxMagnets,
       diameter: 5,
       clearance: 0.2,

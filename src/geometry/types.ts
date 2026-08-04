@@ -7,9 +7,13 @@ export type EdgeProfile = 'taper' | 'straight' | 'bevel' | 'round'
 /** Where the magnets go in from, which also decides whether the top is recessed. */
 export type Underside = 'well' | 'solid'
 
+export type MagnetLayout = 'balanced' | 'five-cross'
+
 export interface MagnetSpec {
   /** 0 disables pockets. 1 sits at the centre, more spread over the footprint. */
   count: number
+  /** Balanced follows the selected count; five-cross provides a centre and four outer pockets. */
+  layout: MagnetLayout
   /** Upper bound for counts chosen automatically from the footprint. */
   maxCount: number
   diameter: number
@@ -93,6 +97,7 @@ export interface HolderConfig {
   height: number
   magnets: {
     enabled: boolean
+    layout: MagnetLayout
     maxCount: number
     diameter: number
     clearance: number

@@ -3,7 +3,7 @@ import { DEFAULT_PRESET, footprintKey, presetFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 1
+const WORKSPACE_VERSION = 2
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -22,7 +22,7 @@ export interface SharedSettings {
   wallThickness: number
   magnetBossWall: number
   magnetCounts: Record<string, number>
-  magnets: Pick<BaseConfig['magnets'], 'maxCount' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
+  magnets: Pick<BaseConfig['magnets'], 'layout' | 'maxCount' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
 export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceState): void {
@@ -40,6 +40,7 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
     magnetBossWall: base.magnets.bossWall,
     magnetCounts: {},
     magnets: {
+      layout: base.magnets.layout,
       maxCount: base.magnets.maxCount,
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
@@ -51,7 +52,8 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
 
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
-  const count = shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)]
+  const count =
+    shared.magnets.layout === 'five-cross' ? 5 : shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)]
   return {
     ...state,
     base: {
@@ -59,6 +61,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       wallThickness: shared.wallThickness,
       label: { ...state.base.label, enabled: shared.labelsEnabled },
       magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall, count: count ?? state.base.magnets.count },
+      ribs: { ...state.base.ribs, count: shared.magnets.layout === 'five-cross' ? 4 : state.base.ribs.count },
     },
     holder: {
       ...state.holder,
@@ -81,10 +84,31 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const saved = storage.getItem(WORKSPACE_KEY)
     if (saved === null) return defaultWorkspace()
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
-    if (parsed.version !== WORKSPACE_VERSION || !isWorkspaceState(parsed.workspace, defaultWorkspace())) return defaultWorkspace()
-    return synchronizeWorkspace(parsed.workspace)
+    const workspace = parsed.version === 1 ? migrateWorkspaceV1(parsed.workspace) : parsed.workspace
+    if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1) return defaultWorkspace()
+    if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
+    return synchronizeWorkspace(workspace)
   } catch {
     return defaultWorkspace()
+  }
+}
+
+function migrateWorkspaceV1(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const shared = workspace.shared as Record<string, unknown> | undefined
+  const base = workspace.base as Record<string, unknown> | undefined
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  if (!shared || !base || !holder) return value
+  const sharedMagnets = shared.magnets as Record<string, unknown> | undefined
+  const baseMagnets = base.magnets as Record<string, unknown> | undefined
+  const holderMagnets = holder.magnets as Record<string, unknown> | undefined
+  if (!sharedMagnets || !baseMagnets || !holderMagnets) return value
+  return {
+    ...workspace,
+    shared: { ...shared, magnets: { ...sharedMagnets, layout: 'balanced' } },
+    base: { ...base, magnets: { ...baseMagnets, layout: 'balanced' } },
+    holder: { ...holder, magnets: { ...holderMagnets, layout: 'balanced' } },
   }
 }
 
@@ -101,6 +125,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   const workspace = value as WorkspaceState
   return (
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
+    ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )

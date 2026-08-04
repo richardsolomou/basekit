@@ -174,6 +174,7 @@ interface ChoiceProps<T extends string | number> {
   label: string
   value: T
   defaultValue?: T
+  disabled?: boolean
   options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
 }
@@ -182,23 +183,24 @@ interface ChoiceProps<T extends string | number> {
  * Inline choice. Values travel as strings because Select works in strings, and
  * are mapped back through the options so numbers survive the trip.
  */
-export function Choice<T extends string | number>({ label, value, defaultValue, options, onChange }: ChoiceProps<T>) {
+export function Choice<T extends string | number>({ label, value, defaultValue, disabled, options, onChange }: ChoiceProps<T>) {
   const id = useId()
   const modified = defaultValue !== undefined && value !== defaultValue
   const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
   const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
   return (
-    <Field orientation="horizontal">
+    <Field orientation="horizontal" data-disabled={disabled}>
       <div className={settingColumns}>
         <FieldLabel htmlFor={id} className={`${settingLabel} col-span-2 ${modified ? 'text-modified' : ''}`}>
           {label}
         </FieldLabel>
-        {modified && (
+        {modified && !disabled && (
           <ResetSlot>
             <ResetButton label={label} value={defaultLabel} onReset={() => onChange(defaultValue)} />
           </ResetSlot>
         )}
         <Select
+          disabled={disabled}
           value={String(value)}
           onValueChange={(next) => {
             const picked = options.find((option) => String(option.value) === String(next))
