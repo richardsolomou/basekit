@@ -152,11 +152,12 @@ function maxPossibleGroupQuantity(
   maxColumns: number,
   maxRows: number,
   spacing: number,
+  clearance: number,
 ) {
   const width = maxColumns * GRID - GAP
   const length = maxRows * GRID - GAP
-  const itemWidth = slotWidth(group)
-  const itemLength = slotLength(group)
+  const itemWidth = slotWidth(group) + clearance
+  const itemLength = slotLength(group) + clearance
   if (itemWidth > width || itemLength > length) return 0
   const pitchX = itemWidth + spacing
   const pitchY = itemLength + spacing
@@ -166,7 +167,15 @@ function maxPossibleGroupQuantity(
   const rowPitch = pitchX * HEX_ROW_HEIGHT
   const horizontal = Math.floor((width - itemWidth) / pitchX + 1) * Math.floor((length - itemLength) / rowPitch + 1)
   const vertical = Math.floor((length - itemLength) / pitchX + 1) * Math.floor((width - itemWidth) / rowPitch + 1)
-  return Math.max(0, aligned, horizontal, vertical)
+  const areaBound = Math.floor((width * length) / (Math.PI * (itemWidth / 2) ** 2))
+  let lower = Math.max(0, aligned, horizontal, vertical)
+  let upper = areaBound
+  while (lower < upper) {
+    const candidate = Math.ceil((lower + upper) / 2)
+    if (staggeredPacking(candidate, itemWidth, width, length, spacing)) lower = candidate
+    else upper = candidate - 1
+  }
+  return lower
 }
 
 export function maxHolderSlotDepth(config: HolderConfig): number {
@@ -387,14 +396,17 @@ function boxPacking(items: HolderSlot[], width: number, length: number, spacing:
 
 const layoutCache = new Map<string, HolderLayout>()
 
-function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' | 'maxRows' | 'spacing'>): HolderLayout {
+function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' | 'maxRows' | 'spacing' | 'slotClearance'>): HolderLayout {
   const maxColumns = Math.max(1, Math.round(config.maxColumns))
   const maxRows = Math.max(1, Math.round(config.maxRows))
   const groups = config.groups
     .filter((group) => group.quantity > 0)
     .map((group) => ({
       ...group,
-      quantity: Math.min(Math.round(group.quantity), maxPossibleGroupQuantity(group, maxColumns, maxRows, config.spacing)),
+      quantity: Math.min(
+        Math.round(group.quantity),
+        maxPossibleGroupQuantity(group, maxColumns, maxRows, config.spacing, config.slotClearance),
+      ),
       length: slotLength(group),
     }))
     .filter((group) => group.quantity > 0)
@@ -403,7 +415,7 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
       Array.from({ length: group.quantity }, (_, index): HolderSlot => ({ ...group, id: `${group.id}-${index}`, x: 0, y: 0 })),
     )
     .sort((a, b) => Math.max(slotWidth(b), slotLength(b)) - Math.max(slotWidth(a), slotLength(a)))
-  const key = `${maxColumns}:${maxRows}:${config.spacing}:${groups
+  const key = `${maxColumns}:${maxRows}:${config.spacing}:${config.slotClearance}:${groups
     .map((group) => `${group.quantity}x${group.shape}-${group.width}x${slotLength(group)}-${group.cornerRadius}-${group.sides}`)
     .join(',')}`
   const cached = layoutCache.get(key)
@@ -421,14 +433,32 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
       )
       const packed = circleSlots
         ? relaxedPacking(
-            slots.map((slot) => slotWidth(slot)),
+            slots.map((slot) => slotWidth(slot) + config.slotClearance),
             width,
             length,
             config.spacing,
-          )?.map((point, index) => ({ ...slots[index], x: point.x, y: point.y }))
-        : boxPacking(slots, width, length, config.spacing)
+          )?.map((point, index) => ({
+            ...slots[index],
+            width: slots[index].width + config.slotClearance,
+            length: slots[index].length + config.slotClearance,
+            x: point.x,
+            y: point.y,
+          }))
+        : boxPacking(
+            slots.map((slot) => ({ ...slot, width: slot.width + config.slotClearance, length: slot.length + config.slotClearance })),
+            width,
+            length,
+            config.spacing,
+          )
       if (packed) {
-        layout = { unitsWide, unitsDeep, width, length, slotCenters: distributed(packed, width, length) }
+        const distributedSlots = distributed(packed, width, length)
+        layout = {
+          unitsWide,
+          unitsDeep,
+          width,
+          length,
+          slotCenters: distributedSlots.map((point) => ({ ...slots.find((slot) => slot.id === point.id)!, x: point.x, y: point.y })),
+        }
         break
       }
     }
@@ -455,7 +485,10 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   if (!config.splitGroups) {
     const groups = config.groups.map((group) => ({
       ...group,
-      quantity: Math.min(Math.max(0, Math.round(group.quantity)), maxPossibleGroupQuantity(group, columns, rows, config.spacing)),
+      quantity: Math.min(
+        Math.max(0, Math.round(group.quantity)),
+        maxPossibleGroupQuantity(group, columns, rows, config.spacing, config.slotClearance),
+      ),
     }))
     let layout: HolderLayout | undefined
     while (groups.some((group) => group.quantity > 0)) {
@@ -504,7 +537,7 @@ export function holderPlan(config: HolderConfig): HolderPlan {
 
   for (const group of config.groups) {
     const requested = Math.max(0, Math.round(group.quantity))
-    let remaining = Math.min(requested, maxPossibleGroupQuantity(group, columns, rows, config.spacing))
+    let remaining = Math.min(requested, maxPossibleGroupQuantity(group, columns, rows, config.spacing, config.slotClearance))
     addOmitted(omitted, group, requested - remaining)
     while (true) {
       if (remaining <= 0) break
