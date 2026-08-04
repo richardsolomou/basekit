@@ -21,9 +21,9 @@ const REFERENCE_FOOTPRINT = 50
  * view is vertical — so fitting the height alone put a 60mm base at twice the
  * width of the screen.
  */
-function framingDistance(aspect: number): number {
+function framingDistance(aspect: number, footprint = REFERENCE_FOOTPRINT): number {
   const halfHeight = Math.tan(THREE.MathUtils.degToRad(FIELD_OF_VIEW / 2))
-  return ((REFERENCE_FOOTPRINT / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
+  return ((footprint / 2) * 1.45) / Math.min(halfHeight, halfHeight * aspect)
 }
 
 /** Steep enough to look down into the well, where the size label and supports are. */
@@ -64,14 +64,21 @@ interface Props {
   length: number
   height: number
   round: boolean
+  fitToPart?: boolean
 }
 
-export function Viewer({ mesh, width, length, height, round }: Props) {
+export function Viewer({ mesh, width, length, height, round, fitToPart = false }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const overlay = useRef<SVGSVGElement>(null)
   const part = useRef<THREE.Group>(null)
   const shadowLight = useRef<THREE.DirectionalLight>(null)
   const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null)
+  const held = useRef(false)
+  const shouldFit = useRef(fitToPart)
+  const framingFootprint = useRef(REFERENCE_FOOTPRINT)
+  shouldFit.current = fitToPart
+  framingFootprint.current = fitToPart ? Math.max(width, length) : REFERENCE_FOOTPRINT
 
   useEffect(() => {
     const container = host.current
@@ -92,6 +99,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     const world = new THREE.Scene()
 
     const camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW, 1, 0.5, 2000)
+    cameraRef.current = camera
     camera.up.set(0, 0, 1)
     camera.position.copy(VIEW_DIRECTION.clone().normalize())
 
@@ -148,9 +156,8 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     // Until the viewer touches the camera it stays framed on the reference
     // footprint, which is what makes a window resize or a phone rotating do the
     // sensible thing. After that the view is theirs and nothing moves it.
-    let held = false
     controls.addEventListener('start', () => {
-      held = true
+      held.current = true
     })
 
     const resize = () => {
@@ -158,7 +165,7 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
       renderer.setSize(w, h)
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
-      if (!held) camera.position.setLength(framingDistance(camera.aspect))
+      if (!held.current) camera.position.setLength(framingDistance(camera.aspect, framingFootprint.current))
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -281,6 +288,9 @@ export function Viewer({ mesh, width, length, height, round }: Props) {
     group.add(edges)
 
     group.userData = { halfWidth: width / 2, halfLength: length / 2, height }
+
+    const camera = cameraRef.current
+    if (shouldFit.current && camera && !held.current) camera.position.setLength(framingDistance(camera.aspect, Math.max(width, length)))
 
     // The triangle count of what is actually in the scene, which is the only
     // honest signal that a rebuild has landed — the status word reads "ready"

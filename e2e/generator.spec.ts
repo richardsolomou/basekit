@@ -246,6 +246,18 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
+test('frames every slot in a tall holder', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  await page.getByLabel(/^Quantity 1 in/).fill('4')
+  await page.getByLabel(/^Quantity 1 in/).press('Enter')
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: /^50\b/ }).click()
+  await expect(page.getByText('4/4 fitted')).toBeVisible()
+  await expect(across(page)).toHaveText('83.5 × 167.5')
+  await expect(across(page)).toBeInViewport()
+})
+
 test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, async ({ page }) => {
   await page.goto('/holders')
   await settled(page)
