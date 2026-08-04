@@ -5,7 +5,7 @@ import { baseOutline, defaultLabel } from './outline'
 import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { curveTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
-import type { BaseConfig, BaseStats } from './types'
+import type { BaseConfig, BaseStats, MagnetLayout } from './types'
 
 export interface BuildResult {
   mesh: Mesh
@@ -24,6 +24,7 @@ export interface Circle {
 
 interface MagnetPositionOptions {
   ellipticalRow?: boolean
+  layout?: MagnetLayout
 }
 
 /** Whether magnets sit on a ring, rather than in a row down the long axis. */
@@ -43,6 +44,9 @@ export function magnetPositions(
   options: MagnetPositionOptions = {},
 ): Circle[] {
   if (count <= 0) return []
+  if (options.layout === 'five-cross') {
+    return [{ x: 0, y: 0, r: 0 }, ...magnetPositions(4, halfWidth, halfLength, clear, { ...options, layout: 'balanced' })]
+  }
   if (count === 1) return [{ x: 0, y: 0, r: 0 }]
 
   const long = Math.max(halfWidth, halfLength)
@@ -180,6 +184,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const bossRadius = pocketRadius + config.magnets.bossWall
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
       ellipticalRow: config.shape === 'oval',
+      layout: config.magnets.layout,
     })
 
     /*

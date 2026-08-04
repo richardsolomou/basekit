@@ -65,7 +65,7 @@ interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
 type HolderMagnetSettings = Pick<HolderConfig, 'magnetCounts' | 'magnets' | 'baseWallThickness' | 'magnetBossWall'>
 
 const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
-  magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
+  magnets: { enabled: true, layout: 'balanced', maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
   magnetCounts: {},
   baseWallThickness: 2,
   magnetBossWall: 0.9,
@@ -129,13 +129,17 @@ export function holderSlotMagnetCenters(
     },
     settings.magnets.maxCount,
   )
-  const count = settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count
+  const count =
+    settings.magnets.layout === 'five-cross'
+      ? 5
+      : (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count)
   const pocketRadius = (settings.magnets.diameter + settings.magnets.clearance) / 2
   const bossRadius = pocketRadius + settings.magnetBossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - settings.baseWallThickness)
   const halfLength = Math.max(0, slotLength(slot) / 2 - settings.baseWallThickness)
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
+    layout: settings.magnets.layout,
   }).map(({ x, y }) => ({ x, y }))
 }
 
@@ -574,7 +578,7 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    magnets: { enabled: true, maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
+    magnets: { enabled: true, layout: 'balanced', maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
     magnetCounts: {},
     baseWallThickness: 2,
     magnetBossWall: 0.9,

@@ -104,6 +104,18 @@ describe('holderLayout', () => {
     expect(holderSlotMagnetCenters(oval, config)).toHaveLength(2)
   })
 
+  it('matches the five-pocket cross base layout', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      groups: [holderGroup('models-1', 1, { width: 60 })],
+      magnetCounts: { 'round:60x60': 5 },
+      magnets: { ...defaultHolderConfig().magnets, layout: 'five-cross' as const },
+    }
+    const centers = holderSlotMagnetCenters(config.groups[0], config)
+    expect(centers.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
+    expect(centers).toHaveLength(5)
+  })
+
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 40, { width: 32 })] }
     const layout = holderLayout(config)

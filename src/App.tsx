@@ -32,7 +32,7 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, ShapeKind, Underside } from '@/geometry/types'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind, Underside } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -66,6 +66,10 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 const UNDERSIDES: { value: Underside; label: string }[] = [
   { value: 'well', label: 'Hollow' },
   { value: 'solid', label: 'Solid' },
+]
+const MAGNET_LAYOUTS: { value: MagnetLayout; label: string }[] = [
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'five-cross', label: 'Five-pocket cross' },
 ]
 
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
@@ -218,7 +222,9 @@ export function App() {
     setConfig(next)
   }
 
-  const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
+  const setSharedMagnets = (
+    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
+  ) => {
     setWorkspace((current) => ({
       ...current,
       shared: { ...current.shared, magnets: { ...current.shared.magnets, ...changes } },
@@ -474,6 +480,14 @@ export function App() {
             defaultValue={BASE_DEFAULTS.magnets.count}
             options={MAGNET_COUNTS}
             onChange={setMagnetCount}
+            disabled={config.magnets.layout === 'five-cross'}
+          />
+          <Choice
+            label="Pocket layout"
+            value={config.magnets.layout}
+            defaultValue={BASE_DEFAULTS.magnets.layout}
+            options={MAGNET_LAYOUTS}
+            onChange={(layout) => setSharedMagnets({ layout })}
           />
         </Section>
 
@@ -491,6 +505,7 @@ export function App() {
             defaultValue={BASE_DEFAULTS.ribs.count}
             options={RIB_COUNTS}
             onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+            disabled={config.magnets.layout === 'five-cross'}
           />
           <Dimension
             label="Support thickness"
@@ -866,6 +881,14 @@ export function App() {
             checked={holder.magnets.enabled}
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
+          />
+          <Choice
+            label="Pocket layout"
+            value={holder.magnets.layout}
+            defaultValue={HOLDER_DEFAULTS.magnets.layout}
+            options={MAGNET_LAYOUTS}
+            disabled={!holder.magnets.enabled}
+            onChange={(layout) => setSharedMagnets({ layout })}
           />
           <Dimension
             label="Magnet diameter"

@@ -149,6 +149,19 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
+test('shares the five-pocket cross between bases and holders', async ({ page }) => {
+  await pickSize(page, '60')
+  await pickChoice(page, 'Pocket layout', 'Five-pocket cross')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toBeDisabled()
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('5')
+  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toBeDisabled()
+  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('4')
+
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Five-pocket cross')
+  await expect(footer(page)).toContainText('25 × 5.2 mm hole')
+})
+
 test('remembers workspace settings on reload', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Standard base size' }).click()
   await page.getByRole('option', { name: /^Custom\b/ }).click()

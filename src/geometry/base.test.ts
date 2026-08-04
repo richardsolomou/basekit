@@ -162,6 +162,12 @@ describe('buildBase', () => {
     expect(pocketAt(mesh, 0, 0, (base.magnets.diameter + base.magnets.clearance) / 2).maxRadius).toBeLessThan(0.01)
   })
 
+  it('uses a centre and four outer pockets for the five-pocket cross layout', () => {
+    const positions = magnetPositions(1, 30, 30, 4, { layout: 'five-cross' })
+    expect(positions.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
+    expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
+  })
+
   it('opens the pocket at the build plate on a solid base', () => {
     const base = preset(ROUND_32)
     const config = { ...base, underside: 'solid' as const, magnets: { ...base.magnets, count: 1, thickness: 2 } }

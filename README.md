@@ -40,6 +40,8 @@ Narrow elongated bases up to roughly three magnet pitches use a pair at the usab
 
 Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions and counts, wall thickness and magnet boss walls stay in sync between them.
 
+Magnet pockets can use the balanced layout or an opt-in five-pocket cross shared by bases and holders. The cross can be populated with one central magnet and expanded later without reprinting either part.
+
 The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
 
 A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
