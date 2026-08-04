@@ -128,7 +128,7 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'Gridfinity Mini Holders' : 'Mini Bases'
+    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
@@ -938,9 +938,9 @@ export function App() {
             </Sheet>
           )}
           <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase">
-            <span className="sm:hidden">MB</span>
+            <span className="sm:hidden">BK</span>
             <span className="max-sm:hidden">
-              Mini <span className="text-measure">Bases</span>
+              Base<span className="text-measure">Kit</span>
             </span>
           </h1>
           <nav aria-label="Generators" className="flex self-stretch">

@@ -1,6 +1,6 @@
-# Contributing to Mini Bases
+# Contributing to BaseKit
 
-Thanks for helping with Mini Bases. We aim to keep the generator small, exact, and easy to inspect. Before starting a substantial change, check for an existing issue. Open an issue first if the scope or product direction needs discussion. Coding-agent instructions live in [AGENTS.md](AGENTS.md).
+Thanks for helping with BaseKit. We aim to keep the generator small, exact, and easy to inspect. Before starting a substantial change, check for an existing issue. Open an issue first if the scope or product direction needs discussion. Coding-agent instructions live in [AGENTS.md](AGENTS.md).
 
 ## Development setup
 
