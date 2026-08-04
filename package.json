@@ -1,14 +1,14 @@
 {
-  "name": "mini-bases",
+  "name": "basekit",
   "version": "0.1.0",
   "private": true,
   "description": "Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.",
-  "homepage": "https://mini-bases.ras.sh",
-  "bugs": "https://github.com/richardsolomou/mini-bases/issues",
+  "homepage": "https://basekit.ras.sh",
+  "bugs": "https://github.com/richardsolomou/basekit/issues",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/richardsolomou/mini-bases.git"
+    "url": "https://github.com/richardsolomou/basekit.git"
   },
   "type": "module",
   "scripts": {

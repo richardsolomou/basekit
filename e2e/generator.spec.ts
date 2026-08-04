@@ -67,7 +67,7 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
 })
 
 test('links to the source repository', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/mini-bases')
+  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
 })
 
 test('opens selects from their visible labels', async ({ page }) => {
