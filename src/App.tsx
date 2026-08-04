@@ -88,7 +88,7 @@ function RepositoryLink() {
   return (
     <div className="flex justify-center px-5 pt-4">
       <a
-        href="https://github.com/richardsolomou/mini-bases"
+        href="https://github.com/richardsolomou/basekit"
         target="_blank"
         rel="noreferrer"
         className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}

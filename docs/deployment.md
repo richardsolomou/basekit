@@ -4,7 +4,7 @@ BaseKit is a static Vite app. It needs no backend, database, secrets, server fun
 
 ## Cloudflare Pages
 
-Create a Pages project from the `richardsolomou/mini-bases` GitHub repository with these settings:
+Create a Pages project from the `richardsolomou/basekit` GitHub repository with these settings:
 
 | Setting           | Value        |
 | ----------------- | ------------ |
@@ -19,13 +19,13 @@ Pages creates a preview deployment for pull requests and a production deployment
 
 ## Custom domain
 
-Add `mini-bases.ras.sh` under the Pages project's **Custom domains** settings. If Cloudflare manages the `ras.sh` zone, it creates the DNS record. Otherwise, add the CNAME target Cloudflare provides at the authoritative DNS provider.
+Add `basekit.ras.sh` under the Pages project's **Custom domains** settings. If Cloudflare manages the `ras.sh` zone, it creates the DNS record. Otherwise, add the CNAME target Cloudflare provides at the authoritative DNS provider.
 
 ## Production verification
 
 After the first production deploy:
 
-1. Open `https://mini-bases.ras.sh` and confirm the worker installs a mesh without console errors.
+1. Open `https://basekit.ras.sh` and confirm the worker installs a mesh without console errors.
 2. Change the footprint and verify the triangle count changes before inspecting the updated model.
 3. Export one STL and one 3MF, then load both in a slicer or mesh checker.
 4. Confirm the favicon, BaseKit title, font, and Manifold WASM asset load from the custom domain.

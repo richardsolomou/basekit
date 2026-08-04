@@ -5,9 +5,9 @@
 
 **Printable miniature bases sized, magnetised, and marked exactly how you need them.**
 
-[mini-bases.ras.sh](https://mini-bases.ras.sh)
+[basekit.ras.sh](https://basekit.ras.sh)
 
-[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/mini-bases/ci.yml?branch=main)](https://github.com/richardsolomou/mini-bases/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/mini-bases)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
 BaseKit makes support-free STL and 3MF files for tabletop miniatures and Gridfinity holders for storing them. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
@@ -50,7 +50,7 @@ BaseKit generates bases and holders for them. It does not sculpt miniatures, add
 
 ## Development 🛠️
 
-Requires Node 24.x and pnpm 10.33.0. Setup, checks, architecture, and sample exports live in [CONTRIBUTING.md](CONTRIBUTING.md); see [SECURITY.md](SECURITY.md) for vulnerability reports and [GitHub Issues](https://github.com/richardsolomou/mini-bases/issues) for planned work.
+Requires Node 24.x and pnpm 10.33.0. Setup, checks, architecture, and sample exports live in [CONTRIBUTING.md](CONTRIBUTING.md); see [SECURITY.md](SECURITY.md) for vulnerability reports and [GitHub Issues](https://github.com/richardsolomou/basekit/issues) for planned work.
 
 Cloudflare builds the static app with `pnpm build` and serves `dist/`. See the [deployment guide](docs/deployment.md) for Pages setup, custom-domain configuration, and production checks.
 
