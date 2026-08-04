@@ -979,7 +979,14 @@ export function App() {
         {docked && panel}
 
         <main className="relative min-w-0 flex-1">
-          <Viewer mesh={preview} width={partWidth} length={partLength} height={partHeight} round={model === 'base' && !elongated} />
+          <Viewer
+            mesh={preview}
+            width={partWidth}
+            length={partLength}
+            height={partHeight}
+            round={model === 'base' && !elongated}
+            fitToPart={model === 'holder'}
+          />
           {(error || exportError) && (
             <div
               role="alert"
