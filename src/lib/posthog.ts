@@ -6,6 +6,7 @@ const apiHost = import.meta.env.VITE_POSTHOG_HOST
 if (apiKey && apiHost) {
   posthog.init(apiKey, {
     api_host: apiHost,
+    ui_host: 'https://us.posthog.com',
     defaults: '2026-05-30',
   })
   posthog.startExceptionAutocapture({
