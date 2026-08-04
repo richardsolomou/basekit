@@ -107,7 +107,7 @@ describe('holderLayout', () => {
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 40, { width: 32 })] }
     const layout = holderLayout(config)
-    expect(layout).toMatchObject({ unitsWide: 5, unitsDeep: 5 })
+    expect(layout).toMatchObject({ unitsWide: 6, unitsDeep: 5 })
     expect(layout.slotCenters).toHaveLength(40)
     expect(holderPlan(config).omitted).toEqual([])
   })
@@ -138,14 +138,25 @@ describe('holderLayout', () => {
     expect(holderPlan(config).omitted.reduce((total, group) => total + group.quantity, 0)).toBeGreaterThan(0)
   })
 
-  it('keeps a full wall between every slot and the holder edge', () => {
-    const config = defaultHolderConfig()
+  it.each([4, 5])('preserves every 50mm recess when rebuilding a planned module for quantity %s', (quantity) => {
+    const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', quantity, { width: 50 })] }
     const layout = holderLayout(config)
+    const module = holderPlan(config).modules[0]
+    expect(holderLayout(module.config).slotCenters).toHaveLength(quantity)
     expect(
       layout.slotCenters.every(
-        (point) => Math.abs(point.x) <= layout.width / 2 - point.width / 2 && Math.abs(point.y) <= layout.length / 2 - point.length / 2,
+        (point) =>
+          Math.abs(point.x) <= layout.width / 2 - (point.width + config.slotClearance) / 2 &&
+          Math.abs(point.y) <= layout.length / 2 - (point.length + config.slotClearance) / 2,
       ),
     ).toBe(true)
+    for (let i = 0; i < layout.slotCenters.length; i++) {
+      for (let j = 0; j < i; j++) {
+        expect(
+          Math.hypot(layout.slotCenters[i].x - layout.slotCenters[j].x, layout.slotCenters[i].y - layout.slotCenters[j].y),
+        ).toBeGreaterThanOrEqual(50 + config.slotClearance + config.spacing - 1e-5)
+      }
+    }
   })
 
   it('keeps the requested spacing between every pair of models', () => {
@@ -157,7 +168,7 @@ describe('holderLayout', () => {
     for (let i = 0; i < points.length; i++) {
       for (let j = 0; j < i; j++)
         expect(Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y)).toBeGreaterThanOrEqual(
-          (points[i].width + points[j].width) / 2 + config.spacing - 1e-5,
+          (points[i].width + points[j].width) / 2 + config.slotClearance + config.spacing - 1e-5,
         )
     }
   })
@@ -205,7 +216,7 @@ describe('holderPlan', () => {
       maxRows: 4,
       groups: [holderGroup('character', 1, { width: 32 }), holderGroup('unit', 5, { width: 32 })],
     }
-    expect(holderPlan(config).omitted).toEqual([holderGroup('unit', 1, { width: 32 })])
+    expect(holderPlan(config).omitted).toEqual([holderGroup('unit', 2, { width: 32 })])
   })
 
   it('keeps different sizes together unless splitting is enabled', () => {
