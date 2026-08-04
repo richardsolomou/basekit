@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="public/favicon.svg" width="80" alt="Mini Bases logo" />
+  <img src="public/favicon.svg" width="80" alt="BaseKit logo" />
 
-# Mini Bases
+# BaseKit
 
 **Printable miniature bases sized, magnetised, and marked exactly how you need them.**
 
@@ -10,13 +10,13 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/mini-bases/ci.yml?branch=main)](https://github.com/richardsolomou/mini-bases/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/mini-bases)](LICENSE)
 </div>
 
-Mini Bases makes support-free STL and 3MF files for tabletop miniatures and Gridfinity holders for storing them. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+BaseKit makes support-free STL and 3MF files for tabletop miniatures and Gridfinity holders for storing them. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
 ## Who is it for? 👋
 
-Mini Bases is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD. It covers round and oval skirmish bases, ranked regiments, pill-shaped footprints, and polygons from triangles to dodecagons.
+BaseKit is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD. It covers round and oval skirmish bases, ranked regiments, pill-shaped footprints, and polygons from triangles to dodecagons.
 
 The built-in presets include the common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
 
@@ -46,7 +46,7 @@ A solid underside is available when you do not need a recess. Magnet pockets sti
 
 ## What it does not do
 
-Mini Bases generates bases and holders for them. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
+BaseKit generates bases and holders for them. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
 
 ## Development 🛠️
 
