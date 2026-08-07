@@ -46,7 +46,7 @@ BaseKit generates bases and holders for them. It does not sculpt miniatures, add
 
 ## Private by design 🔒
 
-The generator, 3D preview, fonts, and exporters all run locally in your browser. BaseKit has no backend, accounts, database, telemetry, or file uploads.
+The generator, 3D preview, fonts, and exporters all run locally in your browser. BaseKit has no backend, accounts, database, or file uploads.
 
 ## Development 🛠️
 
