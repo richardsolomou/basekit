@@ -23,7 +23,7 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 ## How it works 🧲
 
 1. **Choose the footprint** by picking its shape, then a standard size or exact dimensions.
-2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances.
+2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances, and count.
 3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
@@ -43,12 +43,6 @@ Modules export as separate STL files in one archive or separate build plates in 
 - Browser-saved settings with shared base and holder preferences.
 
 BaseKit generates bases and holders for them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
-
-Magnet counts are automatic by default. The recommendation balances the selected footprint, scales from a 5×2mm neodymium baseline using the magnet diameter and thickness, and never drops below the count needed to resist tipping. The result snaps to a supported balanced ring or row, and can be overridden for any footprint when real magnets or miniatures behave differently.
-
-Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions, wall thickness and magnet boss walls stay in sync between them.
-
-Matching bases and holders always use the same resolved count and placement. The fixed five-pocket cross remains available as an alternative to Balanced, and saved counts become manual overrides so existing geometry stays compatible.
 
 ## Private by design 🔒
 
