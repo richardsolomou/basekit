@@ -28,7 +28,7 @@ describe('workspace state', () => {
     state.shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)] = 4
     state.shared.magnets = {
       layout: 'five-cross',
-      patternVersion: 1,
+      patternVersion: 2,
       maxCount: 8,
       diameter: 6,
       thickness: 1.5,

@@ -147,20 +147,26 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
-test('shares the canonical pocket pattern between bases and holders', async ({ page }) => {
+test('shares the selected pocket pattern between bases and holders', async ({ page }) => {
   await pickSize(page, '60')
   await expect(footer(page)).toContainText('3 × 5.2 mm hole')
   await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('Auto · 3')
   await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('3')
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Balanced')
   await pickChoice(page, 'Magnets per base', '4')
   await expect(footer(page)).toContainText('4 × 5.2 mm hole')
 
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^60\b/ }).click()
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Balanced')
   await expect(footer(page)).toContainText('20 × 5.2 mm hole')
+  await pickChoice(page, 'Pocket layout', 'Five-pocket cross')
+  await expect(footer(page)).toContainText('25 × 5.2 mm hole')
+
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(footer(page)).toContainText('5 × 5.2 mm hole')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toBeDisabled()
 })
 
 test('remembers workspace settings on reload', async ({ page }) => {

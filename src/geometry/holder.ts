@@ -140,7 +140,7 @@ export function holderSlotMagnetCenters(
     settings.magnets.patternVersion,
   )
   const count =
-    settings.magnets.patternVersion === 1 && settings.magnets.layout === 'five-cross'
+    settings.magnets.layout === 'five-cross'
       ? 5
       : settings.magnets.patternVersion === 1
         ? (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count)
@@ -158,7 +158,7 @@ export function holderSlotMagnetCenters(
   const halfLength = Math.max(0, slotLength(slot) / 2 - settings.baseWallThickness)
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
-    layout: settings.magnets.patternVersion === 1 ? settings.magnets.layout : 'balanced',
+    layout: settings.magnets.layout,
   }).map(({ x, y }) => ({ x, y }))
 }
 

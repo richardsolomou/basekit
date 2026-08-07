@@ -15,7 +15,7 @@ export interface MagnetSpec {
   count: number
   /** Balanced follows the selected count; five-cross provides a centre and four outer pockets. */
   layout: MagnetLayout
-  /** Version 1 preserves selectable legacy layouts; version 2 is the canonical complete pattern. */
+  /** Version 1 preserves legacy balanced recommendations; version 2 makes balanced recommendations magnet-aware. */
   patternVersion: MagnetPatternVersion
   /** Upper bound for counts chosen automatically from the footprint. */
   maxCount: number

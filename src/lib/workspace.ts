@@ -56,7 +56,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const legacyPattern = shared.magnets.patternVersion === 1
   const key = footprintKey(state.base.shape, state.base.width, state.base.length)
   const count =
-    legacyPattern && shared.magnets.layout === 'five-cross'
+    shared.magnets.layout === 'five-cross'
       ? 5
       : legacyPattern
         ? shared.magnetCounts[key]
@@ -78,7 +78,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       ribs: {
         ...state.base.ribs,
         count:
-          legacyPattern && shared.magnets.layout === 'five-cross'
+          shared.magnets.layout === 'five-cross'
             ? 4
             : legacyPattern
               ? state.base.ribs.count

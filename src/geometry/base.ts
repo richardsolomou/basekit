@@ -184,7 +184,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const bossRadius = pocketRadius + config.magnets.bossWall
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
       ellipticalRow: config.shape === 'oval',
-      layout: config.magnets.patternVersion === 1 ? config.magnets.layout : 'balanced',
+      layout: config.magnets.layout,
     })
 
     /*
