@@ -1,4 +1,4 @@
-# Cloudflare deployment
+# Deployment guide
 
 BaseKit is a static Vite app. It needs no backend, database, secrets, server functions, or cross-origin isolation headers. Geometry, fonts, the Manifold WASM module, and STL/3MF generation all run in the browser.
 
