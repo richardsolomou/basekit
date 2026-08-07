@@ -113,12 +113,20 @@ describe('buildBase', () => {
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 } }
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
-    const ringRadius = (config.width / 2 - config.wallThickness) / 2
     const { mesh } = build(config)
+    const bossRadius = pocketRadius + config.magnets.bossWall
+    const positions = magnetPositions(
+      config.magnets.count,
+      config.width / 2 - config.wallThickness,
+      config.length / 2 - config.wallThickness,
+      bossRadius + LABEL_MARGIN,
+      {
+        patternVersion: config.magnets.patternVersion,
+      },
+    )
 
-    for (let i = 0; i < config.magnets.count; i++) {
-      const a = Math.PI / 2 + (2 * Math.PI * i) / config.magnets.count
-      const pocket = pocketAt(mesh, ringRadius * Math.cos(a), ringRadius * Math.sin(a), pocketRadius)
+    for (const [i, position] of positions.entries()) {
+      const pocket = pocketAt(mesh, position.x, position.y, pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
       // Cut down from the top face by exactly the magnet's thickness, so the magnet
       // finishes flush and the material under it is solid.
@@ -164,6 +172,12 @@ describe('buildBase', () => {
 
   it('uses a centre and four outer pockets for the five-pocket cross layout', () => {
     const positions = magnetPositions(1, 30, 30, 4, { layout: 'five-cross' })
+    expect(positions.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
+    expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
+  })
+
+  it('keeps a centre pocket when the canonical pattern adds an outer ring', () => {
+    const positions = magnetPositions(5, 30, 30, 4, { patternVersion: 2 })
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
   })
@@ -297,8 +311,8 @@ describe('buildBase', () => {
     expect(pocketAt(mesh, reach, 0, pocketRadius).vertices).toBeGreaterThan(0)
   })
 
-  it('caps the automatic magnet count for a large oval', () => {
-    expect(presetFor(OVAL_SIZES[3], 2).magnets.count).toBe(2)
+  it('does not add an unpaired outer pocket below the canonical capacity', () => {
+    expect(presetFor(OVAL_SIZES[3], 2).magnets.count).toBe(1)
   })
 
   it.for([ROUND_SIZES[1], ROUND_SIZES[4], ROUND_SIZES[9], OVAL_SIZES[0], OVAL_SIZES[2]])('welds cleanly on a $label base', (size) => {
@@ -406,7 +420,9 @@ describe('rib placement', () => {
   function layout(size: SizePreset) {
     const config = presetFor(size)
     const bossRadius = config.magnets.diameter / 2 + config.magnets.clearance / 2 + config.magnets.bossWall
-    const magnets = magnetPositions(config.magnets.count, config.width / 2, config.length / 2, bossRadius)
+    const magnets = magnetPositions(config.magnets.count, config.width / 2, config.length / 2, bossRadius, {
+      patternVersion: config.magnets.patternVersion,
+    })
     return {
       spokes: ribAngles(config.ribs.count, magnets),
       bosses: magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6),
@@ -470,42 +486,42 @@ describe('scaling with the footprint', () => {
     expect(biggest?.magnets.count).toBeGreaterThan(4)
   })
 
-  it('uses an end pair on a 90×52 oval without weakening larger rows', () => {
-    expect(presetFor(OVAL_SIZES[2]).magnets.count).toBe(2)
-    expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(4)
+  it('adds optional pairs around the centre on elongated bases', () => {
+    expect(presetFor(OVAL_SIZES[2]).magnets.count).toBe(3)
+    expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(5)
   })
 
-  it('uses even canonical rings so opposing subsets stay balanced', () => {
-    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
-    expect(presetFor(ROUND_SIZES[8])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
-    expect(presetFor(OVAL_SIZES[4])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
+  it('uses a centre plus even outer rings', () => {
+    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 4 } })
+    expect(presetFor(ROUND_SIZES[8])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 4 } })
+    expect(presetFor(OVAL_SIZES[4])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 4 } })
   })
 
   it('preserves odd rings for legacy geometry', () => {
     expect(presetFor(ROUND_SIZES[9], 8, 1)).toMatchObject({ magnets: { count: 5, patternVersion: 1 }, ribs: { count: 5 } })
   })
 
-  it('uses an end pair when a low-area custom base has a long lever arm', () => {
-    expect(resized(presetFor(OVAL_SIZES[0]), 80, 20).magnets.count).toBe(2)
+  it('adds an end pair around the centre when a low-area custom base has a long lever arm', () => {
+    expect(resized(presetFor(OVAL_SIZES[0]), 80, 20).magnets.count).toBe(3)
     expect(resized(presetFor(OVAL_SIZES[0]), 50, 25).magnets.count).toBe(1)
   })
 
   it('uses the lower supported row count when transverse demand falls between counts', () => {
     const base = presetFor(OVAL_SIZES[0])
-    expect(resized(base, 90, 70).magnets.count).toBe(4)
-    expect(resized(base, 95, 70).magnets.count).toBe(4)
-    expect(resized(base, 142, 105).magnets.count).toBe(4)
+    expect(resized(base, 90, 70).magnets.count).toBe(3)
+    expect(resized(base, 95, 70).magnets.count).toBe(5)
+    expect(resized(base, 142, 105).magnets.count).toBe(5)
   })
 
-  it('keeps every automatic row count even', () => {
-    const odd: string[] = []
+  it('keeps every automatic row count centre plus pairs', () => {
+    const even: string[] = []
     for (let short = 20; short <= 120; short += 5) {
       for (let long = short * 1.36; long <= 180; long += 5) {
         const count = resized(presetFor(OVAL_SIZES[0]), long, short).magnets.count
-        if (count > 1 && count % 2 !== 0) odd.push(`${long}×${short}: ${count}`)
+        if (count > 1 && count % 2 === 0) even.push(`${long}×${short}: ${count}`)
       }
     }
-    expect(odd).toEqual([])
+    expect(even).toEqual([])
   })
 
   it('never reduces the magnet count as an elongated row grows', () => {

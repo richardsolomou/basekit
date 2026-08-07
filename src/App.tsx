@@ -331,7 +331,7 @@ export function App() {
             disabled={config.magnets.count === 0}
             onChange={(thickness) => setSharedMagnets({ thickness })}
           />
-          <FieldDescription>Install magnets in any symmetric subset of the pockets to adjust the holding force.</FieldDescription>
+          <FieldDescription>Start with the centre pocket, then add opposing pairs for more holding force.</FieldDescription>
         </Section>
 
         <Section title="Size Label">
@@ -872,7 +872,7 @@ export function App() {
             disabled={!holder.magnets.enabled}
             onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
           />
-          <FieldDescription>Install magnets in any symmetric subset of the pockets to adjust the holding force.</FieldDescription>
+          <FieldDescription>Start with the centre pocket, then add opposing pairs for more holding force.</FieldDescription>
         </Section>
         <RepositoryLink />
       </aside>

@@ -100,31 +100,30 @@ const END_PAIR_PITCHES = 3
 const SINGLE_MAGNET_MAX_SPAN = MAGNET_PITCH * 2
 
 const RING_COUNTS = [3, 4, 5, 6, 8]
-const CANONICAL_RING_COUNTS = [4, 6, 8]
 const ROW_COUNTS = [4, 6, 8]
 const ROW_LIMIT_COUNTS = [1, 2, ...ROW_COUNTS]
+const CANONICAL_COUNTS = [1, 3, 5, 7]
 
 /** Every count the pickers offer, including ones no preset picks by itself. */
-export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
+export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 export const RIB_CHOICES = [0, 2, 3, 4, 5, 6, 8]
 
 function spreadCount(ideal: number, counts: number[]): number {
   return counts.reduce((best, count) => (count <= ideal ? count : best), counts[0])
 }
 
-function ringMagnetCount(short: number, patternVersion: MagnetPatternVersion): number {
+function ringMagnetCount(short: number): number {
   const ideal = (Math.PI * short) / 2 / MAGNET_PITCH
-  return spreadCount(ideal, patternVersion === 1 ? RING_COUNTS : CANONICAL_RING_COUNTS)
+  return spreadCount(ideal, RING_COUNTS)
 }
 
 /**
- * One central magnet holds anything up to a 40mm footprint. Past that a single
- * magnet lets the model pivot, so they spread out — and the count grows with the
- * base, because a bigger footprint carries a heavier model *and* offers a longer
- * run to spread over. Four magnets on a 160mm titanic base was the old ceiling
- * and nowhere near enough to hold one down.
+ * One central magnet holds anything up to a 40mm footprint. Past that the legacy
+ * pattern spreads magnets out, while the canonical pattern keeps the centre and
+ * adds opposing pairs. The available count grows with the footprint, but users
+ * only need to populate as many pockets as their model needs.
  */
-function magnetCount(width: number, length: number, maxCount: number, patternVersion: MagnetPatternVersion): number {
+function legacyMagnetCount(width: number, length: number, maxCount: number): number {
   const short = Math.min(width, length)
   const long = Math.max(width, length)
   if (short < 20) return 0
@@ -132,16 +131,22 @@ function magnetCount(width: number, length: number, maxCount: number, patternVer
 
   if (magnetsRing(width, length)) {
     // Ring magnets sit a quarter of the short side out from the centre.
-    return Math.min(ringMagnetCount(short, patternVersion), maxCount)
+    return Math.min(ringMagnetCount(short), maxCount)
   }
   // A row runs the long axis, stopping a boss-width short of each end.
   const run = long - 8
-  const transverseCount = ringMagnetCount(short, patternVersion)
-  const pairCandidate = patternVersion === 1 ? transverseCount === 3 : transverseCount === 4
-  if (run <= MAGNET_PITCH * END_PAIR_PITCHES && short <= SINGLE_MAGNET_MAX_SPAN && pairCandidate) return Math.min(2, maxCount)
+  const transverseCount = ringMagnetCount(short)
+  if (run <= MAGNET_PITCH * END_PAIR_PITCHES && short <= SINGLE_MAGNET_MAX_SPAN && transverseCount === 3) return Math.min(2, maxCount)
   const transverseMinimum = transverseCount % 2 === 0 ? transverseCount : transverseCount - 1
   const natural = Math.max(transverseMinimum, spreadCount(run / MAGNET_PITCH + 1, ROW_COUNTS))
   return spreadCount(Math.min(natural, maxCount), ROW_LIMIT_COUNTS)
+}
+
+function magnetCount(width: number, length: number, maxCount: number, patternVersion: MagnetPatternVersion): number {
+  const legacy = legacyMagnetCount(width, length, maxCount)
+  if (patternVersion === 1 || legacy <= 1) return legacy
+  const outerPairs = Math.min(legacy - (legacy % 2), 6)
+  return spreadCount(Math.min(1 + outerPairs, maxCount), CANONICAL_COUNTS)
 }
 
 /**
@@ -160,7 +165,7 @@ function ribCount(width: number, length: number, maxMagnets: number, patternVers
   const short = Math.min(width, length)
 
   if (magnets >= 2) {
-    if (magnetsRing(width, length)) return magnets
+    if (magnetsRing(width, length)) return patternVersion === 1 ? magnets : magnets - 1
     return short <= 45 ? 4 : 6
   }
   if (short <= 28.5) return 2

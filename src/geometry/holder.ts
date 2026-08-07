@@ -152,6 +152,7 @@ export function holderSlotMagnetCenters(
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
     layout: settings.magnets.patternVersion === 1 ? settings.magnets.layout : 'balanced',
+    patternVersion: settings.magnets.patternVersion,
   }).map(({ x, y }) => ({ x, y }))
 }
 

@@ -89,13 +89,13 @@ describe('holderLayout', () => {
   it('uses the supported base magnet layout for each holder slot', () => {
     expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 32 }))).toHaveLength(1)
     const largeRound = holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 65 }))
-    expect(largeRound).toHaveLength(4)
-    expect(largeRound.every((center) => Math.hypot(center.x, center.y) > 1)).toBe(true)
+    expect(largeRound).toHaveLength(3)
+    expect(largeRound.filter((center) => Math.hypot(center.x, center.y) < 1e-6)).toHaveLength(1)
     const oval = holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 60, length: 35 }))
-    expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0])
+    expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0, 0])
     expect(Math.min(...oval.map((center) => center.x))).toBeLessThan(-20)
     expect(Math.max(...oval.map((center) => center.x))).toBeGreaterThan(20)
-    expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 }))).toHaveLength(2)
+    expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 }))).toHaveLength(3)
   })
 
   it('uses a saved base magnet count for the matching holder slot', () => {
@@ -113,7 +113,7 @@ describe('holderLayout', () => {
     const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
     const defaults = defaultHolderConfig()
     const config = { ...defaults, magnetCounts: { 'oval:90x52': 1 } }
-    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(2)
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(3)
   })
 
   it('matches the five-pocket cross base layout', () => {
@@ -330,7 +330,7 @@ describe('buildHolder', () => {
 
   it('cuts every default magnet pocket for larger supported bases', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 2, { width: 65 })], maxRows: 2 }
-    expect(holderMagnetPocketCount(config)).toBe(8)
+    expect(holderMagnetPocketCount(config)).toBe(6)
     expect(buildHolder(wasm, config).stats.solid).toBe(true)
   })
 
@@ -366,7 +366,7 @@ describe('buildHolder', () => {
     }
     const plain = buildHolder(wasm, { ...config, engraving: { ...config.engraving, enabled: false } }, font).stats.volume
     const engraved = buildHolder(wasm, config, font).stats.volume
-    expect(holderMagnetPocketCount(config)).toBe(4)
+    expect(holderMagnetPocketCount(config)).toBe(3)
     expect(engraved).toBeLessThan(plain)
   })
 })
