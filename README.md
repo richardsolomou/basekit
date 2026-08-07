@@ -48,7 +48,7 @@ Magnet counts are automatic by default. The recommendation balances the selected
 
 Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions, wall thickness and magnet boss walls stay in sync between them.
 
-Matching bases and holders always use the same resolved count and placement. Saved balanced counts become manual overrides, while saved five-pocket cross workspaces retain their legacy geometry.
+Matching bases and holders always use the same resolved count and placement. The fixed five-pocket cross remains available as an alternative to Balanced, and saved counts become manual overrides so existing geometry stays compatible.
 
 ## Private by design 🔒
 
