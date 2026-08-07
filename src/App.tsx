@@ -33,7 +33,7 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind, Underside } from '@/geometry/types'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -64,10 +64,6 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
   { value: 'straight', label: 'Straight' },
 ]
 
-const UNDERSIDES: { value: Underside; label: string }[] = [
-  { value: 'well', label: 'Hollow' },
-  { value: 'solid', label: 'Solid' },
-]
 const MAGNET_LAYOUTS: { value: MagnetLayout; label: string }[] = [
   { value: 'balanced', label: 'Balanced' },
   { value: 'five-cross', label: 'Five-pocket cross' },
@@ -153,12 +149,9 @@ export function App() {
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
-  const maxBaseMagnetThickness =
-    (config.underside === 'well' ? Math.max(0.5, config.height - config.floorThickness) : Math.max(1, config.height - 0.4)) -
-    config.magnets.depthClearance
+  const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
-  const maxBaseDepthClearance =
-    (config.underside === 'well' ? config.height - config.floorThickness : config.height - 0.4) - config.magnets.thickness
+  const maxBaseDepthClearance = config.height - config.floorThickness - config.magnets.thickness
   const maxHolderDepthClearance = maxHolderMagnetThickness(holder) + holder.magnets.depthClearance - holder.magnets.thickness
   const maxSharedDepthClearance = Math.max(0, Math.min(0.5, maxBaseDepthClearance, maxHolderDepthClearance))
   const fitSlotDepth = (next: HolderConfig) => ({
@@ -212,7 +205,6 @@ export function App() {
     length: partLength,
   })
   const elongated = isElongated(config.shape)
-  const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
@@ -295,7 +287,7 @@ export function App() {
   const basePanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
-      <aside key={config.underside} aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
+      <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Size & Shape">
           <Choice label="Shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <SizeSelect
@@ -396,42 +388,33 @@ export function App() {
           </FieldDescription>
         </Section>
 
-        {hollow && (
-          <Section title="Size Label">
-            <ToggleSetting
-              label="Size labels"
-              checked={config.label.enabled}
-              defaultChecked={BASE_DEFAULTS.label.enabled}
-              onChange={(enabled) => {
-                posthog.capture('base_marking_toggled', { enabled })
-                setSharedLabels(enabled)
-              }}
-            />
-            {config.label.enabled && (
-              <Field>
-                <FieldLabel htmlFor="marking-text" className="sr-only">
-                  Label text
-                </FieldLabel>
-                <Input
-                  id="marking-text"
-                  value={config.label.text ?? ''}
-                  placeholder={defaultLabel(config)}
-                  onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
-                  className="readout"
-                />
-              </Field>
-            )}
-          </Section>
-        )}
+        <Section title="Size Label">
+          <ToggleSetting
+            label="Size labels"
+            checked={config.label.enabled}
+            defaultChecked={BASE_DEFAULTS.label.enabled}
+            onChange={(enabled) => {
+              posthog.capture('base_marking_toggled', { enabled })
+              setSharedLabels(enabled)
+            }}
+          />
+          {config.label.enabled && (
+            <Field>
+              <FieldLabel htmlFor="marking-text" className="sr-only">
+                Label text
+              </FieldLabel>
+              <Input
+                id="marking-text"
+                value={config.label.text ?? ''}
+                placeholder={defaultLabel(config)}
+                onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
+                className="readout"
+              />
+            </Field>
+          )}
+        </Section>
 
         <Section title="Construction" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(config.height)}mm</span>}>
-          <Choice
-            label="Underside"
-            value={config.underside}
-            defaultValue={BASE_DEFAULTS.underside}
-            options={UNDERSIDES}
-            onChange={(underside) => patch({ underside })}
-          />
           <Dimension
             label="Base height"
             value={config.height}
@@ -450,19 +433,15 @@ export function App() {
             defaultValue={BASE_DEFAULTS.wallThickness}
             onChange={(wallThickness) => setSharedMagnetPlacement({ wallThickness })}
           />
-          {/* Only a hollowed underside has a floor to set. It is the face the model
-                is glued to, and it is never between a magnet and the tray. */}
-          {hollow && (
-            <Dimension
-              label="Top thickness"
-              value={config.floorThickness}
-              min={0.4}
-              max={Math.max(0.5, config.height - 0.5)}
-              step={0.1}
-              defaultValue={BASE_DEFAULTS.floorThickness}
-              onChange={(floorThickness) => patch({ floorThickness })}
-            />
-          )}
+          <Dimension
+            label="Top thickness"
+            value={config.floorThickness}
+            min={0.4}
+            max={Math.max(0.5, config.height - 0.5)}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.floorThickness}
+            onChange={(floorThickness) => patch({ floorThickness })}
+          />
           <Choice
             label="Bottom edge"
             value={config.profile}
@@ -506,50 +485,48 @@ export function App() {
           )}
         </Section>
 
-        {hollow && (
-          <Section
-            title="Internal Supports"
-            aside={
-              <span className="readout text-xs text-muted-foreground">
-                {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
-              </span>
-            }
-          >
-            {config.magnets.layout !== 'five-cross' && (
-              <Choice
-                label="Number of supports"
-                value={config.ribs.count}
-                defaultValue={BASE_DEFAULTS.ribs.count}
-                options={RIB_COUNTS}
-                onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+        <Section
+          title="Internal Supports"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
+            </span>
+          }
+        >
+          {config.magnets.layout !== 'five-cross' && (
+            <Choice
+              label="Number of supports"
+              value={config.ribs.count}
+              defaultValue={BASE_DEFAULTS.ribs.count}
+              options={RIB_COUNTS}
+              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+            />
+          )}
+          {config.ribs.count > 0 && (
+            <>
+              <Dimension
+                label="Support thickness"
+                value={config.ribs.thickness}
+                min={0.8}
+                max={4}
+                step={0.1}
+                defaultValue={BASE_DEFAULTS.ribs.thickness}
+                onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
               />
-            )}
-            {config.ribs.count > 0 && (
-              <>
-                <Dimension
-                  label="Support thickness"
-                  value={config.ribs.thickness}
-                  min={0.8}
-                  max={4}
-                  step={0.1}
-                  defaultValue={BASE_DEFAULTS.ribs.thickness}
-                  onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
-                />
-                <Dimension
-                  label="Support height"
-                  value={config.ribs.height}
-                  min={0.4}
-                  max={Math.max(0.5, config.height - config.floorThickness)}
-                  step={0.1}
-                  defaultValue={BASE_DEFAULTS.ribs.height}
-                  onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
-                />
-              </>
-            )}
-          </Section>
-        )}
+              <Dimension
+                label="Support height"
+                value={config.ribs.height}
+                min={0.4}
+                max={Math.max(0.5, config.height - config.floorThickness)}
+                step={0.1}
+                defaultValue={BASE_DEFAULTS.ribs.height}
+                onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+              />
+            </>
+          )}
+        </Section>
 
-        {(config.magnets.count > 0 || (hollow && config.label.enabled)) && (
+        {(config.magnets.count > 0 || config.label.enabled) && (
           <Section
             title="Fit & Detail"
             aside={
@@ -589,7 +566,7 @@ export function App() {
                 />
               </>
             )}
-            {hollow && config.label.enabled && (
+            {config.label.enabled && (
               <Dimension
                 label="Label size"
                 value={config.label.height}
@@ -600,7 +577,7 @@ export function App() {
                 onChange={(height) => patch({ label: { ...config.label, height } })}
               />
             )}
-            {hollow && config.label.enabled && (
+            {config.label.enabled && (
               <Dimension
                 label="Label thickness"
                 value={config.label.emboss}

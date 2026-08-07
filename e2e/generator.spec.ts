@@ -580,14 +580,6 @@ test('toggles a setting from the empty reset space after its label', async ({ pa
   await expect(toggle).not.toBeChecked()
 })
 
-test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await pickChoice(page, 'Underside', 'Solid')
-  await settled(page)
-  await expect(page.getByRole('switch', { name: 'Size labels' })).toHaveCount(0)
-  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toHaveCount(0)
-  await expect(page.getByLabel('Magnet diameter in mm')).toBeVisible()
-})
-
 test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   // The docked panel is not rendered at all below `md`, so nothing is duplicated.

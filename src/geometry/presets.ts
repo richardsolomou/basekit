@@ -201,7 +201,6 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
     height: 4,
     profile: 'taper',
     profileSize: 1,
-    underside: 'well',
     wallThickness: 2,
     floorThickness: 1,
     magnets: {

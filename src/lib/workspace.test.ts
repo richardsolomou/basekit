@@ -88,6 +88,18 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'balanced', patternVersion: 2 })
   })
 
+  it('drops the unsupported solid underside from saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.base.underside = 'solid'
+    delete legacy.shared.magnets.patternVersion
+    delete legacy.base.magnets.patternVersion
+    delete legacy.holder.magnets.patternVersion
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 2, workspace: legacy }))
+
+    expect(loadWorkspace(storage).base).not.toHaveProperty('underside')
+  })
+
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()

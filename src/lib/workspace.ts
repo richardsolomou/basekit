@@ -123,7 +123,9 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
           : parsed.workspace
     if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1 && parsed.version !== 2) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
-    return synchronizeWorkspace(workspace)
+    const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
+    delete base.underside
+    return synchronizeWorkspace({ ...workspace, base })
   } catch {
     return defaultWorkspace()
   }

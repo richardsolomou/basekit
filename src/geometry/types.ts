@@ -4,9 +4,6 @@ export type ShapeKind = 'round' | 'oval' | 'pill' | 'rect' | 'polygon'
 /** Edge treatment applied where the wall meets the table-contact bottom. */
 export type EdgeProfile = 'taper' | 'straight' | 'bevel' | 'round'
 
-/** Where the magnets go in from, which also decides whether the top is recessed. */
-export type Underside = 'well' | 'solid'
-
 export type MagnetLayout = 'balanced' | 'five-cross'
 export type MagnetPatternVersion = 1 | 2
 
@@ -61,7 +58,6 @@ export interface BaseConfig {
   profile: EdgeProfile
   /** Bevel/taper/round size, measured inwards from the top face. */
   profileSize: number
-  underside: Underside
   wallThickness: number
   /** Material between the well floor and the table. */
   floorThickness: number

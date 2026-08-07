@@ -174,21 +174,6 @@ describe('buildBase', () => {
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
   })
 
-  it('opens the pocket at the build plate on a solid base', () => {
-    const base = preset(ROUND_32)
-    const config = { ...base, underside: 'solid' as const, magnets: { ...base.magnets, count: 1, thickness: 2 } }
-    const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
-    const pocket = pocketAt(build(config).mesh, 0, 0, pocketRadius)
-    expect(pocket.minZ).toBeCloseTo(0, 5)
-    expect(pocket.maxZ).toBeCloseTo(2, 2)
-  })
-
-  it('keeps a solid base solid on top', () => {
-    const config = { ...preset(ROUND_32), underside: 'solid' as const }
-    const withWell = build(preset(ROUND_32)).stats.volume
-    expect(build(config).stats.volume).toBeGreaterThan(withWell)
-  })
-
   it.for([RECT_SIZES[0], RECT_SIZES[1], ROUND_SIZES[0], ROUND_SIZES[1]])('still fits a size label on a cramped $label base', (size) => {
     // The well of a small base is mostly boss and ribs, and the label used to be
     // dropped silently when the first direction tried had no room.

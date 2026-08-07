@@ -145,13 +145,12 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
   const solidOf = (m: Manifold) => own(m)
 
   try {
-    const hollow = config.underside === 'well'
     const wellDepth = config.height - config.floorThickness
-    if (hollow && wellDepth < 0.2) throw new Error('No room left for a well — thin the floor')
+    if (wellDepth < 0.2) throw new Error('No room left for a well — thin the floor')
     const tolerance = curveTolerance(Math.max(config.width, config.length), config.segments)
     const wallAtFloor =
       config.wallThickness - profileInsetAt(config.height, config.profile, config.profileSize, config.floorThickness, tolerance)
-    if (hollow && wallAtFloor < MIN_PROFILE_WALL - 1e-6) {
+    if (wallAtFloor < MIN_PROFILE_WALL - 1e-6) {
       throw new Error('Edge profile leaves too little wall at the well floor — reduce the edge size')
     }
 
@@ -178,11 +177,9 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     const halfLength = (wellBounds.max[1] - wellBounds.min[1]) / 2
     const wellReach = Math.hypot(halfWidth, halfLength)
 
-    if (hollow) {
-      // Cut past the top face so no zero-thickness skin is left behind.
-      const plug = solidOf(wellOutline.extrude(wellDepth + 1))
-      solid = solidOf(solid.subtract(solidOf(plug.translate([0, 0, config.floorThickness]))))
-    }
+    // Cut past the top face so no zero-thickness skin is left behind.
+    const plug = solidOf(wellOutline.extrude(wellDepth + 1))
+    solid = solidOf(solid.subtract(solidOf(plug.translate([0, 0, config.floorThickness]))))
 
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
     const bossRadius = pocketRadius + config.magnets.bossWall
@@ -201,7 +198,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
      */
     const pocketDepth = Math.min(config.magnets.thickness + config.magnets.depthClearance, wellDepth)
 
-    if (hollow && magnets.length > 0) {
+    if (magnets.length > 0) {
       // Bosses carry the pockets up through the well so magnets seat against the floor.
       const bossDisc = section(CrossSection.circle(bossRadius, config.segments))
       const bossColumn = solidOf(bossDisc.extrude(wellDepth))
@@ -212,7 +209,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
 
     // Single spokes from the centre outwards, phased to run through the bosses.
     // Intersecting the well stops them at the wall.
-    const spokeAngles = hollow ? ribAngles(config.ribs.count, magnets) : []
+    const spokeAngles = ribAngles(config.ribs.count, magnets)
     const ribHeight = Math.min(config.ribs.height, wellDepth)
     if (spokeAngles.length > 0 && ribHeight > 0) {
       const reach = wellReach + config.wallThickness
@@ -230,7 +227,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       solid = solidOf(solid.add(solidOf(column.translate([0, 0, config.floorThickness]))))
     }
 
-    if (hollow && config.label.enabled && font) {
+    if (config.label.enabled && font) {
       const text = config.label.text?.trim() || defaultLabel(config)
       const polys = textPolygons(font, text, config.label.height)
       if (polys.length > 0) {
@@ -258,13 +255,12 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       }
     }
 
-    // Both undersides open their pockets on the face that meets the tray, which is
-    // the top of the model as built, since the part is modelled the way it prints.
+    // Pockets open on the face that meets the tray, which is the top of the model
+    // as built, since the part is modelled the way it prints.
     if (magnets.length > 0) {
-      const depth = hollow ? pocketDepth + 1 : Math.min(config.magnets.thickness + config.magnets.depthClearance, config.height - 0.4)
       const pocketDisc = section(CrossSection.circle(pocketRadius, config.segments))
-      const drill = solidOf(pocketDisc.extrude(depth + 0.001))
-      const z = hollow ? config.height - pocketDepth : -0.001
+      const drill = solidOf(pocketDisc.extrude(pocketDepth + 1.001))
+      const z = config.height - pocketDepth
       for (const m of magnets) {
         solid = solidOf(solid.subtract(solidOf(drill.translate([m.x, m.y, z]))))
       }
