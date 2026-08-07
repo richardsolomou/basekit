@@ -149,9 +149,7 @@ test('keeps shape and size independent while sharing matching magnet settings in
 
 test('shares the selected pocket pattern between bases and holders', async ({ page }) => {
   const layout = page.getByRole('combobox', { name: 'Pocket layout' })
-  await layout.click()
-  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expect(layout).toHaveCount(0)
   await pickSize(page, '60')
   await layout.click()
   await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(1)
@@ -173,7 +171,7 @@ test('shares the selected pocket pattern between bases and holders', async ({ pa
 
   await page.getByRole('link', { name: 'Bases' }).click()
   await expect(footer(page)).toContainText('5 × 5.2 mm hole')
-  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toBeDisabled()
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toHaveCount(0)
 })
 
 test('remembers workspace settings on reload', async ({ page }) => {
@@ -339,9 +337,7 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await settled(page)
   const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
-  await page.getByRole('combobox', { name: 'Pocket layout' }).click()
-  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
   await expect(depth).toHaveAttribute('max', '8')

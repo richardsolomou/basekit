@@ -351,26 +351,28 @@ export function App() {
             </span>
           }
         >
-          <Dimension
-            label="Magnet diameter"
-            value={config.magnets.diameter}
-            min={2}
-            max={8}
-            step={0.5}
-            defaultValue={BASE_DEFAULTS.magnets.diameter}
-            disabled={config.magnets.count === 0}
-            onChange={(diameter) => setSharedMagnets({ diameter })}
-          />
-          <Dimension
-            label="Magnet thickness"
-            value={config.magnets.thickness}
-            min={0.5}
-            max={maxSharedMagnetThickness}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.magnets.thickness}
-            disabled={config.magnets.count === 0}
-            onChange={(thickness) => setSharedMagnets({ thickness })}
-          />
+          {config.magnets.count > 0 && (
+            <>
+              <Dimension
+                label="Magnet diameter"
+                value={config.magnets.diameter}
+                min={2}
+                max={8}
+                step={0.5}
+                defaultValue={BASE_DEFAULTS.magnets.diameter}
+                onChange={(diameter) => setSharedMagnets({ diameter })}
+              />
+              <Dimension
+                label="Magnet thickness"
+                value={config.magnets.thickness}
+                min={0.5}
+                max={maxSharedMagnetThickness}
+                step={0.1}
+                defaultValue={BASE_DEFAULTS.magnets.thickness}
+                onChange={(thickness) => setSharedMagnets({ thickness })}
+              />
+            </>
+          )}
           <Choice
             label="Pocket layout"
             value={config.magnets.layout}
@@ -378,14 +380,15 @@ export function App() {
             options={magnetLayoutOptions}
             onChange={(layout) => setSharedMagnets({ layout })}
           />
-          <Choice
-            label="Magnets per base"
-            value={magnetCountValue}
-            defaultValue={AUTOMATIC_MAGNET_COUNT}
-            options={magnetCountOptions}
-            onChange={setMagnetCount}
-            disabled={config.magnets.layout === 'five-cross'}
-          />
+          {config.magnets.layout !== 'five-cross' && (
+            <Choice
+              label="Magnets per base"
+              value={magnetCountValue}
+              defaultValue={AUTOMATIC_MAGNET_COUNT}
+              options={magnetCountOptions}
+              onChange={setMagnetCount}
+            />
+          )}
           <FieldDescription>
             {config.magnets.layout === 'five-cross'
               ? 'The cross always provides one centre and four outer pockets.'
@@ -512,14 +515,15 @@ export function App() {
               </span>
             }
           >
-            <Choice
-              label="Number of supports"
-              value={config.ribs.count}
-              defaultValue={BASE_DEFAULTS.ribs.count}
-              options={RIB_COUNTS}
-              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
-              disabled={config.magnets.layout === 'five-cross'}
-            />
+            {config.magnets.layout !== 'five-cross' && (
+              <Choice
+                label="Number of supports"
+                value={config.ribs.count}
+                defaultValue={BASE_DEFAULTS.ribs.count}
+                options={RIB_COUNTS}
+                onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+              />
+            )}
             {config.ribs.count > 0 && (
               <>
                 <Dimension

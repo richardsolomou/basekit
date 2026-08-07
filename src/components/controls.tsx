@@ -185,6 +185,7 @@ interface ChoiceProps<T extends string | number> {
  */
 export function Choice<T extends string | number>({ label, value, defaultValue, disabled, options, onChange }: ChoiceProps<T>) {
   const id = useId()
+  if (options.length <= 1) return null
   const modified = defaultValue !== undefined && value !== defaultValue
   const defaultLabel = options.find((option) => option.value === defaultValue)?.label ?? String(defaultValue)
   const selectedLabel = options.find((option) => option.value === value)?.label ?? String(value)
