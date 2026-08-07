@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { holderSlotMagnetCenters } from '../geometry/holder'
 import { footprintKey } from '../geometry/presets'
 import { defaultWorkspace, loadWorkspace, saveWorkspace, synchronizeWorkspace } from './workspace'
 
@@ -77,6 +78,25 @@ describe('workspace state', () => {
     legacy.shared.magnets.layout = 'five-cross'
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 2, workspace: legacy }))
     expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'five-cross', patternVersion: 1 })
+  })
+
+  it('preserves saved balanced counts for matching bases and holders', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    const footprint = { shape: 'oval', width: 90, length: 52 }
+    legacy.base = { ...legacy.base, ...footprint }
+    legacy.holder.groups[0] = { ...legacy.holder.groups[0], ...footprint }
+    legacy.shared.magnetCounts['oval:90x52'] = 1
+    delete legacy.shared.magnets.patternVersion
+    delete legacy.base.magnets.patternVersion
+    delete legacy.holder.magnets.patternVersion
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 2, workspace: legacy }))
+
+    const loaded = loadWorkspace(storage)
+    expect({ base: loaded.base.magnets.count, holder: holderSlotMagnetCenters(loaded.holder.groups[0], loaded.holder).length }).toEqual({
+      base: 1,
+      holder: 1,
+    })
   })
 
   it('restores the workspace from browser storage', () => {
