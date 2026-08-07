@@ -5,7 +5,7 @@ import { baseOutline, defaultLabel } from './outline'
 import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { curveTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
-import type { BaseConfig, BaseStats, MagnetLayout } from './types'
+import type { BaseConfig, BaseStats, MagnetLayout, ShapeKind } from './types'
 
 export interface BuildResult {
   mesh: Mesh
@@ -30,6 +30,10 @@ interface MagnetPositionOptions {
 /** Whether magnets sit on a ring, rather than in a row down the long axis. */
 export function magnetsRing(width: number, length: number): boolean {
   return Math.max(width, length) / Math.min(width, length) <= ELONGATED_RATIO
+}
+
+export function supportsFivePocketCross(shape: ShapeKind, width: number): boolean {
+  return shape === 'round' && width >= 50
 }
 
 /**
@@ -182,9 +186,11 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
 
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
     const bossRadius = pocketRadius + config.magnets.bossWall
+    const fiveCross =
+      config.magnets.layout === 'five-cross' && (config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width))
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
       ellipticalRow: config.shape === 'oval',
-      layout: config.magnets.layout,
+      layout: fiveCross ? 'five-cross' : 'balanced',
     })
 
     /*

@@ -148,7 +148,14 @@ test('keeps shape and size independent while sharing matching magnet settings in
 })
 
 test('shares the selected pocket pattern between bases and holders', async ({ page }) => {
+  const layout = page.getByRole('combobox', { name: 'Pocket layout' })
+  await layout.click()
+  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await pickSize(page, '60')
+  await layout.click()
+  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(1)
+  await page.keyboard.press('Escape')
   await expect(footer(page)).toContainText('3 × 5.2 mm hole')
   await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('Auto · 3')
   await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('3')
@@ -332,9 +339,14 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await settled(page)
   const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
+  await page.getByRole('combobox', { name: 'Pocket layout' }).click()
+  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
   await expect(depth).toHaveAttribute('max', '8')
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveCount(0)
   await depth.fill('8')
   await depth.press('Enter')
   const before = await triangles(page)
@@ -575,8 +587,9 @@ test('toggles a setting from the empty reset space after its label', async ({ pa
 test('takes magnets out of the underside of a solid base', async ({ page }) => {
   await pickChoice(page, 'Underside', 'Solid')
   await settled(page)
-  // No well means nowhere to emboss, and the copy should say so.
-  await expect(page.getByText(/solid base has no well/i)).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Size labels' })).toHaveCount(0)
+  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toHaveCount(0)
+  await expect(page.getByLabel('Magnet diameter in mm')).toBeVisible()
 })
 
 test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ page }) => {

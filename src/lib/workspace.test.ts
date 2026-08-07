@@ -21,6 +21,7 @@ describe('workspace state', () => {
 
   it('keeps every setting exposed by both generators synchronized', () => {
     const state = defaultWorkspace()
+    state.base = { ...state.base, width: 60, length: 60 }
     state.shared.labelsEnabled = false
     state.shared.wallThickness = 2.5
     state.shared.magnetBossWall = 1.1
@@ -55,6 +56,25 @@ describe('workspace state', () => {
       holderWall: synchronized.holder.baseWallThickness,
       holderBoss: synchronized.holder.magnetBossWall,
     }).toEqual({ baseWall: 2.5, baseBoss: 1.1, holderWall: 2.5, holderBoss: 1.1 })
+  })
+
+  it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
+    const state = defaultWorkspace()
+    state.shared.magnets.layout = 'five-cross'
+
+    const small = synchronizeWorkspace(state)
+    const large = synchronizeWorkspace({ ...state, base: { ...state.base, width: 50, length: 50 } })
+    const oval = synchronizeWorkspace({ ...state, base: { ...state.base, shape: 'oval', width: 60, length: 35 } })
+
+    expect({
+      small: { layout: small.base.magnets.layout, count: small.base.magnets.count },
+      large: { layout: large.base.magnets.layout, count: large.base.magnets.count },
+      oval: { layout: oval.base.magnets.layout, count: oval.base.magnets.count },
+    }).toEqual({
+      small: { layout: 'balanced', count: 1 },
+      large: { layout: 'five-cross', count: 5 },
+      oval: { layout: 'balanced', count: 2 },
+    })
   })
 
   it('migrates saved workspaces to the balanced pocket layout', () => {

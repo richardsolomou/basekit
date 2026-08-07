@@ -1,4 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
+import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
@@ -54,37 +55,43 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
+  const fiveCross = shared.magnets.layout === 'five-cross' && (legacyPattern || supportsFivePocketCross(state.base.shape, state.base.width))
+  const layout = fiveCross ? 'five-cross' : 'balanced'
   const key = footprintKey(state.base.shape, state.base.width, state.base.length)
-  const count =
-    shared.magnets.layout === 'five-cross'
-      ? 5
-      : legacyPattern
-        ? shared.magnetCounts[key]
-        : (shared.magnetCounts[key] ??
-          automaticMagnetCount(
-            state.base.width,
-            state.base.length,
-            shared.magnets.maxCount,
-            shared.magnets.diameter,
-            shared.magnets.thickness,
-          ))
+  const count = fiveCross
+    ? 5
+    : legacyPattern
+      ? shared.magnetCounts[key]
+      : (shared.magnetCounts[key] ??
+        automaticMagnetCount(
+          state.base.width,
+          state.base.length,
+          shared.magnets.maxCount,
+          shared.magnets.diameter,
+          shared.magnets.thickness,
+        ))
   return {
     ...state,
     base: {
       ...state.base,
       wallThickness: shared.wallThickness,
       label: { ...state.base.label, enabled: shared.labelsEnabled },
-      magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall, count: count ?? state.base.magnets.count },
+      magnets: {
+        ...state.base.magnets,
+        ...shared.magnets,
+        layout,
+        bossWall: shared.magnetBossWall,
+        count: count ?? state.base.magnets.count,
+      },
       ribs: {
         ...state.base.ribs,
-        count:
-          shared.magnets.layout === 'five-cross'
-            ? 4
-            : legacyPattern
-              ? state.base.ribs.count
-              : count !== state.base.magnets.count
-                ? ribCountFor(state.base.width, state.base.length, count)
-                : state.base.ribs.count,
+        count: fiveCross
+          ? 4
+          : legacyPattern
+            ? state.base.ribs.count
+            : count !== state.base.magnets.count
+              ? ribCountFor(state.base.width, state.base.length, count)
+              : state.base.ribs.count,
       },
     },
     holder: {

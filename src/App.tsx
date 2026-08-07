@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
+import { supportsFivePocketCross } from '@/geometry/base'
 import {
   defaultHolderConfig,
   holderGroup,
@@ -221,6 +222,12 @@ export function App() {
     { value: AUTOMATIC_MAGNET_COUNT, label: `Auto · ${config.magnets.count}` },
     ...counts(MAGNET_CHOICES),
   ]
+  const magnetLayoutOptions =
+    config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width) ? MAGNET_LAYOUTS : MAGNET_LAYOUTS.slice(0, 1)
+  const holderSupportsFiveCross =
+    holder.magnets.patternVersion === 1 || holder.groups.some((group) => supportsFivePocketCross(group.shape, group.width))
+  const holderMagnetLayout = holderSupportsFiveCross ? holder.magnets.layout : 'balanced'
+  const holderMagnetLayoutOptions = holderSupportsFiveCross ? MAGNET_LAYOUTS : MAGNET_LAYOUTS.slice(0, 1)
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
@@ -288,7 +295,7 @@ export function App() {
   const basePanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
-      <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
+      <aside key={config.underside} aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Size & Shape">
           <Choice label="Shape" value={config.shape} defaultValue={BASE_DEFAULTS.shape} options={SHAPES} onChange={changeShape} />
           <SizeSelect
@@ -340,7 +347,7 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              {trimNumber(config.magnets.diameter + config.magnets.clearance)} mm hole
+              {config.magnets.count === 0 ? 'none' : `${trimNumber(config.magnets.diameter + config.magnets.clearance)} mm hole`}
             </span>
           }
         >
@@ -368,7 +375,7 @@ export function App() {
             label="Pocket layout"
             value={config.magnets.layout}
             defaultValue={BASE_DEFAULTS.magnets.layout}
-            options={MAGNET_LAYOUTS}
+            options={magnetLayoutOptions}
             onChange={(layout) => setSharedMagnets({ layout })}
           />
           <Choice
@@ -386,31 +393,33 @@ export function App() {
           </FieldDescription>
         </Section>
 
-        <Section title="Size Label">
-          <ToggleSetting
-            label="Size labels"
-            checked={config.label.enabled}
-            defaultChecked={BASE_DEFAULTS.label.enabled}
-            onChange={(enabled) => {
-              posthog.capture('base_marking_toggled', { enabled })
-              setSharedLabels(enabled)
-            }}
-          />
-          <Field>
-            <FieldLabel htmlFor="marking-text" className="sr-only">
-              Label text
-            </FieldLabel>
-            <Input
-              id="marking-text"
-              value={config.label.text ?? ''}
-              placeholder={defaultLabel(config)}
-              disabled={!config.label.enabled || !hollow}
-              onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
-              className="readout"
+        {hollow && (
+          <Section title="Size Label">
+            <ToggleSetting
+              label="Size labels"
+              checked={config.label.enabled}
+              defaultChecked={BASE_DEFAULTS.label.enabled}
+              onChange={(enabled) => {
+                posthog.capture('base_marking_toggled', { enabled })
+                setSharedLabels(enabled)
+              }}
             />
-            {!hollow && <FieldDescription>A solid base has no well to emboss. Switch the underside under Construction.</FieldDescription>}
-          </Field>
-        </Section>
+            {config.label.enabled && (
+              <Field>
+                <FieldLabel htmlFor="marking-text" className="sr-only">
+                  Label text
+                </FieldLabel>
+                <Input
+                  id="marking-text"
+                  value={config.label.text ?? ''}
+                  placeholder={defaultLabel(config)}
+                  onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
+                  className="readout"
+                />
+              </Field>
+            )}
+          </Section>
+        )}
 
         <Section title="Construction" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(config.height)}mm</span>}>
           <Choice
@@ -458,16 +467,17 @@ export function App() {
             options={PROFILES}
             onChange={(profile) => patch({ profile })}
           />
-          <Dimension
-            label="Edge size"
-            value={config.profileSize}
-            min={0}
-            max={safeEdgeSize(config)}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.profileSize}
-            disabled={config.profile === 'straight'}
-            onChange={(profileSize) => patch({ profileSize })}
-          />
+          {config.profile !== 'straight' && (
+            <Dimension
+              label="Edge size"
+              value={config.profileSize}
+              min={0}
+              max={safeEdgeSize(config)}
+              step={0.1}
+              defaultValue={BASE_DEFAULTS.profileSize}
+              onChange={(profileSize) => patch({ profileSize })}
+            />
+          )}
           {config.shape === 'rect' && (
             <Dimension
               label="Corner radius"
@@ -493,96 +503,112 @@ export function App() {
           )}
         </Section>
 
-        <Section
-          title="Internal Supports"
-          aside={
-            <span className="readout text-xs text-muted-foreground">
-              {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
-            </span>
-          }
-        >
-          <Choice
-            label="Number of supports"
-            value={config.ribs.count}
-            defaultValue={BASE_DEFAULTS.ribs.count}
-            options={RIB_COUNTS}
-            onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
-            disabled={config.magnets.layout === 'five-cross'}
-          />
-          <Dimension
-            label="Support thickness"
-            value={config.ribs.thickness}
-            min={0.8}
-            max={4}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.ribs.thickness}
-            disabled={config.ribs.count === 0}
-            onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
-          />
-          <Dimension
-            label="Support height"
-            value={config.ribs.height}
-            min={0.4}
-            max={Math.max(0.5, config.height - config.floorThickness)}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.ribs.height}
-            disabled={config.ribs.count === 0}
-            onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
-          />
-        </Section>
+        {hollow && (
+          <Section
+            title="Internal Supports"
+            aside={
+              <span className="readout text-xs text-muted-foreground">
+                {config.ribs.count === 0 ? 'none' : `${config.ribs.count} spokes`}
+              </span>
+            }
+          >
+            <Choice
+              label="Number of supports"
+              value={config.ribs.count}
+              defaultValue={BASE_DEFAULTS.ribs.count}
+              options={RIB_COUNTS}
+              onChange={(count) => patch({ ribs: { ...config.ribs, count } })}
+              disabled={config.magnets.layout === 'five-cross'}
+            />
+            {config.ribs.count > 0 && (
+              <>
+                <Dimension
+                  label="Support thickness"
+                  value={config.ribs.thickness}
+                  min={0.8}
+                  max={4}
+                  step={0.1}
+                  defaultValue={BASE_DEFAULTS.ribs.thickness}
+                  onChange={(thickness) => patch({ ribs: { ...config.ribs, thickness } })}
+                />
+                <Dimension
+                  label="Support height"
+                  value={config.ribs.height}
+                  min={0.4}
+                  max={Math.max(0.5, config.height - config.floorThickness)}
+                  step={0.1}
+                  defaultValue={BASE_DEFAULTS.ribs.height}
+                  onChange={(height) => patch({ ribs: { ...config.ribs, height } })}
+                />
+              </>
+            )}
+          </Section>
+        )}
 
-        <Section
-          title="Fit & Detail"
-          aside={<span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>}
-        >
-          <Dimension
-            label="Magnet diameter clearance"
-            value={config.magnets.clearance}
-            min={0}
-            max={0.6}
-            step={0.05}
-            defaultValue={BASE_DEFAULTS.magnets.clearance}
-            onChange={(clearance) => setSharedMagnets({ clearance })}
-          />
-          <Dimension
-            label="Magnet depth clearance"
-            value={config.magnets.depthClearance}
-            min={0}
-            max={maxSharedDepthClearance}
-            step={0.05}
-            defaultValue={BASE_DEFAULTS.magnets.depthClearance}
-            onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
-          />
-          <Dimension
-            label="Wall around pocket"
-            value={config.magnets.bossWall}
-            min={0.4}
-            max={3}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.magnets.bossWall}
-            onChange={(bossWall) => setSharedMagnetPlacement({ bossWall })}
-          />
-          <Dimension
-            label="Label size"
-            value={config.label.height}
-            min={2}
-            max={16}
-            step={0.5}
-            defaultValue={BASE_DEFAULTS.label.height}
-            disabled={!config.label.enabled}
-            onChange={(height) => patch({ label: { ...config.label, height } })}
-          />
-          <Dimension
-            label="Label thickness"
-            value={config.label.emboss}
-            min={0.2}
-            max={1.5}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.label.emboss}
-            disabled={!config.label.enabled}
-            onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
-          />
-        </Section>
+        {(config.magnets.count > 0 || (hollow && config.label.enabled)) && (
+          <Section
+            title="Fit & Detail"
+            aside={
+              config.magnets.count > 0 ? (
+                <span className="readout text-xs text-muted-foreground">Ø{trimNumber(config.magnets.clearance)} fit</span>
+              ) : undefined
+            }
+          >
+            {config.magnets.count > 0 && (
+              <>
+                <Dimension
+                  label="Magnet diameter clearance"
+                  value={config.magnets.clearance}
+                  min={0}
+                  max={0.6}
+                  step={0.05}
+                  defaultValue={BASE_DEFAULTS.magnets.clearance}
+                  onChange={(clearance) => setSharedMagnets({ clearance })}
+                />
+                <Dimension
+                  label="Magnet depth clearance"
+                  value={config.magnets.depthClearance}
+                  min={0}
+                  max={maxSharedDepthClearance}
+                  step={0.05}
+                  defaultValue={BASE_DEFAULTS.magnets.depthClearance}
+                  onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
+                />
+                <Dimension
+                  label="Wall around pocket"
+                  value={config.magnets.bossWall}
+                  min={0.4}
+                  max={3}
+                  step={0.1}
+                  defaultValue={BASE_DEFAULTS.magnets.bossWall}
+                  onChange={(bossWall) => setSharedMagnetPlacement({ bossWall })}
+                />
+              </>
+            )}
+            {hollow && config.label.enabled && (
+              <Dimension
+                label="Label size"
+                value={config.label.height}
+                min={2}
+                max={16}
+                step={0.5}
+                defaultValue={BASE_DEFAULTS.label.height}
+                onChange={(height) => patch({ label: { ...config.label, height } })}
+              />
+            )}
+            {hollow && config.label.enabled && (
+              <Dimension
+                label="Label thickness"
+                value={config.label.emboss}
+                min={0.2}
+                max={1.5}
+                step={0.1}
+                defaultValue={BASE_DEFAULTS.label.emboss}
+                onChange={(emboss) => patch({ label: { ...config.label, emboss } })}
+              />
+            )}
+          </Section>
+        )}
         <RepositoryLink />
       </aside>
     </ScrollArea>
@@ -874,7 +900,7 @@ export function App() {
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
-              {trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole
+              {holder.magnets.enabled ? `${trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole` : 'none'}
             </span>
           }
         >
@@ -884,55 +910,54 @@ export function App() {
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
           />
-          <Choice
-            label="Pocket layout"
-            value={holder.magnets.layout}
-            defaultValue={HOLDER_DEFAULTS.magnets.layout}
-            options={MAGNET_LAYOUTS}
-            disabled={!holder.magnets.enabled}
-            onChange={(layout) => setSharedMagnets({ layout })}
-          />
-          <Dimension
-            label="Magnet diameter"
-            value={holder.magnets.diameter}
-            min={2}
-            max={8}
-            step={0.5}
-            defaultValue={BASE_DEFAULTS.magnets.diameter}
-            disabled={!holder.magnets.enabled}
-            onChange={(diameter) => setSharedMagnets({ diameter })}
-          />
-          <Dimension
-            label="Magnet thickness"
-            value={holder.magnets.thickness}
-            min={0.5}
-            max={maxSharedMagnetThickness}
-            step={0.1}
-            defaultValue={BASE_DEFAULTS.magnets.thickness}
-            disabled={!holder.magnets.enabled}
-            onChange={(thickness) => setSharedMagnets({ thickness })}
-          />
-          <Dimension
-            label="Magnet diameter clearance"
-            value={holder.magnets.clearance}
-            min={0}
-            max={0.6}
-            step={0.05}
-            defaultValue={BASE_DEFAULTS.magnets.clearance}
-            disabled={!holder.magnets.enabled}
-            onChange={(clearance) => setSharedMagnets({ clearance })}
-          />
-          <Dimension
-            label="Magnet depth clearance"
-            value={holder.magnets.depthClearance}
-            min={0}
-            max={0.5}
-            step={0.05}
-            defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
-            disabled={!holder.magnets.enabled}
-            onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
-          />
-          <FieldDescription>Automatic base recommendations also apply to matching holder slots.</FieldDescription>
+          {holder.magnets.enabled && (
+            <>
+              <Choice
+                label="Pocket layout"
+                value={holderMagnetLayout}
+                defaultValue={HOLDER_DEFAULTS.magnets.layout}
+                options={holderMagnetLayoutOptions}
+                onChange={(layout) => setSharedMagnets({ layout })}
+              />
+              <Dimension
+                label="Magnet diameter"
+                value={holder.magnets.diameter}
+                min={2}
+                max={8}
+                step={0.5}
+                defaultValue={BASE_DEFAULTS.magnets.diameter}
+                onChange={(diameter) => setSharedMagnets({ diameter })}
+              />
+              <Dimension
+                label="Magnet thickness"
+                value={holder.magnets.thickness}
+                min={0.5}
+                max={maxSharedMagnetThickness}
+                step={0.1}
+                defaultValue={BASE_DEFAULTS.magnets.thickness}
+                onChange={(thickness) => setSharedMagnets({ thickness })}
+              />
+              <Dimension
+                label="Magnet diameter clearance"
+                value={holder.magnets.clearance}
+                min={0}
+                max={0.6}
+                step={0.05}
+                defaultValue={BASE_DEFAULTS.magnets.clearance}
+                onChange={(clearance) => setSharedMagnets({ clearance })}
+              />
+              <Dimension
+                label="Magnet depth clearance"
+                value={holder.magnets.depthClearance}
+                min={0}
+                max={0.5}
+                step={0.05}
+                defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
+                onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
+              />
+              <FieldDescription>Automatic base recommendations also apply to matching holder slots.</FieldDescription>
+            </>
+          )}
         </Section>
         <RepositoryLink />
       </aside>

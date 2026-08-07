@@ -139,6 +139,28 @@ describe('holderLayout', () => {
     expect(centers).toHaveLength(5)
   })
 
+  it('limits new five-pocket crosses to round slots at least 50mm wide', () => {
+    const defaults = defaultHolderConfig()
+    const settings = { ...defaults, magnets: { ...defaults.magnets, layout: 'five-cross' as const } }
+
+    expect({
+      small: holderSlotMagnetCenters(holderGroup('small', 1, { width: 40 }), settings).length,
+      large: holderSlotMagnetCenters(holderGroup('large', 1, { width: 50 }), settings).length,
+      oval: holderSlotMagnetCenters(holderGroup('oval', 1, { shape: 'oval', width: 60, length: 35 }), settings).length,
+    }).toEqual({ small: 1, large: 5, oval: 2 })
+  })
+
+  it('preserves legacy five-pocket crosses on unsupported slots', () => {
+    const defaults = defaultHolderConfig()
+    const settings = {
+      ...defaults,
+      magnets: { ...defaults.magnets, layout: 'five-cross' as const, patternVersion: 1 as const },
+    }
+    const oval = holderGroup('oval', 1, { shape: 'oval', width: 60, length: 35 })
+
+    expect(holderSlotMagnetCenters(oval, settings)).toHaveLength(5)
+  })
+
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 40, { width: 32 })] }
     const layout = holderLayout(config)
