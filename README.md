@@ -16,9 +16,9 @@ Everything runs in the browser. Models are built locally and nothing is uploaded
 
 ## Who is it for? 👋
 
-BaseKit is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD. It covers round and oval skirmish bases, ranked regiments, pill-shaped footprints, and polygons from triangles to dodecagons.
+BaseKit is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD.
 
-The built-in presets include the common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
+Built-in presets cover common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
 
 ## How it works 🧲
 
@@ -28,31 +28,36 @@ The built-in presets include the common Games Workshop, The Old World, Kings of 
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
-Gridfinity holders take one or more quantities and base footprints, then plan them inside the available box. Holder slots support the same round, oval, pill, rectangle and hex footprint families as the base generator, and miniature groups can start from the same standard base sizes. Miniature groups default to ordinary independent Gridfinity modules, shown with clearance between them in the preview and exported as separate STL files in one archive or separate build plates in one 3MF; splitting can be disabled to combine sizes in one holder. Subtractive size engraving defaults to every miniature slot and can instead be placed once in free space on its module or disabled. Maximum rows and columns define the box, and requests that do not fit report the omitted models instead of blocking the rest of the plan. Spacing controls the material left between neighbouring miniatures. Fit clearance belongs to the recess rather than the packing distance. Slot magnet pockets follow the same preset layout as matching bases, and every 42mm Gridfinity cell gets its own profiled locating foot.
+## Gridfinity holders 📦
 
-Slot depth is capped against the holder height, in-slot engraving and magnet thickness so every cut leaves printable material above the Gridfinity feet.
+Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints.
 
-The base generator lives at `/`; the Gridfinity holder generator can be opened directly at `/holders`.
+Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
-Settings changed from their original defaults mark their label and reset action in orange, so numeric values, choices, and toggles can be undone one at a time without rebuilding the rest of the configuration.
+## Designed for one job 🎯
 
-Narrow elongated bases up to roughly three magnet pitches use a pair at the usable ends, where they provide the widest support and anti-tip lever arm without unnecessary holding force in the middle. Longer or wider rows use even counts based on both axes, rounding down between pitch thresholds because hollow miniatures rarely need the extra pull. Ring layouts follow the same roughly 31mm pitch, with every magnet boss directly aligned to a support rib. A single central magnet is reserved for bases that are small in both area and span.
+- Round, oval, pill, rectangle, and regular polygon bases.
+- Hollow or solid undersides with automatic ribs and magnet layouts.
+- Balanced or five-pocket cross magnet arrangements shared by bases and holders.
+- Exact size labels, filenames, dimensions, and high-quality exports.
+- Browser-saved settings with shared base and holder preferences.
 
-Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions and counts, wall thickness and magnet boss walls stay in sync between them.
+BaseKit generates bases and holders for them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
-Magnet pockets can use the balanced layout or an opt-in five-pocket cross shared by bases and holders. The cross can be populated with one central magnet and expanded later without reprinting either part.
+## Private by design 🔒
 
-The base is modelled upside down in its print orientation. Its hollow underside needs no supports, magnet pockets open directly onto the build plate, and ribs brace each magnet boss without crowding out the size label. Presets scale the magnet and rib layout with the footprint; the label moves and shrinks automatically when the centre is occupied.
-
-A solid underside is available when you do not need a recess. Magnet pockets still open on the tray face, keeping the magnets flush with no plastic between them and the tray.
-
-## What it does not do
-
-BaseKit generates bases and holders for them. It does not sculpt miniatures, add surface textures or heightmaps, slice models, or control a printer.
+The generator, 3D preview, fonts, and exporters all run locally in your browser. BaseKit has no backend, accounts, database, telemetry, or file uploads.
 
 ## Development 🛠️
 
-Requires Node 24.x and pnpm 10.33.0. Setup, checks, architecture, and sample exports live in [CONTRIBUTING.md](CONTRIBUTING.md); see [SECURITY.md](SECURITY.md) for vulnerability reports and [GitHub Issues](https://github.com/richardsolomou/basekit/issues) for planned work.
+Development requires Node 24.x and pnpm 10.33.0.
+
+```sh
+pnpm install
+pnpm dev
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture, checks, and sample exports. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 Cloudflare builds the static app with `pnpm build` and serves `dist/`. See the [deployment guide](docs/deployment.md) for Pages setup, custom-domain configuration, and production checks.
 
