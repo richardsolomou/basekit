@@ -90,12 +90,12 @@ describe('holderLayout', () => {
     expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 32 }))).toHaveLength(1)
     const largeRound = holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 65 }))
     expect(largeRound).toHaveLength(3)
-    expect(largeRound.filter((center) => Math.hypot(center.x, center.y) < 1e-6)).toHaveLength(1)
+    expect(largeRound.every((center) => Math.hypot(center.x, center.y) > 1)).toBe(true)
     const oval = holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 60, length: 35 }))
-    expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0, 0])
+    expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0])
     expect(Math.min(...oval.map((center) => center.x))).toBeLessThan(-20)
     expect(Math.max(...oval.map((center) => center.x))).toBeGreaterThan(20)
-    expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 }))).toHaveLength(3)
+    expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 }))).toHaveLength(2)
   })
 
   it('uses a saved base magnet count for the matching holder slot', () => {
@@ -109,11 +109,22 @@ describe('holderLayout', () => {
     expect(holderSlotMagnetCenters(oval, config)).toHaveLength(1)
   })
 
-  it('ignores legacy count overrides for the canonical pocket pattern', () => {
+  it('uses count overrides instead of the automatic pocket pattern', () => {
     const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
     const defaults = defaultHolderConfig()
     const config = { ...defaults, magnetCounts: { 'oval:90x52': 1 } }
-    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(3)
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(1)
+  })
+
+  it('adjusts automatic holder counts for the selected magnet dimensions', () => {
+    const slot = holderGroup('models-1', 1, { width: 80 })
+    const defaults = defaultHolderConfig()
+    const weak = { ...defaults, magnets: { ...defaults.magnets, diameter: 3, thickness: 1 } }
+    const strong = { ...defaults, magnets: { ...defaults.magnets, diameter: 6, thickness: 3 } }
+    expect({ weak: holderSlotMagnetCenters(slot, weak).length, strong: holderSlotMagnetCenters(slot, strong).length }).toEqual({
+      weak: 8,
+      strong: 3,
+    })
   })
 
   it('matches the five-pocket cross base layout', () => {

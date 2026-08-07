@@ -20,7 +20,17 @@ import {
   maxHolderSlotDepth,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
-import { DEFAULT_PRESET, DEFAULT_SIZE, presetFor, resized, RIB_CHOICES, SIZES_BY_SHAPE, type SizePreset } from '@/geometry/presets'
+import {
+  DEFAULT_PRESET,
+  DEFAULT_SIZE,
+  footprintKey,
+  MAGNET_CHOICES,
+  presetFor,
+  resized,
+  RIB_CHOICES,
+  SIZES_BY_SHAPE,
+  type SizePreset,
+} from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
 import type { BaseConfig, EdgeProfile, HolderConfig, ShapeKind, Underside } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
@@ -58,6 +68,8 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
   { value: 'solid', label: 'Solid' },
 ]
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
+const AUTOMATIC_MAGNET_COUNT = 'auto'
+type MagnetCountChoice = number | typeof AUTOMATIC_MAGNET_COUNT
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
@@ -198,6 +210,13 @@ export function App() {
   const hollow = config.underside === 'well'
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
+  const magnetCountKey = footprintKey(config.shape, config.width, config.length)
+  const magnetCountOverride = workspace.shared.magnetCounts[magnetCountKey]
+  const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
+  const magnetCountOptions: { value: MagnetCountChoice; label: string }[] = [
+    { value: AUTOMATIC_MAGNET_COUNT, label: `Auto · ${config.magnets.count}` },
+    ...counts(MAGNET_CHOICES),
+  ]
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
@@ -212,6 +231,14 @@ export function App() {
       shared: { ...current.shared, magnets: { ...current.shared.magnets, ...changes } },
     }))
   }
+
+  const setMagnetCount = (count: MagnetCountChoice) =>
+    setWorkspace((current) => {
+      const magnetCounts = { ...current.shared.magnetCounts }
+      if (count === AUTOMATIC_MAGNET_COUNT) delete magnetCounts[magnetCountKey]
+      else magnetCounts[magnetCountKey] = count
+      return { ...current, shared: { ...current.shared, magnetCounts } }
+    })
 
   const setSharedLabels = (labelsEnabled: boolean) =>
     setWorkspace((current) => ({
@@ -331,7 +358,14 @@ export function App() {
             disabled={config.magnets.count === 0}
             onChange={(thickness) => setSharedMagnets({ thickness })}
           />
-          <FieldDescription>Start with the centre pocket, then add opposing pairs for more holding force.</FieldDescription>
+          <Choice
+            label="Magnets per base"
+            value={magnetCountValue}
+            defaultValue={AUTOMATIC_MAGNET_COUNT}
+            options={magnetCountOptions}
+            onChange={setMagnetCount}
+          />
+          <FieldDescription>Automatic balances the footprint using the selected magnet dimensions.</FieldDescription>
         </Section>
 
         <Section title="Size Label">
@@ -872,7 +906,7 @@ export function App() {
             disabled={!holder.magnets.enabled}
             onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
           />
-          <FieldDescription>Start with the centre pocket, then add opposing pairs for more holding force.</FieldDescription>
+          <FieldDescription>Automatic base recommendations also apply to matching holder slots.</FieldDescription>
         </Section>
         <RepositoryLink />
       </aside>

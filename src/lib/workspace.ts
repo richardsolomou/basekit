@@ -1,5 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
-import { DEFAULT_PRESET, footprintKey, presetFor } from '../geometry/presets'
+import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
@@ -54,12 +54,20 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
+  const key = footprintKey(state.base.shape, state.base.width, state.base.length)
   const count =
     legacyPattern && shared.magnets.layout === 'five-cross'
       ? 5
       : legacyPattern
-        ? shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)]
-        : undefined
+        ? shared.magnetCounts[key]
+        : (shared.magnetCounts[key] ??
+          automaticMagnetCount(
+            state.base.width,
+            state.base.length,
+            shared.magnets.maxCount,
+            shared.magnets.diameter,
+            shared.magnets.thickness,
+          ))
   return {
     ...state,
     base: {
@@ -67,7 +75,17 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       wallThickness: shared.wallThickness,
       label: { ...state.base.label, enabled: shared.labelsEnabled },
       magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall, count: count ?? state.base.magnets.count },
-      ribs: { ...state.base.ribs, count: legacyPattern && shared.magnets.layout === 'five-cross' ? 4 : state.base.ribs.count },
+      ribs: {
+        ...state.base.ribs,
+        count:
+          legacyPattern && shared.magnets.layout === 'five-cross'
+            ? 4
+            : legacyPattern
+              ? state.base.ribs.count
+              : count !== state.base.magnets.count
+                ? ribCountFor(state.base.width, state.base.length, count)
+                : state.base.ribs.count,
+      },
     },
     holder: {
       ...state.holder,
@@ -115,11 +133,12 @@ function migrateWorkspaceV2(value: unknown): unknown {
   const baseMagnets = base.magnets as Record<string, unknown> | undefined
   const holderMagnets = holder.magnets as Record<string, unknown> | undefined
   if (!sharedMagnets || !baseMagnets || !holderMagnets) return value
+  const patternVersion = sharedMagnets.layout === 'five-cross' ? 1 : 2
   return {
     ...workspace,
-    shared: { ...shared, magnets: { ...sharedMagnets, patternVersion: 1 } },
-    base: { ...base, magnets: { ...baseMagnets, patternVersion: 1 } },
-    holder: { ...holder, magnets: { ...holderMagnets, patternVersion: 1 } },
+    shared: { ...shared, magnets: { ...sharedMagnets, patternVersion } },
+    base: { ...base, magnets: { ...baseMagnets, patternVersion } },
+    holder: { ...holder, magnets: { ...holderMagnets, patternVersion } },
   }
 }
 

@@ -90,7 +90,7 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
 test('uses an end pair for a medium oval base', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
-  await expect(footer(page)).toContainText('3 × 5.2 mm hole')
+  await expect(footer(page)).toContainText('2 × 5.2 mm hole')
 })
 
 test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
@@ -132,11 +132,11 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await page.getByRole('option', { name: /^90×52\b/ }).click()
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('90×52')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('6.0')
-  await expect(footer(page)).toContainText('15 × 6.2 mm hole')
+  await expect(footer(page)).toContainText('10 × 6.2 mm hole')
 
   await page.getByLabel('Magnet diameter in mm').fill('7')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
-  await expect(footer(page)).toContainText('15 × 7.2 mm hole')
+  await expect(footer(page)).toContainText('10 × 7.2 mm hole')
   const ninetyByFiftyTwo = await triangles(page)
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^75×42\b/ }).click()
@@ -150,14 +150,17 @@ test('keeps shape and size independent while sharing matching magnet settings in
 test('shares the canonical pocket pattern between bases and holders', async ({ page }) => {
   await pickSize(page, '60')
   await expect(footer(page)).toContainText('3 × 5.2 mm hole')
-  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('2')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('Auto · 3')
+  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('3')
   await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
+  await pickChoice(page, 'Magnets per base', '4')
+  await expect(footer(page)).toContainText('4 × 5.2 mm hole')
 
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^60\b/ }).click()
   await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
-  await expect(footer(page)).toContainText('15 × 5.2 mm hole')
+  await expect(footer(page)).toContainText('20 × 5.2 mm hole')
 })
 
 test('remembers workspace settings on reload', async ({ page }) => {

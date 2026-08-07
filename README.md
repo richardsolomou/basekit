@@ -44,11 +44,11 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 BaseKit generates bases and holders for them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
-Every standard pocket pattern starts at the centre. Larger footprints add opposing pairs along the long axis or around an outer ring, up to seven available pockets on the largest bases. Each outer magnet boss aligns with a support rib, and the centre meets every rib automatically.
+Magnet counts are automatic by default. The recommendation balances the selected footprint, scales from a 5×2mm neodymium baseline using the magnet diameter and thickness, and never drops below the count needed to resist tipping. The result snaps to a supported balanced ring or row, and can be overridden for any footprint when real magnets or miniatures behave differently.
 
 Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions, wall thickness and magnet boss walls stay in sync between them.
 
-Matching bases and holders always use the same automatically chosen pocket pattern. Install the centre magnet first, then add as many opposing pairs as the model needs without reprinting either part. Saved workspaces from before this standard retain their original pocket counts and layouts.
+Matching bases and holders always use the same resolved count and placement. Saved balanced counts become manual overrides, while saved five-pocket cross workspaces retain their legacy geometry.
 
 ## Private by design 🔒
 

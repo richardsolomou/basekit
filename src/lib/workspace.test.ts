@@ -65,7 +65,7 @@ describe('workspace state', () => {
     delete legacy.base.magnets.layout
     delete legacy.holder.magnets.layout
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 1, workspace: legacy }))
-    expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'balanced', patternVersion: 1 })
+    expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'balanced', patternVersion: 2 })
   })
 
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {
@@ -97,6 +97,39 @@ describe('workspace state', () => {
       base: 1,
       holder: 1,
     })
+  })
+
+  it('automatically responds to magnet dimensions until the count is overridden', () => {
+    const state = defaultWorkspace()
+    state.base = { ...state.base, width: 80, length: 80 }
+    state.holder.groups[0] = { ...state.holder.groups[0], width: 80, length: 80 }
+    state.shared.magnets = { ...state.shared.magnets, diameter: 3, thickness: 1 }
+
+    const automatic = synchronizeWorkspace(state)
+    expect({
+      base: automatic.base.magnets.count,
+      holder: holderSlotMagnetCenters(automatic.holder.groups[0], automatic.holder).length,
+      ribs: automatic.base.ribs.count,
+    }).toEqual({
+      base: 8,
+      holder: 8,
+      ribs: 8,
+    })
+
+    automatic.shared.magnetCounts['round:80x80'] = 4
+    const overridden = synchronizeWorkspace(automatic)
+    expect({
+      base: overridden.base.magnets.count,
+      holder: holderSlotMagnetCenters(overridden.holder.groups[0], overridden.holder).length,
+      ribs: overridden.base.ribs.count,
+    }).toEqual({
+      base: 4,
+      holder: 4,
+      ribs: 4,
+    })
+
+    overridden.base.ribs.count = 0
+    expect(synchronizeWorkspace(overridden).base.ribs.count).toBe(0)
   })
 
   it('restores the workspace from browser storage', () => {

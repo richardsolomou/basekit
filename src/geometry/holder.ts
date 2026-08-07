@@ -3,7 +3,7 @@ import type { Font } from 'opentype.js'
 import { magnetPositions } from './base'
 import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
 import { isElongated, trimNumber } from './outline'
-import { DEFAULT_SIZE, footprintKey, presetFor } from './presets'
+import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
@@ -144,7 +144,14 @@ export function holderSlotMagnetCenters(
       ? 5
       : settings.magnets.patternVersion === 1
         ? (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count)
-        : base.magnets.count
+        : (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ??
+          automaticMagnetCount(
+            slotWidth(slot),
+            slotLength(slot),
+            settings.magnets.maxCount,
+            settings.magnets.diameter,
+            settings.magnets.thickness,
+          ))
   const pocketRadius = (settings.magnets.diameter + settings.magnets.clearance) / 2
   const bossRadius = pocketRadius + settings.magnetBossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - settings.baseWallThickness)
@@ -152,7 +159,6 @@ export function holderSlotMagnetCenters(
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
     layout: settings.magnets.patternVersion === 1 ? settings.magnets.layout : 'balanced',
-    patternVersion: settings.magnets.patternVersion,
   }).map(({ x, y }) => ({ x, y }))
 }
 
