@@ -209,6 +209,13 @@ export function maxHolderMagnetThickness(config: HolderConfig): number {
   return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - config.magnets.depthClearance
 }
 
+export function minHolderHeight(config: HolderConfig): number {
+  const engravingDepth = config.engraving.enabled && config.engraving.placement === 'slots' ? ENGRAVING_DEPTH : 0
+  const magnetDepth = config.magnets.enabled ? config.magnets.thickness + config.magnets.depthClearance : 0
+  const required = PROFILE.at(-1)!.z + MIN_SLOT_FLOOR_THICKNESS + config.slotDepth + Math.max(engravingDepth, magnetDepth)
+  return Math.max(BASE_HEIGHT, Math.ceil((required - 1e-6) / BASE_HEIGHT) * BASE_HEIGHT)
+}
+
 function distributed(points: HolderSlot[], width: number, length: number) {
   const minX = Math.min(...points.map((point) => point.x - slotWidth(point) / 2))
   const maxX = Math.max(...points.map((point) => point.x + slotWidth(point) / 2))

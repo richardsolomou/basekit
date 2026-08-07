@@ -351,6 +351,24 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await expect(depth).toHaveValue('6.5')
 })
 
+test('offers only holder heights that fit the selected slot features', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const height = page.getByRole('spinbutton', { name: 'Holder height in mm' })
+  await expect(height).toHaveAttribute('min', '14')
+
+  await page.getByRole('switch', { name: 'Slot magnets' }).click()
+  const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
+  await depth.fill('1')
+  await depth.press('Enter')
+  await expect(height).toHaveAttribute('min', '7')
+
+  await height.fill('7')
+  await height.press('Enter')
+  await settled(page)
+  await expect(height).toHaveValue('7')
+})
+
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)

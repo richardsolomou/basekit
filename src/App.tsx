@@ -19,6 +19,7 @@ import {
   holderPlan,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
+  minHolderHeight,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
@@ -156,7 +157,9 @@ export function App() {
   const maxSharedDepthClearance = Math.max(0, Math.min(0.5, maxBaseDepthClearance, maxHolderDepthClearance))
   const fitSlotDepth = (next: HolderConfig) => ({
     ...next,
-    slotDepth: Math.min(next.slotDepth, Math.max(1, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5)),
+    ...(maxHolderSlotDepth(next) < 1
+      ? { height: minHolderHeight({ ...next, slotDepth: 1 }), slotDepth: 1 }
+      : { slotDepth: Math.min(next.slotDepth, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5) }),
   })
   const plan = useMemo(() => holderPlan(holder), [holder])
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
@@ -833,11 +836,11 @@ export function App() {
           <Dimension
             label="Holder height"
             value={holder.height}
-            min={7}
+            min={minHolderHeight(holder)}
             max={42}
             step={7}
             defaultValue={HOLDER_DEFAULTS.height}
-            onChange={(height) => setHolder(fitSlotDepth({ ...holder, height }))}
+            onChange={(height) => setHolder({ ...holder, height })}
           />
         </Section>
 

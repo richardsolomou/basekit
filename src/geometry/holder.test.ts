@@ -12,6 +12,7 @@ import {
   holderSlotMagnetCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
+  minHolderHeight,
 } from './holder'
 import { loadManifold } from './manifold'
 
@@ -381,6 +382,18 @@ describe('buildHolder', () => {
   it('limits magnet thickness to the material above the Gridfinity foot', () => {
     const config = defaultHolderConfig()
     expect(maxHolderMagnetThickness(config)).toBeCloseTo(5.85)
+  })
+
+  it('uses the lowest Gridfinity height that fits the selected slot features', () => {
+    const config = defaultHolderConfig()
+    const shallow = {
+      ...config,
+      slotDepth: 1,
+      magnets: { ...config.magnets, enabled: false },
+      engraving: { ...config.engraving, enabled: false },
+    }
+
+    expect({ default: minHolderHeight(config), shallow: minHolderHeight(shallow) }).toEqual({ default: 14, shallow: 7 })
   })
 
   it.each(['slots', 'module'] as const)('subtracts size engraving %s', (placement) => {
