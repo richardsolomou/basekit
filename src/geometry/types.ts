@@ -8,12 +8,15 @@ export type EdgeProfile = 'taper' | 'straight' | 'bevel' | 'round'
 export type Underside = 'well' | 'solid'
 
 export type MagnetLayout = 'balanced' | 'five-cross'
+export type MagnetPatternVersion = 1 | 2
 
 export interface MagnetSpec {
   /** 0 disables pockets. 1 sits at the centre, more spread over the footprint. */
   count: number
   /** Balanced follows the selected count; five-cross provides a centre and four outer pockets. */
   layout: MagnetLayout
+  /** Version 1 preserves selectable legacy layouts; version 2 is the canonical complete pattern. */
+  patternVersion: MagnetPatternVersion
   /** Upper bound for counts chosen automatically from the footprint. */
   maxCount: number
   diameter: number
@@ -98,6 +101,7 @@ export interface HolderConfig {
   magnets: {
     enabled: boolean
     layout: MagnetLayout
+    patternVersion: MagnetPatternVersion
     maxCount: number
     diameter: number
     clearance: number

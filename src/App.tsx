@@ -20,19 +20,9 @@ import {
   maxHolderSlotDepth,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
-import {
-  DEFAULT_PRESET,
-  DEFAULT_SIZE,
-  footprintKey,
-  MAGNET_CHOICES,
-  presetFor,
-  resized,
-  RIB_CHOICES,
-  SIZES_BY_SHAPE,
-  type SizePreset,
-} from '@/geometry/presets'
+import { DEFAULT_PRESET, DEFAULT_SIZE, presetFor, resized, RIB_CHOICES, SIZES_BY_SHAPE, type SizePreset } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind, Underside } from '@/geometry/types'
+import type { BaseConfig, EdgeProfile, HolderConfig, ShapeKind, Underside } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -67,13 +57,7 @@ const UNDERSIDES: { value: Underside; label: string }[] = [
   { value: 'well', label: 'Hollow' },
   { value: 'solid', label: 'Solid' },
 ]
-const MAGNET_LAYOUTS: { value: MagnetLayout; label: string }[] = [
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'five-cross', label: 'Five-pocket cross' },
-]
-
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
-const MAGNET_COUNTS = counts(MAGNET_CHOICES)
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
@@ -218,13 +202,11 @@ export function App() {
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
-    const next = presetFor(size)
+    const next = presetFor(size, config.magnets.maxCount, config.magnets.patternVersion)
     setConfig(next)
   }
 
-  const setSharedMagnets = (
-    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
-  ) => {
+  const setSharedMagnets = (changes: Partial<Pick<BaseConfig['magnets'], 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>) => {
     setWorkspace((current) => ({
       ...current,
       shared: { ...current.shared, magnets: { ...current.shared.magnets, ...changes } },
@@ -258,14 +240,6 @@ export function App() {
         base: { ...base, profileSize: Math.min(base.profileSize, safeEdgeSize(base)) },
       }
     })
-  }
-
-  const setMagnetCount = (count: number) => {
-    const key = footprintKey(config.shape, config.width, config.length)
-    setWorkspace((current) => ({
-      ...current,
-      shared: { ...current.shared, magnetCounts: { ...current.shared.magnetCounts, [key]: count } },
-    }))
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -357,6 +331,7 @@ export function App() {
             disabled={config.magnets.count === 0}
             onChange={(thickness) => setSharedMagnets({ thickness })}
           />
+          <FieldDescription>Install magnets in any symmetric subset of the pockets to adjust the holding force.</FieldDescription>
         </Section>
 
         <Section title="Size Label">
@@ -464,31 +439,6 @@ export function App() {
               onChange={(sides) => patch({ sides })}
             />
           )}
-        </Section>
-
-        <Section
-          title="Magnet Layout"
-          aside={
-            <span className="readout text-xs text-muted-foreground">
-              {config.magnets.count === 0 ? 'none' : `${config.magnets.count} ${config.magnets.count === 1 ? 'pocket' : 'pockets'}`}
-            </span>
-          }
-        >
-          <Choice
-            label="Magnets per base"
-            value={config.magnets.count}
-            defaultValue={BASE_DEFAULTS.magnets.count}
-            options={MAGNET_COUNTS}
-            onChange={setMagnetCount}
-            disabled={config.magnets.layout === 'five-cross'}
-          />
-          <Choice
-            label="Pocket layout"
-            value={config.magnets.layout}
-            defaultValue={BASE_DEFAULTS.magnets.layout}
-            options={MAGNET_LAYOUTS}
-            onChange={(layout) => setSharedMagnets({ layout })}
-          />
         </Section>
 
         <Section
@@ -882,14 +832,6 @@ export function App() {
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
           />
-          <Choice
-            label="Pocket layout"
-            value={holder.magnets.layout}
-            defaultValue={HOLDER_DEFAULTS.magnets.layout}
-            options={MAGNET_LAYOUTS}
-            disabled={!holder.magnets.enabled}
-            onChange={(layout) => setSharedMagnets({ layout })}
-          />
           <Dimension
             label="Magnet diameter"
             value={holder.magnets.diameter}
@@ -930,6 +872,7 @@ export function App() {
             disabled={!holder.magnets.enabled}
             onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
           />
+          <FieldDescription>Install magnets in any symmetric subset of the pockets to adjust the holding force.</FieldDescription>
         </Section>
         <RepositoryLink />
       </aside>

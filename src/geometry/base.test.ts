@@ -475,10 +475,14 @@ describe('scaling with the footprint', () => {
     expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(4)
   })
 
-  it('keeps a 100mm ring on pitch without rounding five magnets up to six', () => {
-    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 5 } })
+  it('uses even canonical rings so opposing subsets stay balanced', () => {
+    expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
     expect(presetFor(ROUND_SIZES[8])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
     expect(presetFor(OVAL_SIZES[4])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
+  })
+
+  it('preserves odd rings for legacy geometry', () => {
+    expect(presetFor(ROUND_SIZES[9], 8, 1)).toMatchObject({ magnets: { count: 5, patternVersion: 1 }, ribs: { count: 5 } })
   })
 
   it('uses an end pair when a low-area custom base has a long lever arm', () => {
@@ -488,7 +492,7 @@ describe('scaling with the footprint', () => {
 
   it('uses the lower supported row count when transverse demand falls between counts', () => {
     const base = presetFor(OVAL_SIZES[0])
-    expect(resized(base, 90, 70).magnets.count).toBe(3)
+    expect(resized(base, 90, 70).magnets.count).toBe(4)
     expect(resized(base, 95, 70).magnets.count).toBe(4)
     expect(resized(base, 142, 105).magnets.count).toBe(4)
   })
@@ -519,7 +523,7 @@ describe('scaling with the footprint', () => {
   })
 
   it('offers every count a preset can pick', () => {
-    const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map(presetFor)
+    const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map((size) => presetFor(size))
     for (const config of all) {
       expect(MAGNET_CHOICES).toContain(config.magnets.count)
       expect(RIB_CHOICES).toContain(config.ribs.count)
@@ -527,7 +531,7 @@ describe('scaling with the footprint', () => {
   })
 
   it('keeps every automatic magnet boss inside the real well outline', () => {
-    const configs = [...ROUND_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES, ...POLYGON_SIZES].map(presetFor)
+    const configs = [...ROUND_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES, ...POLYGON_SIZES].map((size) => presetFor(size))
     const elongatedShapes: BaseConfig['shape'][] = ['oval', 'pill', 'rect']
     for (const shape of elongatedShapes) {
       const source = shape === 'oval' ? OVAL_SIZES[0] : shape === 'pill' ? PILL_SIZES[0] : RECT_SIZES[0]

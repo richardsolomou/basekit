@@ -12,7 +12,10 @@ function memoryStorage() {
 
 describe('workspace state', () => {
   it('starts both generators at their defaults', () => {
-    expect(defaultWorkspace()).toMatchObject({ base: { width: 32 }, holder: { kind: 'holder', groups: [{ width: 32 }] } })
+    expect(defaultWorkspace()).toMatchObject({
+      base: { width: 32, magnets: { patternVersion: 2 } },
+      holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
+    })
   })
 
   it('keeps every setting exposed by both generators synchronized', () => {
@@ -22,7 +25,15 @@ describe('workspace state', () => {
     state.shared.magnetBossWall = 1.1
     state.shared.magnets.layout = 'five-cross'
     state.shared.magnetCounts[footprintKey(state.base.shape, state.base.width, state.base.length)] = 4
-    state.shared.magnets = { layout: 'five-cross', maxCount: 8, diameter: 6, thickness: 1.5, clearance: 0.3, depthClearance: 0.2 }
+    state.shared.magnets = {
+      layout: 'five-cross',
+      patternVersion: 1,
+      maxCount: 8,
+      diameter: 6,
+      thickness: 1.5,
+      clearance: 0.3,
+      depthClearance: 0.2,
+    }
     const synchronized = synchronizeWorkspace(state)
     expect({ label: synchronized.base.label.enabled, engraving: synchronized.holder.engraving.enabled }).toEqual({
       label: false,
@@ -53,7 +64,19 @@ describe('workspace state', () => {
     delete legacy.base.magnets.layout
     delete legacy.holder.magnets.layout
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 1, workspace: legacy }))
-    expect(loadWorkspace(storage).shared.magnets.layout).toBe('balanced')
+    expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'balanced', patternVersion: 1 })
+  })
+
+  it('preserves saved count and layout behavior as the legacy pocket pattern', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    const legacy = JSON.parse(JSON.stringify(workspace))
+    delete legacy.shared.magnets.patternVersion
+    delete legacy.base.magnets.patternVersion
+    delete legacy.holder.magnets.patternVersion
+    legacy.shared.magnets.layout = 'five-cross'
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 2, workspace: legacy }))
+    expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'five-cross', patternVersion: 1 })
   })
 
   it('restores the workspace from browser storage', () => {
@@ -62,7 +85,15 @@ describe('workspace state', () => {
     workspace.base.width = 40
     workspace.holder.maxColumns = 4
     workspace.shared.labelsEnabled = false
-    workspace.shared.magnets = { layout: 'five-cross', maxCount: 8, diameter: 6, thickness: 2, clearance: 0.3, depthClearance: 0.2 }
+    workspace.shared.magnets = {
+      layout: 'five-cross',
+      patternVersion: 1,
+      maxCount: 8,
+      diameter: 6,
+      thickness: 2,
+      clearance: 0.3,
+      depthClearance: 0.2,
+    }
     const synchronized = synchronizeWorkspace(workspace)
     saveWorkspace(storage, synchronized)
     expect(loadWorkspace(storage)).toEqual(synchronized)

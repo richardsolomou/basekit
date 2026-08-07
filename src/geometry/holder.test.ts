@@ -89,7 +89,7 @@ describe('holderLayout', () => {
   it('uses the supported base magnet layout for each holder slot', () => {
     expect(holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 32 }))).toHaveLength(1)
     const largeRound = holderSlotMagnetCenters(holderGroup('models-1', 1, { width: 65 }))
-    expect(largeRound).toHaveLength(3)
+    expect(largeRound).toHaveLength(4)
     expect(largeRound.every((center) => Math.hypot(center.x, center.y) > 1)).toBe(true)
     const oval = holderSlotMagnetCenters(holderGroup('models-1', 1, { shape: 'oval', width: 60, length: 35 }))
     expect(oval.map((center) => Math.round(center.y))).toEqual([0, 0])
@@ -100,7 +100,19 @@ describe('holderLayout', () => {
 
   it('uses a saved base magnet count for the matching holder slot', () => {
     const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
-    const config = { ...defaultHolderConfig(), magnetCounts: { 'oval:90x52': 2 } }
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      magnetCounts: { 'oval:90x52': 1 },
+      magnets: { ...defaults.magnets, patternVersion: 1 as const },
+    }
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(1)
+  })
+
+  it('ignores legacy count overrides for the canonical pocket pattern', () => {
+    const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, magnetCounts: { 'oval:90x52': 1 } }
     expect(holderSlotMagnetCenters(oval, config)).toHaveLength(2)
   })
 
@@ -109,7 +121,7 @@ describe('holderLayout', () => {
       ...defaultHolderConfig(),
       groups: [holderGroup('models-1', 1, { width: 60 })],
       magnetCounts: { 'round:60x60': 5 },
-      magnets: { ...defaultHolderConfig().magnets, layout: 'five-cross' as const },
+      magnets: { ...defaultHolderConfig().magnets, layout: 'five-cross' as const, patternVersion: 1 as const },
     }
     const centers = holderSlotMagnetCenters(config.groups[0], config)
     expect(centers.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
@@ -318,7 +330,7 @@ describe('buildHolder', () => {
 
   it('cuts every default magnet pocket for larger supported bases', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 2, { width: 65 })], maxRows: 2 }
-    expect(holderMagnetPocketCount(config)).toBe(6)
+    expect(holderMagnetPocketCount(config)).toBe(8)
     expect(buildHolder(wasm, config).stats.solid).toBe(true)
   })
 
@@ -354,7 +366,7 @@ describe('buildHolder', () => {
     }
     const plain = buildHolder(wasm, { ...config, engraving: { ...config.engraving, enabled: false } }, font).stats.volume
     const engraved = buildHolder(wasm, config, font).stats.volume
-    expect(holderMagnetPocketCount(config)).toBe(3)
+    expect(holderMagnetPocketCount(config)).toBe(4)
     expect(engraved).toBeLessThan(plain)
   })
 })

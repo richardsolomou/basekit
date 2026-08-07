@@ -23,7 +23,7 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 ## How it works 🧲
 
 1. **Choose the footprint** by picking its shape, then a standard size or exact dimensions.
-2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances, and count.
+2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances.
 3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
 4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
@@ -43,6 +43,12 @@ Modules export as separate STL files in one archive or separate build plates in 
 - Browser-saved settings with shared base and holder preferences.
 
 BaseKit generates bases and holders for them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
+
+Narrow elongated bases up to roughly three magnet pitches use a pair at the usable ends, where they provide the widest support and anti-tip lever arm without unnecessary holding force in the middle. Longer or wider rows use even counts based on both axes, rounding down between pitch thresholds because hollow miniatures rarely need the extra pull. Rounder footprints use even rings so opposing subsets remain balanced, with every magnet boss directly aligned to a support rib. A single central magnet is reserved for bases that are small in both area and span.
+
+Base and holder settings share one workspace that is remembered in this browser. Each generator keeps its own active settings, while size-label visibility, magnet dimensions, wall thickness and magnet boss walls stay in sync between them.
+
+Matching bases and holders always use the same automatically chosen pocket pattern. Install magnets in any symmetric subset of those pockets to adjust the holding force without reprinting either part. Saved workspaces from before this standard retain their original pocket counts and layouts.
 
 ## Private by design 🔒
 
