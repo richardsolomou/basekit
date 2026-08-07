@@ -1,7 +1,7 @@
 import { magnetsRing } from './base'
 import { isElongated } from './outline'
 import { previewSegmentsFor } from './quality'
-import type { BaseConfig, ShapeKind } from './types'
+import type { BaseConfig, MagnetPatternVersion, ShapeKind } from './types'
 
 export interface SizePreset {
   label: string
@@ -102,6 +102,7 @@ const SINGLE_MAGNET_MAX_SPAN = MAGNET_PITCH * 2
 const RING_COUNTS = [3, 4, 5, 6, 8]
 const ROW_COUNTS = [4, 6, 8]
 const ROW_LIMIT_COUNTS = [1, 2, ...ROW_COUNTS]
+const DEFAULT_MAGNET_STRENGTH = 5 ** 2 * 2
 
 /** Every count the pickers offer, including ones no preset picks by itself. */
 export const MAGNET_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8]
@@ -117,13 +118,11 @@ function ringMagnetCount(short: number): number {
 }
 
 /**
- * One central magnet holds anything up to a 40mm footprint. Past that a single
- * magnet lets the model pivot, so they spread out — and the count grows with the
- * base, because a bigger footprint carries a heavier model *and* offers a longer
- * run to spread over. Four magnets on a 160mm titanic base was the old ceiling
- * and nowhere near enough to hold one down.
+ * One central magnet holds anything up to a 40mm footprint. Past that magnets
+ * spread out to resist tipping, and the count grows with the footprint because
+ * larger bases usually carry heavier models.
  */
-function magnetCount(width: number, length: number, maxCount: number): number {
+function legacyMagnetCount(width: number, length: number, maxCount: number): number {
   const short = Math.min(width, length)
   const long = Math.max(width, length)
   if (short < 20) return 0
@@ -142,6 +141,20 @@ function magnetCount(width: number, length: number, maxCount: number): number {
   return spreadCount(Math.min(natural, maxCount), ROW_LIMIT_COUNTS)
 }
 
+function nextSupportedCount(ideal: number, counts: number[], maxCount: number): number {
+  const available = counts.filter((count) => count <= maxCount)
+  return available.find((count) => count >= ideal) ?? available.at(-1) ?? 0
+}
+
+export function automaticMagnetCount(width: number, length: number, maxCount: number, diameter: number, thickness: number): number {
+  const baseline = legacyMagnetCount(width, length, maxCount)
+  if (baseline <= 1) return baseline
+  const strength = diameter ** 2 * thickness
+  const forceDemand = Math.ceil((baseline * DEFAULT_MAGNET_STRENGTH) / strength)
+  if (magnetsRing(width, length)) return nextSupportedCount(Math.max(3, forceDemand), RING_COUNTS, maxCount)
+  return nextSupportedCount(Math.max(2, forceDemand), ROW_LIMIT_COUNTS, maxCount)
+}
+
 /**
  * Every magnet boss ends up on a spoke, which gussets its root, prints as one
  * connected feature rather than an island, and collects the clear floor into a
@@ -153,8 +166,7 @@ function magnetCount(width: number, length: number, maxCount: number): number {
  * With no ring and no row there is nothing to line up with and the count just
  * follows the span.
  */
-function ribCount(width: number, length: number, maxMagnets: number): number {
-  const magnets = magnetCount(width, length, maxMagnets)
+export function ribCountFor(width: number, length: number, magnets: number): number {
   const short = Math.min(width, length)
 
   if (magnets >= 2) {
@@ -175,9 +187,11 @@ function labelHeight(width: number, length: number): number {
  * Defaults follow the Games Workshop look: full size at the top face, a 1mm taper
  * at the rim, 3mm of recess for the magnets over a 1mm floor.
  */
-export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
+export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: MagnetPatternVersion = 2): BaseConfig {
   const width = preset.width
   const length = preset.length ?? preset.width
+  const magnetCount =
+    patternVersion === 1 ? legacyMagnetCount(width, length, maxMagnets) : automaticMagnetCount(width, length, maxMagnets, 5, 2)
   return {
     shape: preset.shape,
     width,
@@ -187,12 +201,12 @@ export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
     height: 4,
     profile: 'taper',
     profileSize: 1,
-    underside: 'well',
     wallThickness: 2,
     floorThickness: 1,
     magnets: {
-      count: magnetCount(width, length, maxMagnets),
+      count: magnetCount,
       layout: 'balanced',
+      patternVersion,
       maxCount: maxMagnets,
       diameter: 5,
       clearance: 0.2,
@@ -201,7 +215,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
       thickness: 2,
     },
     // Low ribs stiffen the thin floor the recess leaves, without filling the recess.
-    ribs: { count: ribCount(width, length, maxMagnets), thickness: 1.6, height: 1.2 },
+    ribs: { count: ribCountFor(width, length, magnetCount), thickness: 1.6, height: 1.2 },
     label: { enabled: true, height: labelHeight(width, length), emboss: 0.6 },
     segments: previewSegmentsFor(Math.max(width, length)),
   }
@@ -210,12 +224,16 @@ export function presetFor(preset: SizePreset, maxMagnets = 8): BaseConfig {
 /** Re-derives the size-driven defaults after the footprint is changed by hand. */
 export function resized(config: BaseConfig, width: number, length: number): BaseConfig {
   const effective = isElongated(config.shape) ? length : width
+  const magnetCount =
+    config.magnets.patternVersion === 1
+      ? legacyMagnetCount(width, effective, config.magnets.maxCount)
+      : automaticMagnetCount(width, effective, config.magnets.maxCount, config.magnets.diameter, config.magnets.thickness)
   return {
     ...config,
     width,
     length: effective,
-    magnets: { ...config.magnets, count: magnetCount(width, effective, config.magnets.maxCount) },
-    ribs: { ...config.ribs, count: ribCount(width, effective, config.magnets.maxCount) },
+    magnets: { ...config.magnets, count: magnetCount },
+    ribs: { ...config.ribs, count: ribCountFor(width, effective, magnetCount) },
     label: { ...config.label, height: labelHeight(width, effective) },
     segments: previewSegmentsFor(Math.max(width, effective)),
   }

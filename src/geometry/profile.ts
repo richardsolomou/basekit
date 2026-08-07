@@ -69,7 +69,7 @@ export function profileInsetAt(height: number, profile: EdgeProfile, size: numbe
 /** Largest edge treatment that still leaves material beside the well floor. */
 export function maxProfileSize(config: BaseConfig, limit = 3): number {
   const effectiveLimit = Math.min(limit, Math.max(0, config.height - 0.1))
-  if (config.underside === 'solid' || config.profile === 'straight') return effectiveLimit
+  if (config.profile === 'straight') return effectiveLimit
 
   const fits = (size: number) =>
     config.wallThickness - profileInsetAt(config.height, config.profile, size, config.floorThickness, EXPORT_CURVE_TOLERANCE) >=

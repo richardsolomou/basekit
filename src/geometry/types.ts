@@ -4,16 +4,16 @@ export type ShapeKind = 'round' | 'oval' | 'pill' | 'rect' | 'polygon'
 /** Edge treatment applied where the wall meets the table-contact bottom. */
 export type EdgeProfile = 'taper' | 'straight' | 'bevel' | 'round'
 
-/** Where the magnets go in from, which also decides whether the top is recessed. */
-export type Underside = 'well' | 'solid'
-
 export type MagnetLayout = 'balanced' | 'five-cross'
+export type MagnetPatternVersion = 1 | 2
 
 export interface MagnetSpec {
   /** 0 disables pockets. 1 sits at the centre, more spread over the footprint. */
   count: number
   /** Balanced follows the selected count; five-cross provides a centre and four outer pockets. */
   layout: MagnetLayout
+  /** Version 1 preserves legacy balanced recommendations; version 2 makes balanced recommendations magnet-aware. */
+  patternVersion: MagnetPatternVersion
   /** Upper bound for counts chosen automatically from the footprint. */
   maxCount: number
   diameter: number
@@ -58,7 +58,6 @@ export interface BaseConfig {
   profile: EdgeProfile
   /** Bevel/taper/round size, measured inwards from the top face. */
   profileSize: number
-  underside: Underside
   wallThickness: number
   /** Material between the well floor and the table. */
   floorThickness: number
@@ -98,6 +97,7 @@ export interface HolderConfig {
   magnets: {
     enabled: boolean
     layout: MagnetLayout
+    patternVersion: MagnetPatternVersion
     maxCount: number
     diameter: number
     clearance: number

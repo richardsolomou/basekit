@@ -1,9 +1,9 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
-import { magnetPositions } from './base'
+import { magnetPositions, supportsFivePocketCross } from './base'
 import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
 import { isElongated, trimNumber } from './outline'
-import { DEFAULT_SIZE, footprintKey, presetFor } from './presets'
+import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
@@ -65,7 +65,16 @@ interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
 type HolderMagnetSettings = Pick<HolderConfig, 'magnetCounts' | 'magnets' | 'baseWallThickness' | 'magnetBossWall'>
 
 const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
-  magnets: { enabled: true, layout: 'balanced', maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
+  magnets: {
+    enabled: true,
+    layout: 'balanced',
+    patternVersion: 2,
+    maxCount: 8,
+    diameter: 5,
+    clearance: 0.2,
+    depthClearance: 0,
+    thickness: 2,
+  },
   magnetCounts: {},
   baseWallThickness: 2,
   magnetBossWall: 0.9,
@@ -128,18 +137,30 @@ export function holderSlotMagnetCenters(
       use: '',
     },
     settings.magnets.maxCount,
+    settings.magnets.patternVersion,
   )
-  const count =
-    settings.magnets.layout === 'five-cross'
-      ? 5
-      : (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count)
+  const fiveCross =
+    settings.magnets.layout === 'five-cross' &&
+    (settings.magnets.patternVersion === 1 || supportsFivePocketCross(slot.shape, slotWidth(slot)))
+  const count = fiveCross
+    ? 5
+    : settings.magnets.patternVersion === 1
+      ? (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ?? base.magnets.count)
+      : (settings.magnetCounts[footprintKey(slot.shape, slot.width, slot.length)] ??
+        automaticMagnetCount(
+          slotWidth(slot),
+          slotLength(slot),
+          settings.magnets.maxCount,
+          settings.magnets.diameter,
+          settings.magnets.thickness,
+        ))
   const pocketRadius = (settings.magnets.diameter + settings.magnets.clearance) / 2
   const bossRadius = pocketRadius + settings.magnetBossWall
   const halfWidth = Math.max(0, slotWidth(slot) / 2 - settings.baseWallThickness)
   const halfLength = Math.max(0, slotLength(slot) / 2 - settings.baseWallThickness)
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
-    layout: settings.magnets.layout,
+    layout: fiveCross ? 'five-cross' : 'balanced',
   }).map(({ x, y }) => ({ x, y }))
 }
 
@@ -186,6 +207,13 @@ export function maxHolderSlotDepth(config: HolderConfig): number {
 
 export function maxHolderMagnetThickness(config: HolderConfig): number {
   return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - config.magnets.depthClearance
+}
+
+export function minHolderHeight(config: HolderConfig): number {
+  const engravingDepth = config.engraving.enabled && config.engraving.placement === 'slots' ? ENGRAVING_DEPTH : 0
+  const magnetDepth = config.magnets.enabled ? config.magnets.thickness + config.magnets.depthClearance : 0
+  const required = PROFILE.at(-1)!.z + MIN_SLOT_FLOOR_THICKNESS + config.slotDepth + Math.max(engravingDepth, magnetDepth)
+  return Math.max(BASE_HEIGHT, Math.ceil((required - 1e-6) / BASE_HEIGHT) * BASE_HEIGHT)
 }
 
 function distributed(points: HolderSlot[], width: number, length: number) {
@@ -611,7 +639,16 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    magnets: { enabled: true, layout: 'balanced', maxCount: 8, diameter: 5, clearance: 0.2, depthClearance: 0, thickness: 2 },
+    magnets: {
+      enabled: true,
+      layout: 'balanced',
+      patternVersion: 2,
+      maxCount: 8,
+      diameter: 5,
+      clearance: 0.2,
+      depthClearance: 0,
+      thickness: 2,
+    },
     magnetCounts: {},
     baseWallThickness: 2,
     magnetBossWall: 0.9,

@@ -90,7 +90,7 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
 test('uses an end pair for a medium oval base', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
-  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('2')
+  await expect(footer(page)).toContainText('2 × 5.2 mm hole')
 })
 
 test('marks and resets a changed value to its default', { tag: '@ci' }, async ({ page }) => {
@@ -122,10 +122,8 @@ test('marks and resets changed toggles and choices', async ({ page }) => {
 test('keeps shape and size independent while sharing matching magnet settings in the session', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
-  await pickChoice(page, 'Magnets per base', '2')
   await page.getByLabel('Magnet diameter in mm').fill('6')
   await page.getByLabel('Magnet diameter in mm').press('Enter')
-  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('2')
 
   await page.getByRole('link', { name: 'Holders' }).click()
   await expect(page.getByRole('combobox', { name: 'Standard base size 1' })).toContainText('32')
@@ -149,17 +147,31 @@ test('keeps shape and size independent while sharing matching magnet settings in
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
 })
 
-test('shares the five-pocket cross between bases and holders', async ({ page }) => {
+test('shares the selected pocket pattern between bases and holders', async ({ page }) => {
+  const layout = page.getByRole('combobox', { name: 'Pocket layout' })
+  await expect(layout).toHaveCount(0)
   await pickSize(page, '60')
-  await pickChoice(page, 'Pocket layout', 'Five-pocket cross')
-  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toBeDisabled()
-  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('5')
-  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toBeDisabled()
-  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('4')
+  await layout.click()
+  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(footer(page)).toContainText('3 × 5.2 mm hole')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toContainText('Auto · 3')
+  await expect(page.getByRole('combobox', { name: 'Number of supports' })).toContainText('3')
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Balanced')
+  await pickChoice(page, 'Magnets per base', '4')
+  await expect(footer(page)).toContainText('4 × 5.2 mm hole')
 
   await page.getByRole('link', { name: 'Holders' }).click()
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Five-pocket cross')
+  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
+  await page.getByRole('option', { name: /^60\b/ }).click()
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Balanced')
+  await expect(footer(page)).toContainText('20 × 5.2 mm hole')
+  await pickChoice(page, 'Pocket layout', 'Five-pocket cross')
   await expect(footer(page)).toContainText('25 × 5.2 mm hole')
+
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(footer(page)).toContainText('5 × 5.2 mm hole')
+  await expect(page.getByRole('combobox', { name: 'Magnets per base' })).toHaveCount(0)
 })
 
 test('remembers workspace settings on reload', async ({ page }) => {
@@ -325,15 +337,36 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await settled(page)
   const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
   await expect(depth).toHaveAttribute('max', '8')
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveCount(0)
   await depth.fill('8')
   await depth.press('Enter')
   const before = await triangles(page)
   await magnets.click()
   await rebuilt(page, before)
   await expect(depth).toHaveValue('6.5')
+})
+
+test('offers only holder heights that fit the selected slot features', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const height = page.getByRole('spinbutton', { name: 'Holder height in mm' })
+  await expect(height).toHaveAttribute('min', '14')
+
+  await page.getByRole('switch', { name: 'Slot magnets' }).click()
+  const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
+  await depth.fill('1')
+  await depth.press('Enter')
+  await expect(height).toHaveAttribute('min', '7')
+
+  await height.fill('7')
+  await height.press('Enter')
+  await settled(page)
+  await expect(height).toHaveValue('7')
 })
 
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
@@ -448,7 +481,7 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
   await expect(page.getByLabel(/^Base depth 1 in/)).toHaveValue('42.0')
 })
 
-test('uses preset magnet layouts in holder slots', async ({ page }) => {
+test('uses canonical magnet patterns in holder slots', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   const before = await triangles(page)
@@ -563,13 +596,6 @@ test('toggles a setting from the empty reset space after its label', async ({ pa
   if (!box) throw new Error('no label to click')
   await page.mouse.click(box.x + box.width - 5, box.y + box.height / 2)
   await expect(toggle).not.toBeChecked()
-})
-
-test('takes magnets out of the underside of a solid base', async ({ page }) => {
-  await pickChoice(page, 'Underside', 'Solid')
-  await settled(page)
-  // No well means nowhere to emboss, and the copy should say so.
-  await expect(page.getByText(/solid base has no well/i)).toBeVisible()
 })
 
 test('moves the controls into a drawer on a phone', { tag: '@ci' }, async ({ page }) => {

@@ -37,7 +37,7 @@ Modules export as separate STL files in one archive or separate build plates in 
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
-- Hollow or solid undersides with automatic ribs and magnet layouts.
+- Hollow undersides with automatic ribs and magnet layouts.
 - Balanced or five-pocket cross magnet arrangements shared by bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences.

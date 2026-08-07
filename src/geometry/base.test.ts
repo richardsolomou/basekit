@@ -9,6 +9,7 @@ import { loadManifold } from './manifold'
 import { baseOutline, defaultLabel, trimNumber } from './outline'
 import { maxProfileSize, profileSteps } from './profile'
 import {
+  automaticMagnetCount,
   MAGNET_CHOICES,
   OVAL_SIZES,
   PILL_SIZES,
@@ -113,12 +114,17 @@ describe('buildBase', () => {
     const base = preset(ROUND_SIZES[4])
     const config = { ...base, ribs: { ...base.ribs, count: 0 } }
     const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
-    const ringRadius = (config.width / 2 - config.wallThickness) / 2
     const { mesh } = build(config)
+    const bossRadius = pocketRadius + config.magnets.bossWall
+    const positions = magnetPositions(
+      config.magnets.count,
+      config.width / 2 - config.wallThickness,
+      config.length / 2 - config.wallThickness,
+      bossRadius + LABEL_MARGIN,
+    )
 
-    for (let i = 0; i < config.magnets.count; i++) {
-      const a = Math.PI / 2 + (2 * Math.PI * i) / config.magnets.count
-      const pocket = pocketAt(mesh, ringRadius * Math.cos(a), ringRadius * Math.sin(a), pocketRadius)
+    for (const [i, position] of positions.entries()) {
+      const pocket = pocketAt(mesh, position.x, position.y, pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
       // Cut down from the top face by exactly the magnet's thickness, so the magnet
       // finishes flush and the material under it is solid.
@@ -166,21 +172,6 @@ describe('buildBase', () => {
     const positions = magnetPositions(1, 30, 30, 4, { layout: 'five-cross' })
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
-  })
-
-  it('opens the pocket at the build plate on a solid base', () => {
-    const base = preset(ROUND_32)
-    const config = { ...base, underside: 'solid' as const, magnets: { ...base.magnets, count: 1, thickness: 2 } }
-    const pocketRadius = (config.magnets.diameter + config.magnets.clearance) / 2
-    const pocket = pocketAt(build(config).mesh, 0, 0, pocketRadius)
-    expect(pocket.minZ).toBeCloseTo(0, 5)
-    expect(pocket.maxZ).toBeCloseTo(2, 2)
-  })
-
-  it('keeps a solid base solid on top', () => {
-    const config = { ...preset(ROUND_32), underside: 'solid' as const }
-    const withWell = build(preset(ROUND_32)).stats.volume
-    expect(build(config).stats.volume).toBeGreaterThan(withWell)
   })
 
   it.for([RECT_SIZES[0], RECT_SIZES[1], ROUND_SIZES[0], ROUND_SIZES[1]])('still fits a size label on a cramped $label base', (size) => {
@@ -475,10 +466,14 @@ describe('scaling with the footprint', () => {
     expect(presetFor(OVAL_SIZES[3]).magnets.count).toBe(4)
   })
 
-  it('keeps a 100mm ring on pitch without rounding five magnets up to six', () => {
+  it('keeps automatic balanced rings on their supported counts', () => {
     expect(presetFor(ROUND_SIZES[9])).toMatchObject({ magnets: { count: 5 }, ribs: { count: 5 } })
     expect(presetFor(ROUND_SIZES[8])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
     expect(presetFor(OVAL_SIZES[4])).toMatchObject({ magnets: { count: 4 }, ribs: { count: 4 } })
+  })
+
+  it('preserves odd rings for legacy geometry', () => {
+    expect(presetFor(ROUND_SIZES[9], 8, 1)).toMatchObject({ magnets: { count: 5, patternVersion: 1 }, ribs: { count: 5 } })
   })
 
   it('uses an end pair when a low-area custom base has a long lever arm', () => {
@@ -504,6 +499,13 @@ describe('scaling with the footprint', () => {
     expect(odd).toEqual([])
   })
 
+  it('adjusts automatic counts for magnet strength without weakening stability', () => {
+    expect(automaticMagnetCount(80, 80, 8, 3, 1)).toBe(8)
+    expect(automaticMagnetCount(80, 80, 8, 5, 2)).toBe(4)
+    expect(automaticMagnetCount(80, 80, 8, 6, 3)).toBe(3)
+    expect(automaticMagnetCount(50, 50, 8, 8, 4)).toBe(3)
+  })
+
   it('never reduces the magnet count as an elongated row grows', () => {
     const base = presetFor(OVAL_SIZES[0])
     const weaker: string[] = []
@@ -519,7 +521,7 @@ describe('scaling with the footprint', () => {
   })
 
   it('offers every count a preset can pick', () => {
-    const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map(presetFor)
+    const all = [...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map((size) => presetFor(size))
     for (const config of all) {
       expect(MAGNET_CHOICES).toContain(config.magnets.count)
       expect(RIB_CHOICES).toContain(config.ribs.count)
@@ -527,7 +529,7 @@ describe('scaling with the footprint', () => {
   })
 
   it('keeps every automatic magnet boss inside the real well outline', () => {
-    const configs = [...ROUND_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES, ...POLYGON_SIZES].map(presetFor)
+    const configs = [...ROUND_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES, ...POLYGON_SIZES].map((size) => presetFor(size))
     const elongatedShapes: BaseConfig['shape'][] = ['oval', 'pill', 'rect']
     for (const shape of elongatedShapes) {
       const source = shape === 'oval' ? OVAL_SIZES[0] : shape === 'pill' ? PILL_SIZES[0] : RECT_SIZES[0]

@@ -12,6 +12,7 @@ import {
   holderSlotMagnetCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
+  minHolderHeight,
 } from './holder'
 import { loadManifold } from './manifold'
 
@@ -100,8 +101,31 @@ describe('holderLayout', () => {
 
   it('uses a saved base magnet count for the matching holder slot', () => {
     const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
-    const config = { ...defaultHolderConfig(), magnetCounts: { 'oval:90x52': 2 } }
-    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(2)
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      magnetCounts: { 'oval:90x52': 1 },
+      magnets: { ...defaults.magnets, patternVersion: 1 as const },
+    }
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(1)
+  })
+
+  it('uses count overrides instead of the automatic pocket pattern', () => {
+    const oval = holderGroup('models-1', 1, { shape: 'oval', width: 90, length: 52 })
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, magnetCounts: { 'oval:90x52': 1 } }
+    expect(holderSlotMagnetCenters(oval, config)).toHaveLength(1)
+  })
+
+  it('adjusts automatic holder counts for the selected magnet dimensions', () => {
+    const slot = holderGroup('models-1', 1, { width: 80 })
+    const defaults = defaultHolderConfig()
+    const weak = { ...defaults, magnets: { ...defaults.magnets, diameter: 3, thickness: 1 } }
+    const strong = { ...defaults, magnets: { ...defaults.magnets, diameter: 6, thickness: 3 } }
+    expect({ weak: holderSlotMagnetCenters(slot, weak).length, strong: holderSlotMagnetCenters(slot, strong).length }).toEqual({
+      weak: 8,
+      strong: 3,
+    })
   })
 
   it('matches the five-pocket cross base layout', () => {
@@ -109,11 +133,33 @@ describe('holderLayout', () => {
       ...defaultHolderConfig(),
       groups: [holderGroup('models-1', 1, { width: 60 })],
       magnetCounts: { 'round:60x60': 5 },
-      magnets: { ...defaultHolderConfig().magnets, layout: 'five-cross' as const },
+      magnets: { ...defaultHolderConfig().magnets, layout: 'five-cross' as const, patternVersion: 1 as const },
     }
     const centers = holderSlotMagnetCenters(config.groups[0], config)
     expect(centers.filter(({ x, y }) => Math.hypot(x, y) < 1e-6)).toHaveLength(1)
     expect(centers).toHaveLength(5)
+  })
+
+  it('limits new five-pocket crosses to round slots at least 50mm wide', () => {
+    const defaults = defaultHolderConfig()
+    const settings = { ...defaults, magnets: { ...defaults.magnets, layout: 'five-cross' as const } }
+
+    expect({
+      small: holderSlotMagnetCenters(holderGroup('small', 1, { width: 40 }), settings).length,
+      large: holderSlotMagnetCenters(holderGroup('large', 1, { width: 50 }), settings).length,
+      oval: holderSlotMagnetCenters(holderGroup('oval', 1, { shape: 'oval', width: 60, length: 35 }), settings).length,
+    }).toEqual({ small: 1, large: 5, oval: 2 })
+  })
+
+  it('preserves legacy five-pocket crosses on unsupported slots', () => {
+    const defaults = defaultHolderConfig()
+    const settings = {
+      ...defaults,
+      magnets: { ...defaults.magnets, layout: 'five-cross' as const, patternVersion: 1 as const },
+    }
+    const oval = holderGroup('oval', 1, { shape: 'oval', width: 60, length: 35 })
+
+    expect(holderSlotMagnetCenters(oval, settings)).toHaveLength(5)
   })
 
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
@@ -336,6 +382,18 @@ describe('buildHolder', () => {
   it('limits magnet thickness to the material above the Gridfinity foot', () => {
     const config = defaultHolderConfig()
     expect(maxHolderMagnetThickness(config)).toBeCloseTo(5.85)
+  })
+
+  it('uses the lowest Gridfinity height that fits the selected slot features', () => {
+    const config = defaultHolderConfig()
+    const shallow = {
+      ...config,
+      slotDepth: 1,
+      magnets: { ...config.magnets, enabled: false },
+      engraving: { ...config.engraving, enabled: false },
+    }
+
+    expect({ default: minHolderHeight(config), shallow: minHolderHeight(shallow) }).toEqual({ default: 14, shallow: 7 })
   })
 
   it.each(['slots', 'module'] as const)('subtracts size engraving %s', (placement) => {
