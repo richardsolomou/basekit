@@ -4,4 +4,7 @@
 # fresher release deliberately: pnpm add --config.minimumReleaseAge=0 <pkg>
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
-  - ras-stack@0.8.0
+  - ras-stack@0.22.0
+allowBuilds:
+  core-js: true
+  esbuild: true

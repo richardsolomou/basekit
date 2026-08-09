@@ -4,7 +4,7 @@ Thanks for helping with BaseKit. We aim to keep the generator small, exact, and 
 
 ## Development setup
 
-Install Node 24.x, pnpm 10.33.0, and Just 1.58.0, then run:
+Install Node 24.x, pnpm 11.15.0, and Just 1.58.0, then run:
 
 ```sh
 just install

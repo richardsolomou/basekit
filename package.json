@@ -43,7 +43,7 @@
     "manifold-3d": "^3.5.1",
     "opentype.js": "^2.0.0",
     "posthog-js": "^1.407.2",
-    "ras-stack": "^0.8.0",
+    "ras-stack": "^0.22.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0",
@@ -72,10 +72,5 @@
   "engines": {
     "node": ">=24 <25"
   },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "core-js"
-    ]
-  }
+  "packageManager": "pnpm@11.15.0"
 }
