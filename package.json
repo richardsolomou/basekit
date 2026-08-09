@@ -25,7 +25,9 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset tag",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "policy:sync": "ras-stack-policy sync",
+    "policy:check": "ras-stack-policy check",
+    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm typecheck && pnpm test && pnpm build",
     "test:e2e": "pnpm build && playwright test",
     "test:e2e:run": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium"
@@ -41,7 +43,7 @@
     "manifold-3d": "^3.5.1",
     "opentype.js": "^2.0.0",
     "posthog-js": "^1.407.2",
-    "ras-stack": "^0.2.0",
+    "ras-stack": "^0.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0",
@@ -70,5 +72,10 @@
   "engines": {
     "node": ">=24 <25"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "core-js"
+    ]
+  }
 }
