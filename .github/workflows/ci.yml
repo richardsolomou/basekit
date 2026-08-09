@@ -15,52 +15,23 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
-
-      - name: Run independent checks
-        run: |
-          set -euo pipefail
-          pids=()
-          pnpm format:check & pids+=("$!")
-          pnpm lint & pids+=("$!")
-          pnpm typecheck & pids+=("$!")
-          pnpm test & pids+=("$!")
-          pnpm build & pids+=("$!")
-          status=0
-          for pid in "${pids[@]}"; do
-            wait "$pid" || status=1
-          done
-          exit "$status"
+    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.8.0
+    with:
+      command: just check
+      just-version: '1.58.0'
 
   end-to-end:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
-
-      - name: Build
-        run: pnpm build
-
-      - name: End-to-end
-        run: pnpm test:e2e:run
-
-      - name: Upload failure traces
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-traces
-          path: test-results/
-          retention-days: 7
+    uses: richardsolomou/ras-stack/.github/workflows/check-browser.yml@v0.8.0
+    with:
+      prepare-command: pnpm build
+      command: pnpm test:e2e:run
+      artifact-name: playwright-traces
+      artifact-path: test-results/
 
   release:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [check, end-to-end]
     permissions:
       contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.2.0
+    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.8.0
     secrets: inherit
