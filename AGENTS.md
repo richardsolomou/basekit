@@ -4,11 +4,11 @@ Read [README.md](README.md) first for what the app does and what the controls me
 
 ## Commands
 
-- `pnpm check` — the local gate: format, lint, typecheck, unit tests, build. Run it before pushing.
-- `pnpm dev` — Vite on port 5173.
-- `pnpm test` — Vitest over `src/**/*.test.ts`. Geometry tests run in Node against the same builder the browser uses, so they need no browser.
-- `pnpm test:e2e` builds and runs Playwright; `pnpm test:e2e:run` reuses the current `dist/`. Install the browser once with `pnpm test:e2e:install`.
-- `pnpm samples out [round|oval]` — writes one STL per preset for inspection outside the browser.
+- `just check` — the local gate: format, lint, typecheck, unit tests, build. Run it before pushing.
+- `just dev` — Vite on port 5173.
+- `just test` — Vitest over `src/**/*.test.ts`. Geometry tests run in Node against the same builder the browser uses, so they need no browser.
+- `just e2e` builds and runs Playwright; `just e2e-run` reuses the current `dist/`. Install the browser once with `just e2e-install`.
+- `just samples [round|oval]` — writes one STL per preset for inspection outside the browser.
 - Lint and format are oxlint + oxfmt, not ESLint/Prettier. Warnings are denied in CI.
 
 ## Load-bearing rules

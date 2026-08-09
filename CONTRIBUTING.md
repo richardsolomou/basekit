@@ -4,11 +4,11 @@ Thanks for helping with BaseKit. We aim to keep the generator small, exact, and 
 
 ## Development setup
 
-Install Node 24.x and pnpm 10.33.0, then run:
+Install Node 24.x, pnpm 10.33.0, and Just 1.58.0, then run:
 
 ```sh
-pnpm install
-pnpm dev
+just install
+just dev
 ```
 
 Open `http://localhost:5173`. The app has no backend, database, account, or environment variables.
@@ -18,20 +18,26 @@ Open `http://localhost:5173`. The app has no backend, database, account, or envi
 Run the complete local check suite with:
 
 ```sh
-pnpm check
-pnpm test:e2e
+just check
+just e2e
 ```
 
-`pnpm check` checks formatting, lint, types, geometry tests, and the production build. `pnpm test:e2e` builds the app and drives the production bundle in Chromium. Install Chromium once with `pnpm test:e2e:install`; use `pnpm test:e2e:run` to reuse the current `dist/` build.
+`just check` checks formatting, lint, types, geometry tests, and the production build. `just e2e` builds the app and drives the production bundle in Chromium. Install Chromium once with `just e2e-install`; use `just e2e-run` to reuse the current `dist/` build.
 
 Geometry changes need inspection outside the preview. Write sample STLs with:
 
 ```sh
-pnpm samples out
-pnpm samples out oval
+just samples
+just samples oval
 ```
 
 Load at least one affected export in a slicer or mesh checker. The geometry tests run against the same DOM-free builder as the browser, but an exported file is the final product.
+
+## Release notes
+
+Run `pnpm changeset` for changes to released application behavior. Choose `minor` for new capabilities and `patch` for fixes, then write one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need a changeset.
+
+When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release. Cloudflare continues to deploy the static application from `main`.
 
 ## Layout
 
