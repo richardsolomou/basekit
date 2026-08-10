@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   check:
-    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.22.0
+    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.27.0
     with:
       command: just check
       just-version: '1.58.0'
 
   end-to-end:
-    uses: richardsolomou/ras-stack/.github/workflows/check-browser.yml@v0.22.0
+    uses: richardsolomou/ras-stack/.github/workflows/check-browser.yml@v0.27.0
     with:
       prepare-command: pnpm build
       command: pnpm test:e2e:run
@@ -33,5 +33,5 @@ jobs:
     needs: [check, end-to-end]
     permissions:
       contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.22.0
+    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.27.0
     secrets: inherit
