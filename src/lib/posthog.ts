@@ -1,18 +1,9 @@
 import posthog from 'posthog-js'
+import { postHogEnvironment } from 'ras-stack/posthog'
 
-const apiKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN
-const apiHost = import.meta.env.VITE_POSTHOG_HOST
-
-if (apiKey && apiHost) {
-  posthog.init(apiKey, {
-    api_host: apiHost,
-    ui_host: 'https://us.posthog.com',
-    defaults: '2026-05-30',
-  })
-  posthog.startExceptionAutocapture({
-    capture_unhandled_errors: true,
-    capture_unhandled_rejections: true,
-  })
-}
+export const posthogEnvironment = postHogEnvironment({
+  projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
+  host: import.meta.env.VITE_POSTHOG_HOST,
+})
 
 export default posthog
