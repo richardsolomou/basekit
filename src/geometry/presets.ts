@@ -183,13 +183,20 @@ function labelHeight(width: number, length: number): number {
   return Math.min(8, Math.max(3.5, Math.min(width, length) * 0.2))
 }
 
+/** Larger spans need a little more skin to resist flex when pressed. */
+function floorThickness(width: number, length: number): number {
+  return Math.min(width, length) >= 65 ? 1.5 : 1
+}
+
 /**
  * Defaults follow the Games Workshop look: full size at the top face, a 1mm taper
- * at the rim, 3mm of recess for the magnets over a 1mm floor.
+ * at the rim, and 3mm of recess for the magnets. Bases 65mm and over use a
+ * 1.5mm floor to resist flex; smaller bases keep the 1mm floor.
  */
 export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: MagnetPatternVersion = 2): BaseConfig {
   const width = preset.width
   const length = preset.length ?? preset.width
+  const floor = floorThickness(width, length)
   const magnetCount =
     patternVersion === 1 ? legacyMagnetCount(width, length, maxMagnets) : automaticMagnetCount(width, length, maxMagnets, 5, 2)
   return {
@@ -198,11 +205,11 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
     length,
     cornerRadius: Math.min(2, Math.min(width, length) * 0.06),
     sides: 6,
-    height: 4,
+    height: 3 + floor,
     profile: 'taper',
     profileSize: 1,
     wallThickness: 2,
-    floorThickness: 1,
+    floorThickness: floor,
     magnets: {
       count: magnetCount,
       layout: 'balanced',

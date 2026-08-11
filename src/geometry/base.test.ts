@@ -89,6 +89,13 @@ describe('buildBase', () => {
     expect(bounds(build(preset(ROUND_32)).mesh).size[2]).toBeCloseTo(4, 5)
   })
 
+  it('thickens the floor for bases 65mm and over without reducing the magnet recess', () => {
+    expect(presetFor(ROUND_SIZES[5])).toMatchObject({ height: 4, floorThickness: 1 })
+    expect(presetFor(ROUND_SIZES[6])).toMatchObject({ height: 4.5, floorThickness: 1.5 })
+    expect(presetFor(OVAL_SIZES[2])).toMatchObject({ height: 4, floorThickness: 1 })
+    expect(presetFor(OVAL_SIZES[3])).toMatchObject({ height: 4.5, floorThickness: 1.5 })
+  })
+
   it('sits on the build plate', () => {
     expect(bounds(build(preset(ROUND_SIZES[4])).mesh).min[2]).toBeCloseTo(0, 5)
   })
@@ -104,8 +111,9 @@ describe('buildBase', () => {
   })
 
   it('reports a volume well under the solid cylinder it came from', () => {
-    const { stats } = build(preset(ROUND_32))
-    expect(stats.volume).toBeLessThan(Math.PI * 16 ** 2 * 4)
+    const config = preset(ROUND_32)
+    const { stats } = build(config)
+    expect(stats.volume).toBeLessThan(Math.PI * 16 ** 2 * config.height)
     expect(stats.volume).toBeGreaterThan(0)
   })
 
@@ -319,7 +327,8 @@ describe('buildBase', () => {
   })
 
   it('rejects a floor that leaves no well', () => {
-    expect(() => build({ ...preset(ROUND_32), floorThickness: 4 })).toThrow(/No room left for a well/)
+    const config = preset(ROUND_32)
+    expect(() => build({ ...config, floorThickness: config.height })).toThrow(/No room left for a well/)
   })
 
   it('rejects an edge profile that cuts through the wall at the well floor', () => {
