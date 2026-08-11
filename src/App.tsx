@@ -23,6 +23,8 @@ import {
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
+  defaultBaseHeight,
+  defaultFloorThickness,
   DEFAULT_PRESET,
   DEFAULT_SIZE,
   footprintKey,
@@ -210,6 +212,8 @@ export function App() {
   const elongated = isElongated(config.shape)
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
+  const footprintDefaultHeight = defaultBaseHeight(config.width, config.length)
+  const footprintDefaultFloor = defaultFloorThickness(config.width, config.length)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
   const magnetCountOverride = workspace.shared.magnetCounts[magnetCountKey]
   const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
@@ -424,7 +428,7 @@ export function App() {
             min={2}
             max={12}
             step={0.25}
-            defaultValue={BASE_DEFAULTS.height}
+            defaultValue={footprintDefaultHeight}
             onChange={(height) => patch({ height })}
           />
           <Dimension
@@ -442,7 +446,7 @@ export function App() {
             min={0.4}
             max={Math.max(0.5, config.height - 0.5)}
             step={0.1}
-            defaultValue={BASE_DEFAULTS.floorThickness}
+            defaultValue={footprintDefaultFloor}
             onChange={(floorThickness) => patch({ floorThickness })}
           />
           <Choice

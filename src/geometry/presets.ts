@@ -184,8 +184,12 @@ function labelHeight(width: number, length: number): number {
 }
 
 /** Larger spans need a little more skin to resist flex when pressed. */
-function floorThickness(width: number, length: number): number {
+export function defaultFloorThickness(width: number, length: number): number {
   return Math.min(width, length) >= 65 ? 1.5 : 1
+}
+
+export function defaultBaseHeight(width: number, length: number): number {
+  return 3 + defaultFloorThickness(width, length)
 }
 
 /**
@@ -196,7 +200,7 @@ function floorThickness(width: number, length: number): number {
 export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: MagnetPatternVersion = 2): BaseConfig {
   const width = preset.width
   const length = preset.length ?? preset.width
-  const floor = floorThickness(width, length)
+  const floor = defaultFloorThickness(width, length)
   const magnetCount =
     patternVersion === 1 ? legacyMagnetCount(width, length, maxMagnets) : automaticMagnetCount(width, length, maxMagnets, 5, 2)
   return {
@@ -205,7 +209,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
     length,
     cornerRadius: Math.min(2, Math.min(width, length) * 0.06),
     sides: 6,
-    height: 3 + floor,
+    height: defaultBaseHeight(width, length),
     profile: 'taper',
     profileSize: 1,
     wallThickness: 2,
@@ -217,7 +221,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
       maxCount: maxMagnets,
       diameter: 5,
       clearance: 0.2,
-      depthClearance: 0,
+      depthClearance: 0.1,
       bossWall: 0.9,
       thickness: 2,
     },
@@ -231,6 +235,9 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
 /** Re-derives the size-driven defaults after the footprint is changed by hand. */
 export function resized(config: BaseConfig, width: number, length: number): BaseConfig {
   const effective = isElongated(config.shape) ? length : width
+  const oldFloor = defaultFloorThickness(config.width, config.length)
+  const floor = config.floorThickness === oldFloor ? defaultFloorThickness(width, effective) : config.floorThickness
+  const height = config.height === defaultBaseHeight(config.width, config.length) ? defaultBaseHeight(width, effective) : config.height
   const magnetCount =
     config.magnets.patternVersion === 1
       ? legacyMagnetCount(width, effective, config.magnets.maxCount)
@@ -239,6 +246,8 @@ export function resized(config: BaseConfig, width: number, length: number): Base
     ...config,
     width,
     length: effective,
+    height,
+    floorThickness: floor,
     magnets: { ...config.magnets, count: magnetCount },
     ribs: { ...config.ribs, count: ribCountFor(width, effective, magnetCount) },
     label: { ...config.label, height: labelHeight(width, effective) },

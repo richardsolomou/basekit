@@ -134,9 +134,9 @@ describe('buildBase', () => {
     for (const [i, position] of positions.entries()) {
       const pocket = pocketAt(mesh, position.x, position.y, pocketRadius)
       expect(pocket.vertices, `pocket ${i}`).toBeGreaterThan(0)
-      // Cut down from the top face by exactly the magnet's thickness, so the magnet
-      // finishes flush and the material under it is solid.
-      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.height - config.magnets.thickness, 5)
+      // Cut down from the top face by the magnet thickness plus its fit clearance,
+      // so the magnet can finish flush without bottoming out.
+      expect(pocket.minZ, `pocket ${i} floor`).toBeCloseTo(config.height - config.magnets.thickness - config.magnets.depthClearance, 5)
       expect(pocket.maxZ, `pocket ${i} opening`).toBeCloseTo(config.height, 5)
       expect(pocket.maxRadius, `pocket ${i} bore`).toBeCloseTo(pocketRadius, 2)
     }
@@ -144,7 +144,11 @@ describe('buildBase', () => {
 
   it.each([1, 1.5, 2, 3])('keeps a %dmm magnet flush with the top of its boss', (thickness) => {
     const base = preset(ROUND_SIZES[4])
-    const config = { ...base, ribs: { ...base.ribs, count: 0 }, magnets: { ...base.magnets, thickness } }
+    const config = {
+      ...base,
+      ribs: { ...base.ribs, count: 0 },
+      magnets: { ...base.magnets, thickness, depthClearance: 0 },
+    }
     const ringRadius = (config.width / 2 - config.wallThickness) / 2
     const bore = (config.magnets.diameter + config.magnets.clearance) / 2
 
@@ -488,6 +492,17 @@ describe('scaling with the footprint', () => {
   it('uses an end pair when a low-area custom base has a long lever arm', () => {
     expect(resized(presetFor(OVAL_SIZES[0]), 80, 20).magnets.count).toBe(2)
     expect(resized(presetFor(OVAL_SIZES[0]), 50, 25).magnets.count).toBe(1)
+  })
+
+  it('updates size-driven construction defaults when a custom footprint crosses 65mm', () => {
+    const large = resized(presetFor(ROUND_SIZES[2]), 65, 65)
+    expect(large).toMatchObject({ height: 4.5, floorThickness: 1.5 })
+    expect(resized(large, 60, 60)).toMatchObject({ height: 4, floorThickness: 1 })
+  })
+
+  it('preserves manually changed construction values while resizing', () => {
+    const base = { ...presetFor(ROUND_SIZES[2]), height: 5, floorThickness: 1.3 }
+    expect(resized(base, 65, 65)).toMatchObject({ height: 5, floorThickness: 1.3 })
   })
 
   it('uses the lower supported row count when transverse demand falls between counts', () => {

@@ -184,6 +184,16 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage)).toEqual(synchronized)
   })
 
+  it('preserves saved construction and fit preferences', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    workspace.base = { ...workspace.base, width: 80, length: 80, height: 4, floorThickness: 1 }
+    workspace.shared.magnets.depthClearance = 0
+    const saved = synchronizeWorkspace(workspace)
+    saveWorkspace(storage, saved)
+    expect(loadWorkspace(storage)).toEqual(saved)
+  })
+
   it('ignores invalid browser storage', () => {
     const storage = memoryStorage()
     storage.setItem('mini-bases.workspace', '{"version":1,"workspace":{"shared":{"labelsEnabled":false}}}')

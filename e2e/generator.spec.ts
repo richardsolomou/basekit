@@ -104,6 +104,16 @@ test('marks and resets a changed value to its default', { tag: '@ci' }, async ({
   await expect(reset).not.toBeVisible()
 })
 
+test('resets construction values to the current footprint defaults', async ({ page }) => {
+  await pickSize(page, '65')
+  const thickness = page.getByLabel('Top thickness in mm')
+  await expect(thickness).toHaveValue('1.5')
+  await thickness.fill('1.2')
+  await thickness.blur()
+  await page.getByRole('button', { name: 'Reset Top thickness to 1.5 mm' }).click()
+  await expect(thickness).toHaveValue('1.5')
+})
+
 test('marks and resets changed toggles and choices', async ({ page }) => {
   const labelToggle = page.getByRole('switch', { name: 'Size labels' })
   await labelToggle.click()
