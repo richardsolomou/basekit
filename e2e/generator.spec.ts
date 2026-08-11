@@ -271,6 +271,27 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
+test('exports an elevated holder with the required reusable risers', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const before = await triangles(page)
+  await page.getByRole('switch', { name: 'Elevate holder' }).click()
+  await rebuilt(page, before)
+  await expect(tall(page)).toHaveText('84')
+  await expect(footer(page)).toContainText('70mm clear · 2 supports')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STLs' }).click()
+  const saved = await pending
+  expect(saved.suggestedFilename()).toBe('holder-1x4-5x-round-32mm-tier-70mm.zip')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect(Object.keys(unzipSync(await readFile(path))).sort()).toEqual([
+    'module-1-holder-1x4-5x-round-32mm.stl',
+    'print-2x-riser-70mm-0.3mm-fit.stl',
+  ])
+})
+
 test('frames every slot in a tall holder', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)

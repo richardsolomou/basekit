@@ -4,11 +4,16 @@ import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   buildHolder,
+  buildRiser,
   defaultHolderConfig,
   holderGroup,
   holderLayout,
   holderMagnetPocketCount,
+  holderOverallHeight,
   holderPlan,
+  holderRiserCells,
+  holderRiserConfig,
+  holderRiserCount,
   holderSlotMagnetCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
@@ -36,6 +41,26 @@ function bounds(mesh: Mesh) {
     }
   }
   return { min, size: max.map((value, axis) => value - min[axis]) }
+}
+
+function weldedEdgeCounts(mesh: Mesh) {
+  const vertex = (index: number) => {
+    const offset = index * mesh.numProp
+    return Array.from(mesh.vertProperties.slice(offset, offset + 3), (value) => value.toFixed(5)).join(',')
+  }
+  const counts = new Map<string, number>()
+  for (let index = 0; index < mesh.triVerts.length; index += 3) {
+    const triangle = [vertex(mesh.triVerts[index]), vertex(mesh.triVerts[index + 1]), vertex(mesh.triVerts[index + 2])]
+    for (const [from, to] of [
+      [triangle[0], triangle[1]],
+      [triangle[1], triangle[2]],
+      [triangle[2], triangle[0]],
+    ]) {
+      const edge = from < to ? `${from}|${to}` : `${to}|${from}`
+      counts.set(edge, (counts.get(edge) ?? 0) + 1)
+    }
+  }
+  return [...counts.values()]
 }
 
 describe('holderLayout', () => {
@@ -287,12 +312,47 @@ describe('holderPlan', () => {
   })
 })
 
+describe('stacking risers', () => {
+  it('spaces supports across the upper holder without leaving an excessive span', () => {
+    expect(holderRiserCells({ unitsWide: 7, unitsDeep: 5 }, 3)).toEqual([
+      { column: 0, row: 0 },
+      { column: 0, row: 2 },
+      { column: 0, row: 4 },
+      { column: 3, row: 0 },
+      { column: 3, row: 2 },
+      { column: 3, row: 4 },
+      { column: 6, row: 0 },
+      { column: 6, row: 2 },
+      { column: 6, row: 4 },
+    ])
+  })
+
+  it('builds a hollow locating support at the requested clearance', () => {
+    const holder = { ...defaultHolderConfig(), riser: { ...defaultHolderConfig().riser, enabled: true } }
+    const result = buildRiser(wasm, holderRiserConfig(holder))
+    expect(result.stats.solid).toBe(true)
+    expect(bounds(result.mesh).size.slice(0, 2)).toEqual([41.5, 41.5])
+    expect(bounds(result.mesh).size[2]).toBeCloseTo(70.8)
+    expect(weldedEdgeCounts(result.mesh).every((count) => count === 2)).toBe(true)
+    expect(holderRiserCount(holder)).toBe(2)
+    expect(holderOverallHeight(holder)).toBe(84)
+  })
+})
+
 describe('buildHolder', () => {
   it('builds a solid with the exact Gridfinity footprint and requested height', () => {
     const config = defaultHolderConfig()
     const result = buildHolder(wasm, config)
     expect(result.stats.solid).toBe(true)
     expect(bounds(result.mesh).size).toEqual([41.5, 167.5, 14])
+  })
+
+  it('previews an elevated holder on separate locating supports', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, riser: { ...defaults.riser, enabled: true, clearance: 35 } }
+    const result = buildHolder(wasm, config)
+    expect(result.stats.solid).toBe(true)
+    expect(bounds(result.mesh).size).toEqual([41.5, 167.5, 49])
   })
 
   it('has a separate locating foot for every Gridfinity cell', () => {

@@ -88,6 +88,15 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).shared.magnets).toMatchObject({ layout: 'balanced', patternVersion: 2 })
   })
 
+  it('adds disabled stacking risers to an existing saved workspace', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.holder.riser
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 3, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.riser).toEqual({ enabled: false, clearance: 70, maxSpan: 3, socketClearance: 0.3 })
+  })
+
   it('drops the unsupported solid underside from saved workspaces', () => {
     const storage = memoryStorage()
     const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))

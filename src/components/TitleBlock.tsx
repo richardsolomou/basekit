@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
-import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
-import type { PartConfig } from '@/geometry/types'
+import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan, holderRiserCount } from '@/geometry/holder'
+import type { BasePartConfig, HolderConfig } from '@/geometry/types'
 
 interface Props {
-  config: PartConfig
+  config: BasePartConfig | HolderConfig
   /**
    * Only whether the config builds. There is deliberately no pending preview
    * state: a typical rebuild takes about 15ms, so a spinner would strobe on every
@@ -37,6 +37,9 @@ export function TitleBlock({ config, status, name }: Props) {
       <TitleFrame status={status} name={name}>
         <Row label="Models" value={slots} />
         <Row label="Modules" value={`${plan.modules.length} in ${layout.unitsWide} × ${layout.unitsDeep}`} />
+        {config.riser.enabled && (
+          <Row label="Tier" value={`${trimNumber(config.riser.clearance)}mm clear · ${holderRiserCount(config)} supports`} />
+        )}
         {plan.omitted.length > 0 && (
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}

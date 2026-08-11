@@ -6,7 +6,7 @@ import { isElongated, trimNumber } from './outline'
 import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
-import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
+import type { BaseStats, HolderConfig, HolderGroup, RiserConfig, ShapeKind } from './types'
 
 const GRID = 42
 const GAP = 0.5
@@ -23,6 +23,9 @@ const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 const MAX_CACHE_ENTRIES = 100
+const RISER_SOCKET_DEPTH = 0.8
+const RISER_PILLAR_WIDTH = 6
+const RISER_CENTER_OPENING = 24
 
 function cacheResult<T>(cache: Map<string, T>, key: string, value: T): T {
   if (cache.size >= MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value!)
@@ -652,14 +655,55 @@ export function defaultHolderConfig(): HolderConfig {
     magnetCounts: {},
     baseWallThickness: 2,
     magnetBossWall: 0.9,
+    riser: {
+      enabled: false,
+      clearance: 70,
+      maxSpan: 3,
+      socketClearance: 0.3,
+    },
     segments: 160,
   }
+}
+
+function riserAxisCells(units: number, maxSpan: number): number[] {
+  if (units <= 1) return [0]
+  const intervals = Math.ceil((units - 1) / Math.max(1, Math.round(maxSpan)))
+  return [...new Set(Array.from({ length: intervals + 1 }, (_, index) => Math.round((index * (units - 1)) / intervals)))]
+}
+
+export function holderRiserCells(layout: Pick<HolderLayout, 'unitsWide' | 'unitsDeep'>, maxSpan: number) {
+  return riserAxisCells(layout.unitsWide, maxSpan).flatMap((column) =>
+    riserAxisCells(layout.unitsDeep, maxSpan).map((row) => ({ column, row })),
+  )
+}
+
+export function holderRiserCount(config: HolderConfig): number {
+  if (!config.riser.enabled) return 0
+  return holderPlan(config).modules.reduce((total, module) => total + holderRiserCells(module.layout, config.riser.maxSpan).length, 0)
+}
+
+export function holderOverallHeight(config: HolderConfig): number {
+  return config.height + (config.riser.enabled ? config.riser.clearance : 0)
+}
+
+export function holderRiserConfig(config: HolderConfig): RiserConfig {
+  return {
+    kind: 'riser',
+    clearance: config.riser.clearance,
+    socketClearance: config.riser.socketClearance,
+    segments: config.segments,
+  }
+}
+
+export function riserName(config: Pick<RiserConfig, 'clearance' | 'socketClearance'>): string {
+  return `riser-${trimNumber(config.clearance)}mm-${trimNumber(config.socketClearance)}mm-fit`
 }
 
 export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
   const models = config.groups.map(holderGroupNamePart).join('-')
-  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
+  const tier = config.riser.enabled ? `-tier-${trimNumber(config.riser.clearance)}mm` : ''
+  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}${tier}`
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
@@ -683,6 +727,102 @@ function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number
   const radius = Math.max(0, Math.min(slot.cornerRadius + clearance / 2, Math.min(width, length) / 2 - 0.01))
   if (radius <= 0) return CrossSection.square([width, length], true)
   return CrossSection.square([width - radius * 2, length - radius * 2], true).offset(radius, 'Round', 2, segments)
+}
+
+export function buildRiser(wasm: ManifoldToplevel, config: RiserConfig): HolderBuildResult {
+  const { CrossSection, Manifold } = wasm
+  const trash: { delete: () => void }[] = []
+  const own = <T extends { delete: () => void }>(value: T): T => {
+    trash.push(value)
+    return value
+  }
+  const section = (value: CrossSection) => own(value)
+  const solidOf = (value: Manifold) => own(value)
+
+  try {
+    if (config.clearance < 10) throw new Error('Tier clearance must be at least 10mm')
+    if (config.socketClearance < 0 || config.socketClearance > 1) throw new Error('Riser socket clearance must be between 0 and 1mm')
+
+    const tolerance = curveTolerance(GRID, config.segments)
+    const profileSegments = Math.max(config.segments <= 256 ? 32 : 3, segmentsForTolerance(CORNER_RADIUS * 2, tolerance))
+    const roundedRect = (outerWidth: number, inset: number) => {
+      const width = outerWidth - inset * 2
+      const radius = Math.max(0.01, CORNER_RADIUS - inset)
+      const core = section(CrossSection.square([width - radius * 2, width - radius * 2], true))
+      return section(core.offset(radius, 'Round', 2, profileSegments))
+    }
+    const pointsAt = (outline: CrossSection, z: number): Vec3[] =>
+      outline.toPolygons().flatMap((ring) => ring.map(([x, y]): Vec3 => [x, y, z]))
+
+    const solids: Manifold[] = []
+    for (let index = 0; index < PROFILE.length - 1; index++) {
+      const from = roundedRect(GRID - GAP, PROFILE[index].inset)
+      const to = roundedRect(GRID - GAP, PROFILE[index + 1].inset)
+      solids.push(solidOf(Manifold.hull([...pointsAt(from, PROFILE[index].z), ...pointsAt(to, PROFILE[index + 1].z)])))
+    }
+
+    const pillarHeight = config.clearance - PROFILE.at(-1)!.z + 0.02
+    const outer = (GRID - GAP) / 2
+    const pillarInner = outer - RISER_PILLAR_WIDTH
+    const signedRange = (sign: number, inner: number): [number, number] => (sign > 0 ? [inner, outer] : [-outer, -inner])
+    for (const signX of [-1, 1]) {
+      for (const signY of [-1, 1]) {
+        const [minX] = signedRange(signX, pillarInner)
+        const [minY] = signedRange(signY, pillarInner)
+        const pillar = solidOf(Manifold.cube([RISER_PILLAR_WIDTH, RISER_PILLAR_WIDTH, pillarHeight]))
+        solids.push(solidOf(pillar.translate([minX, minY, PROFILE.at(-1)!.z - 0.01])))
+      }
+    }
+
+    const footBottomHalf = (GRID - GAP - PROFILE[0].inset * 2) / 2
+    const footTopHalf = (GRID - GAP - PROFILE[1].inset * 2) / 2
+    const bottomInner = footBottomHalf + config.socketClearance / 2
+    const topInner = footTopHalf + config.socketClearance / 2
+    const rectanglePoints = (x: [number, number], y: [number, number], z: number): Vec3[] => [
+      [x[0], y[0], z],
+      [x[1], y[0], z],
+      [x[1], y[1], z],
+      [x[0], y[1], z],
+    ]
+    for (const signX of [-1, 1]) {
+      for (const signY of [-1, 1]) {
+        const pillarX = signedRange(signX, pillarInner)
+        const pillarY = signedRange(signY, pillarInner)
+        const bottomX = signedRange(signX, bottomInner)
+        const topX = signedRange(signX, topInner)
+        const bottomY = signedRange(signY, bottomInner)
+        const topY = signedRange(signY, topInner)
+        solids.push(
+          solidOf(
+            Manifold.hull([
+              ...rectanglePoints(bottomX, pillarY, config.clearance - 0.01),
+              ...rectanglePoints(topX, pillarY, config.clearance + RISER_SOCKET_DEPTH),
+            ]),
+          ),
+        )
+        solids.push(
+          solidOf(
+            Manifold.hull([
+              ...rectanglePoints(pillarX, bottomY, config.clearance - 0.01),
+              ...rectanglePoints(pillarX, topY, config.clearance + RISER_SOCKET_DEPTH),
+            ]),
+          ),
+        )
+      }
+    }
+
+    const joined = solidOf(Manifold.union(solids))
+    const openingCore = section(CrossSection.square([RISER_CENTER_OPENING - 4, RISER_CENTER_OPENING - 4], true))
+    const opening = section(openingCore.offset(2, 'Round', 2, profileSegments))
+    const openingCut = solidOf(opening.extrude(config.clearance + RISER_SOCKET_DEPTH + 0.02))
+    const raisedOpeningCut = solidOf(openingCut.translate([0, 0, -0.01]))
+    const solid = solidOf(Manifold.difference([joined, raisedOpeningCut]))
+    const volume = solid.volume()
+    const triangles = solid.numTri()
+    return { mesh: solid.getMesh(), stats: { triangles, volume, grams: volume * PLA_DENSITY, solid: volume > 0 && triangles > 0 } }
+  } finally {
+    for (const value of trash) value.delete()
+  }
 }
 
 function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: Font): HolderBuildResult {
@@ -856,27 +996,48 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
 export function buildHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: Font): HolderBuildResult {
   const plan = holderPlan(config)
   if (plan.modules.length === 0) throw new Error('No requested miniatures fit within the available Gridfinity box')
-  const solids: Manifold[] = []
+  const trash: Manifold[] = []
+  const parts: Manifold[] = []
+  const own = (solid: Manifold) => {
+    trash.push(solid)
+    return solid
+  }
   const previewGap = config.segments <= 256 && plan.modules.length > 1 ? 6 : 0
   const columns = [...new Set(plan.modules.map((module) => module.column))].sort((a, b) => a - b)
   const rows = [...new Set(plan.modules.map((module) => module.row))].sort((a, b) => a - b)
   const previewShift = (value: number, positions: number[]) => (positions.indexOf(value) - (positions.length - 1) / 2) * previewGap
+  let riserMesh: Mesh | undefined
   try {
+    if (config.riser.enabled) riserMesh = buildRiser(wasm, holderRiserConfig(config)).mesh
     for (const module of plan.modules) {
-      const built = buildSingleHolder(wasm, module.config, font)
-      const solid = new wasm.Manifold(built.mesh)
-      solids.push(solid)
       const offsetX = (module.column + module.layout.unitsWide / 2 - plan.unitsWide / 2) * GRID
       const offsetY = (module.row + module.layout.unitsDeep / 2 - plan.unitsDeep / 2) * GRID
-      const placed = solid.translate([offsetX + previewShift(module.column, columns), offsetY + previewShift(module.row, rows), 0])
-      solids.push(placed)
+      const shiftX = previewShift(module.column, columns)
+      const shiftY = previewShift(module.row, rows)
+      const built = buildSingleHolder(wasm, module.config, font)
+      const solid = own(new wasm.Manifold(built.mesh))
+      parts.push(own(solid.translate([offsetX + shiftX, offsetY + shiftY, config.riser.enabled ? config.riser.clearance : 0])))
+
+      if (riserMesh) {
+        for (const cell of holderRiserCells(module.layout, config.riser.maxSpan)) {
+          const riser = own(new wasm.Manifold(riserMesh))
+          parts.push(
+            own(
+              riser.translate([
+                offsetX + shiftX + (cell.column - (module.layout.unitsWide - 1) / 2) * GRID,
+                offsetY + shiftY + (cell.row - (module.layout.unitsDeep - 1) / 2) * GRID,
+                0,
+              ]),
+            ),
+          )
+        }
+      }
     }
-    const combined = wasm.Manifold.union(solids.filter((_, index) => index % 2 === 1))
-    solids.push(combined)
+    const combined = own(wasm.Manifold.union(parts))
     const volume = combined.volume()
     const triangles = combined.numTri()
     return { mesh: combined.getMesh(), stats: { triangles, volume, grams: volume * PLA_DENSITY, solid: volume > 0 && triangles > 0 } }
   } finally {
-    for (const solid of solids) solid.delete()
+    for (const solid of trash) solid.delete()
   }
 }

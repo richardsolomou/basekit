@@ -16,7 +16,9 @@ import {
   holderGroupLabel,
   holderLayout,
   holderName,
+  holderOverallHeight,
   holderPlan,
+  holderRiserCount,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
@@ -193,7 +195,7 @@ export function App() {
     })
   const partWidth = model === 'base' ? width : holderSize.width
   const partLength = model === 'base' ? length : holderSize.length
-  const partHeight = model === 'base' ? config.height : holder.height
+  const partHeight = model === 'base' ? config.height : holderOverallHeight(holder)
   const partName = model === 'base' ? baseName(config) : holderName(holder)
   const {
     exporting,
@@ -844,6 +846,58 @@ export function App() {
           />
         </Section>
 
+        <Section
+          title="Stacking"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {holder.riser.enabled ? `${holderRiserCount(holder)} supports` : 'single level'}
+            </span>
+          }
+        >
+          <ToggleSetting
+            label="Elevate holder"
+            checked={holder.riser.enabled}
+            defaultChecked={HOLDER_DEFAULTS.riser.enabled}
+            onChange={(enabled) => setHolder({ ...holder, riser: { ...holder.riser, enabled } })}
+          />
+          {holder.riser.enabled && (
+            <>
+              <Dimension
+                label="Clearance below"
+                value={holder.riser.clearance}
+                min={10}
+                max={180}
+                step={1}
+                defaultValue={HOLDER_DEFAULTS.riser.clearance}
+                onChange={(clearance) => setHolder({ ...holder, riser: { ...holder.riser, clearance } })}
+              />
+              <Dimension
+                label="Maximum support span"
+                value={holder.riser.maxSpan}
+                min={1}
+                max={4}
+                step={1}
+                unit="cells"
+                defaultValue={HOLDER_DEFAULTS.riser.maxSpan}
+                onChange={(maxSpan) => setHolder({ ...holder, riser: { ...holder.riser, maxSpan: Math.round(maxSpan) } })}
+              />
+              <Dimension
+                label="Riser socket clearance"
+                value={holder.riser.socketClearance}
+                min={0}
+                max={1}
+                step={0.05}
+                defaultValue={HOLDER_DEFAULTS.riser.socketClearance}
+                onChange={(socketClearance) => setHolder({ ...holder, riser: { ...holder.riser, socketClearance } })}
+              />
+              <FieldDescription>
+                Measure from the Gridfinity grid to the tallest lower miniature, then add 2–3mm. Place supports under the cells shown in the
+                preview.
+              </FieldDescription>
+            </>
+          )}
+        </Section>
+
         <Section title="Slots" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(holder.slotDepth)}mm deep</span>}>
           <Dimension
             label="Slot depth"
@@ -1000,7 +1054,11 @@ export function App() {
           <Button size="sm" onClick={exportStl} disabled={!preview || exporting !== undefined}>
             <Download />
             <span className="max-sm:sr-only">
-              {exporting === 'stl' ? 'Building STL' : model === 'holder' && plan.modules.length > 1 ? 'Download STLs' : 'Download STL'}
+              {exporting === 'stl'
+                ? 'Building STL'
+                : model === 'holder' && (plan.modules.length > 1 || holder.riser.enabled)
+                  ? 'Download STLs'
+                  : 'Download STL'}
             </span>
           </Button>
           <Button size="sm" variant="outline" onClick={export3mf} disabled={!preview || exporting !== undefined}>

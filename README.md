@@ -34,11 +34,18 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
+## Tiered storage 🪜
+
+Enable **Elevate holder** to use empty height above shorter miniatures. Set the clear height from the Gridfinity grid to the upper holder, then choose how far apart its supports may be. The preview shows the assembled tier. Exports keep the holder modules and one reusable riser as separate support-free parts; the riser filename tells you how many copies to print.
+
+Each riser locks into one Gridfinity cell and cradles the locating foot under an existing holder. Place risers beneath the cells shown in the preview. Measure the tallest assembled lower miniature from the grid surface and add 2–3mm before setting the clearance. A longer support span saves lower cells, while a shorter span makes a stiffer upper tier.
+
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
 - Hollow undersides with automatic ribs and magnet layouts.
 - Balanced or five-pocket cross magnet arrangements shared by bases and holders.
+- Adjustable, separately printed Gridfinity risers for tiered holder layouts.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences.
 

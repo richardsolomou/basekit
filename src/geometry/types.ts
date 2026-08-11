@@ -107,6 +107,15 @@ export interface HolderConfig {
   magnetCounts: Record<string, number>
   baseWallThickness: number
   magnetBossWall: number
+  riser: {
+    enabled: boolean
+    /** Clear vertical space from the lower Gridfinity grid to the upper holder's lowest face. */
+    clearance: number
+    /** Maximum centre-to-centre distance between supports, in Gridfinity cells. */
+    maxSpan: number
+    /** Total diametral clearance around the upper holder's locating foot. */
+    socketClearance: number
+  }
   segments: number
 }
 
@@ -124,4 +133,11 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export interface RiserConfig {
+  kind: 'riser'
+  clearance: number
+  socketClearance: number
+  segments: number
+}
+
+export type PartConfig = BasePartConfig | HolderConfig | RiserConfig
