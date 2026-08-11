@@ -39,6 +39,14 @@ function bounds(mesh: Mesh) {
 }
 
 describe('holderLayout', () => {
+  it('returns independent copies of the canonical magnet defaults', () => {
+    const first = defaultHolderConfig()
+    const second = defaultHolderConfig()
+    first.magnets.depthClearance = 0.3
+    first.magnetCounts['round:32x32'] = 4
+    expect(second).toMatchObject({ magnets: { depthClearance: 0.1 }, magnetCounts: {} })
+  })
+
   it('uses a narrow 1×4 holder for five 32mm models', () => {
     const layout = holderLayout(defaultHolderConfig())
     expect(layout).toMatchObject({ unitsWide: 1, unitsDeep: 4 })
@@ -381,7 +389,7 @@ describe('buildHolder', () => {
 
   it('limits magnet thickness to the material above the Gridfinity foot', () => {
     const config = defaultHolderConfig()
-    expect(maxHolderMagnetThickness(config)).toBeCloseTo(5.85)
+    expect(maxHolderMagnetThickness(config)).toBeCloseTo(5.75)
   })
 
   it('uses the lowest Gridfinity height that fits the selected slot features', () => {
