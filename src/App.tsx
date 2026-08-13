@@ -139,6 +139,7 @@ export function App() {
 
   const changeModel = (next: 'base' | 'holder') => {
     if (next === model) return
+    posthog.capture('generator_selected', { generator: next })
     window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
   }
@@ -762,7 +763,10 @@ export function App() {
                       variant="ghost"
                       aria-label={`Remove miniature group ${index + 1}`}
                       disabled={holder.groups.length === 1}
-                      onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
+                      onClick={() => {
+                        posthog.capture('holder_group_removed', { group_count: holder.groups.length })
+                        setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })
+                      }}
                     >
                       <Trash2 />
                     </Button>
@@ -774,7 +778,10 @@ export function App() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })}
+            onClick={() => {
+              posthog.capture('holder_group_added', { group_count: holder.groups.length + 1 })
+              setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })
+            }}
           >
             <Plus /> Add size
           </Button>
