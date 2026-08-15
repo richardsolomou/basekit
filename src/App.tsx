@@ -17,14 +17,13 @@ import {
   holderLayout,
   holderName,
   holderPlan,
+  holderPrintSize,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
-  defaultBaseHeight,
-  defaultFloorThickness,
   DEFAULT_PRESET,
   DEFAULT_SIZE,
   footprintKey,
@@ -36,8 +35,7 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import { defaultTierConfig, tierName, tierSize } from '@/geometry/tier'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind, TierConfig } from '@/geometry/types'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -79,7 +77,6 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
-  { value: 'tier' as const, label: 'Tiers', href: '/tiers' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -87,11 +84,9 @@ const ENGRAVING_PLACEMENTS = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
-const TIER_DEFAULTS = defaultTierConfig()
-type Model = 'base' | 'holder' | 'tier'
+type Model = 'base' | 'holder'
 
-const modelForPath = (): Model =>
-  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/tiers' ? 'tier' : 'base'
+const modelForPath = (): Model => (window.location.pathname === '/holders' ? 'holder' : 'base')
 
 function RepositoryLink() {
   return (
@@ -113,15 +108,12 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
-  const tier = workspace.tier
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
-  const setTier = (next: TierConfig | ((current: TierConfig) => TierConfig)) =>
-    setWorkspace((current) => ({ ...current, tier: typeof next === 'function' ? next(current.tier) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
@@ -130,7 +122,7 @@ export function App() {
   const [model, setModel] = useState<Model>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : model === 'holder' ? holder : tier
+  const partConfig = model === 'base' ? config : holder
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -140,15 +132,14 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'tier' ? 'BaseKit — Tiers' : 'BaseKit — Bases'
+    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
   const changeModel = (next: Model) => {
     if (next === model) return
-    posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'tier' ? '/tiers' : '/')
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
     setModel(next)
   }
 
@@ -160,7 +151,7 @@ export function App() {
     })
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
-  const currentTierSize = useMemo(() => tierSize(tier), [tier])
+  const holderPrintedSize = useMemo(() => holderPrintSize(holder), [holder])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
@@ -203,10 +194,10 @@ export function App() {
       next.delete(id)
       return next
     })
-  const partWidth = model === 'base' ? width : model === 'holder' ? holderSize.width : currentTierSize.width
-  const partLength = model === 'base' ? length : model === 'holder' ? holderSize.length : currentTierSize.length
-  const partHeight = model === 'base' ? config.height : model === 'holder' ? holder.height : currentTierSize.height
-  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : tierName(tier)
+  const partWidth = model === 'base' ? width : holderPrintedSize.width
+  const partLength = model === 'base' ? length : holderPrintedSize.length
+  const partHeight = model === 'base' ? config.height : holderPrintedSize.height
+  const partName = model === 'base' ? baseName(config) : holderName(holder)
   const {
     exporting,
     error: exportError,
@@ -216,15 +207,12 @@ export function App() {
     model,
     base: config,
     holder,
-    tier,
     width: partWidth,
     length: partLength,
   })
   const elongated = isElongated(config.shape)
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
-  const footprintDefaultHeight = defaultBaseHeight(config.width, config.length)
-  const footprintDefaultFloor = defaultFloorThickness(config.width, config.length)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
   const magnetCountOverride = workspace.shared.magnetCounts[magnetCountKey]
   const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
@@ -439,7 +427,7 @@ export function App() {
             min={2}
             max={12}
             step={0.25}
-            defaultValue={footprintDefaultHeight}
+            defaultValue={BASE_DEFAULTS.height}
             onChange={(height) => patch({ height })}
           />
           <Dimension
@@ -457,7 +445,7 @@ export function App() {
             min={0.4}
             max={Math.max(0.5, config.height - 0.5)}
             step={0.1}
-            defaultValue={footprintDefaultFloor}
+            defaultValue={BASE_DEFAULTS.floorThickness}
             onChange={(floorThickness) => patch({ floorThickness })}
           />
           <Choice
@@ -773,10 +761,7 @@ export function App() {
                       variant="ghost"
                       aria-label={`Remove miniature group ${index + 1}`}
                       disabled={holder.groups.length === 1}
-                      onClick={() => {
-                        posthog.capture('holder_group_removed', { group_count: holder.groups.length })
-                        setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })
-                      }}
+                      onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
                     >
                       <Trash2 />
                     </Button>
@@ -788,10 +773,7 @@ export function App() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              posthog.capture('holder_group_added', { group_count: holder.groups.length + 1 })
-              setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })
-            }}
+            onClick={() => setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })}
           >
             <Plus /> Add size
           </Button>
@@ -902,6 +884,61 @@ export function App() {
         </Section>
 
         <Section
+          title="Upper Floor"
+          aside={<span className="readout text-xs text-muted-foreground">{holder.tier.enabled ? 'socketed' : 'none'}</span>}
+        >
+          <ToggleSetting
+            label="Add upper floor kit"
+            checked={holder.tier.enabled}
+            defaultChecked={HOLDER_DEFAULTS.tier.enabled}
+            onChange={(enabled) => setHolder({ ...holder, tier: { ...holder.tier, enabled } })}
+          />
+          {holder.tier.enabled && (
+            <>
+              <Dimension
+                label="Space below floor"
+                value={holder.tier.clearance}
+                min={14}
+                max={175}
+                step={7}
+                defaultValue={HOLDER_DEFAULTS.tier.clearance}
+                onChange={(clearance) => setHolder({ ...holder, tier: { ...holder.tier, clearance } })}
+              />
+              <Dimension
+                label="Floor thickness"
+                value={holder.tier.deckThickness}
+                min={7}
+                max={12}
+                step={0.5}
+                defaultValue={HOLDER_DEFAULTS.tier.deckThickness}
+                onChange={(deckThickness) => setHolder({ ...holder, tier: { ...holder.tier, deckThickness } })}
+              />
+              <Dimension
+                label="Post diameter"
+                value={holder.tier.postDiameter}
+                min={4}
+                max={10}
+                step={0.5}
+                defaultValue={HOLDER_DEFAULTS.tier.postDiameter}
+                onChange={(postDiameter) => setHolder({ ...holder, tier: { ...holder.tier, postDiameter } })}
+              />
+              <Dimension
+                label="Post fit clearance"
+                value={holder.tier.fitClearance}
+                min={0.1}
+                max={0.6}
+                step={0.05}
+                defaultValue={HOLDER_DEFAULTS.tier.fitClearance}
+                onChange={(fitClearance) => setHolder({ ...holder, tier: { ...holder.tier, fitClearance } })}
+              />
+              <FieldDescription>
+                The export includes the socketed holder, removable posts, and a universal Gridfinity floor for any holders above.
+              </FieldDescription>
+            </>
+          )}
+        </Section>
+
+        <Section
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
@@ -968,78 +1005,8 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const tierPanel = (
-    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
-      <aside aria-label="Tier settings" className="pb-4 [counter-reset:schedule]">
-        <Section
-          title="Deck"
-          aside={
-            <span className="readout text-xs text-muted-foreground">
-              {tier.columns} × {tier.rows}
-            </span>
-          }
-        >
-          <Dimension
-            label="Columns"
-            value={tier.columns}
-            min={1}
-            max={4}
-            step={1}
-            unit=""
-            defaultValue={TIER_DEFAULTS.columns}
-            onChange={(columns) => setTier({ ...tier, columns: Math.round(columns) })}
-          />
-          <Dimension
-            label="Rows"
-            value={tier.rows}
-            min={1}
-            max={4}
-            step={1}
-            unit=""
-            defaultValue={TIER_DEFAULTS.rows}
-            onChange={(rows) => setTier({ ...tier, rows: Math.round(rows) })}
-          />
-          <FieldDescription>Print adjacent modules to span a wider box. Each cell locates an existing BaseKit holder.</FieldDescription>
-        </Section>
-        <Section title="Clearance" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(tier.clearance)}mm</span>}>
-          <Dimension
-            label="Space below deck"
-            value={tier.clearance}
-            min={14}
-            max={175}
-            step={7}
-            defaultValue={TIER_DEFAULTS.clearance}
-            onChange={(clearance) => setTier({ ...tier, clearance })}
-          />
-          <FieldDescription>Measure the tallest miniature below and add room to lift it out.</FieldDescription>
-        </Section>
-        <Section title="Construction">
-          <Dimension
-            label="Deck thickness"
-            value={tier.deckThickness}
-            min={4}
-            max={10}
-            step={0.5}
-            defaultValue={TIER_DEFAULTS.deckThickness}
-            onChange={(deckThickness) => setTier({ ...tier, deckThickness })}
-          />
-          <Dimension
-            label="Pillar width"
-            value={tier.pillarSize}
-            min={8}
-            max={24}
-            step={1}
-            defaultValue={TIER_DEFAULTS.pillarSize}
-            onChange={(pillarSize) => setTier({ ...tier, pillarSize })}
-          />
-          <FieldDescription>The four corner feet occupy their Gridfinity cells on the lower level.</FieldDescription>
-        </Section>
-        <RepositoryLink />
-      </aside>
-    </ScrollArea>
-  )
-  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : tierPanel
-  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Tier'
+  const panel = model === 'base' ? basePanel : holderPanel
+  const modelLabel = model === 'base' ? 'Base' : 'Holder'
 
   return (
     <div className="flex h-full flex-col bg-background">

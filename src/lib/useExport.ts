@@ -4,8 +4,7 @@ import { to3mf, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
 import { baseName } from '@/geometry/outline'
 import { exportSegmentsFor } from '@/geometry/quality'
-import { tierName } from '@/geometry/tier'
-import type { BaseConfig, HolderConfig, PartConfig, TierConfig } from '@/geometry/types'
+import type { BaseConfig, HolderConfig, PartConfig } from '@/geometry/types'
 import posthog from '@/lib/posthog'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
@@ -13,19 +12,18 @@ import { asMeshLike, download } from './download'
 type ExportFormat = 'stl' | '3mf'
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'tier'
+  model: 'base' | 'holder'
   base: BaseConfig
   holder: HolderConfig
-  tier: TierConfig
   width: number
   length: number
 }
 
-export function useExport({ model, base, holder, tier, width, length }: ExportOptions) {
+export function useExport({ model, base, holder, width, length }: ExportOptions) {
   const [exporting, setExporting] = useState<ExportFormat>()
   const [error, setError] = useState<string>()
-  const config: PartConfig = model === 'base' ? base : model === 'holder' ? holder : tier
-  const name = model === 'base' ? baseName(base) : model === 'holder' ? holderName(holder) : tierName(tier)
+  const config: PartConfig = model === 'base' ? base : holder
+  const name = model === 'base' ? baseName(base) : holderName(holder)
 
   const run = async <T>(format: ExportFormat, operation: () => Promise<T>): Promise<T | undefined> => {
     setExporting(format)
@@ -36,7 +34,7 @@ export function useExport({ model, base, holder, tier, width, length }: ExportOp
         format,
         width,
         length,
-        height: config.kind === 'tier' ? config.clearance + config.deckThickness : config.height,
+        height: config.height,
       })
       return result
     } catch (failure) {

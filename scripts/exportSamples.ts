@@ -8,10 +8,10 @@ import { join } from 'node:path'
 import type { Font } from 'opentype.js'
 import { buildBase } from '../src/geometry/base'
 import { toStl } from '../src/geometry/exporters'
+import { buildHolder, defaultHolderConfig, holderGroup, holderName } from '../src/geometry/holder'
 import { loadManifold } from '../src/geometry/manifold'
 import { baseName } from '../src/geometry/outline'
 import { OVAL_SIZES, presetFor, ROUND_SIZES } from '../src/geometry/presets'
-import { buildTier, defaultTierConfig, tierName } from '../src/geometry/tier'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
 
@@ -27,9 +27,14 @@ const font = parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes
 
 mkdirSync(outDir, { recursive: true })
 if (family === 'tier') {
-  const config = defaultTierConfig()
-  const { mesh, stats } = buildTier(wasm, config)
-  const name = `${tierName(config)}.stl`
+  const defaults = defaultHolderConfig()
+  const config = {
+    ...defaults,
+    groups: [holderGroup('sample', 1, { width: 50 })],
+    tier: { ...defaults.tier, enabled: true },
+  }
+  const { mesh, stats } = buildHolder(wasm, config, font)
+  const name = `${holderName(config)}.stl`
   writeFileSync(join(outDir, name), toStl(mesh, name))
   console.log(`${name.padEnd(28)} ${stats.triangles} tris  ${stats.volume.toFixed(0)}mm3  ${stats.grams.toFixed(2)}g`)
 }

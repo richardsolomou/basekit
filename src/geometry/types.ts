@@ -107,6 +107,14 @@ export interface HolderConfig {
   magnetCounts: Record<string, number>
   baseWallThickness: number
   magnetBossWall: number
+  tier: {
+    enabled: boolean
+    /** Open space between the lower holder and the upper deck. */
+    clearance: number
+    deckThickness: number
+    postDiameter: number
+    fitClearance: number
+  }
   segments: number
 }
 
@@ -120,19 +128,8 @@ export interface HolderGroup {
   sides: number
 }
 
-export interface TierConfig {
-  kind: 'tier'
-  columns: number
-  rows: number
-  /** Clear space from the build plate to the underside of the deck. */
-  clearance: number
-  deckThickness: number
-  pillarSize: number
-  segments: number
-}
-
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | TierConfig
+export type PartConfig = BasePartConfig | HolderConfig

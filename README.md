@@ -34,9 +34,9 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
-## Gridfinity tiers 🪜
+## Gridfinity upper floors 🪜
 
-Build a removable upper level for tall storage boxes. Choose a Gridfinity module size and the clearance needed for miniatures below; BaseKit adds locating feet, corner pillars, and a deck whose cells locate existing holders. Print adjacent modules to cover a wider box.
+Add a removable upper floor to a holder when it has enough unused material for post sockets. The printable kit includes fitted posts and a second Gridfinity receiving grid, so holders of any compatible size can be rearranged above it.
 
 ## Designed for one job 🎯
 

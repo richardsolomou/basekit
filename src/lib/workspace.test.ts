@@ -16,7 +16,6 @@ describe('workspace state', () => {
     expect(defaultWorkspace()).toMatchObject({
       base: { width: 32, magnets: { patternVersion: 2 } },
       holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
-      tier: { kind: 'tier', columns: 3, rows: 2, clearance: 84 },
     })
   })
 

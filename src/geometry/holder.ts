@@ -21,6 +21,9 @@ const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
+const TIER_SOCKET_DEPTH = 4
+const TIER_SOCKET_WALL = 1.2
+const TIER_DECK_SOCKET_DEPTH = 2.8
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 const MAX_CACHE_ENTRIES = 100
 
@@ -57,6 +60,11 @@ export interface HolderPlan {
   unitsDeep: number
 }
 
+export interface HolderTierPost {
+  x: number
+  y: number
+}
+
 interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
   x: number
   y: number
@@ -72,7 +80,7 @@ const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
     maxCount: 8,
     diameter: 5,
     clearance: 0.2,
-    depthClearance: 0.1,
+    depthClearance: 0,
     thickness: 2,
   },
   magnetCounts: {},
@@ -639,17 +647,76 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    ...DEFAULT_MAGNET_SETTINGS,
-    magnets: { ...DEFAULT_MAGNET_SETTINGS.magnets },
-    magnetCounts: { ...DEFAULT_MAGNET_SETTINGS.magnetCounts },
+    magnets: {
+      enabled: true,
+      layout: 'balanced',
+      patternVersion: 2,
+      maxCount: 8,
+      diameter: 5,
+      clearance: 0.2,
+      depthClearance: 0,
+      thickness: 2,
+    },
+    magnetCounts: {},
+    baseWallThickness: 2,
+    magnetBossWall: 0.9,
+    tier: { enabled: false, clearance: 84, deckThickness: 8, postDiameter: 6, fitClearance: 0.25 },
     segments: 160,
   }
+}
+
+export function holderTierPostCenters(config: HolderConfig): HolderTierPost[] {
+  const layout = singleHolderLayout(config)
+  if (!config.tier.enabled || layout.slotCenters.length === 0) return []
+  const radius = (config.tier.postDiameter + config.tier.fitClearance) / 2 + TIER_SOCKET_WALL
+  const valid = (x: number, y: number) => {
+    if (Math.abs(x) > layout.width / 2 - radius || Math.abs(y) > layout.length / 2 - radius) return false
+    return layout.slotCenters.every((slot) => {
+      const halfWidth = (slotWidth(slot) + config.slotClearance) / 2
+      const halfLength = (slotLength(slot) + config.slotClearance) / 2
+      if (slot.shape === 'round' || slot.shape === 'polygon') return Math.hypot(x - slot.x, y - slot.y) >= halfWidth + radius
+      const dx = Math.max(Math.abs(x - slot.x) - halfWidth, 0)
+      const dy = Math.max(Math.abs(y - slot.y) - halfLength, 0)
+      return Math.hypot(dx, dy) >= radius
+    })
+  }
+  const candidates: HolderTierPost[] = []
+  for (let y = -layout.length / 2 + radius; y <= layout.length / 2 - radius + 1e-6; y += 1) {
+    for (let x = -layout.width / 2 + radius; x <= layout.width / 2 - radius + 1e-6; x += 1) {
+      if (valid(x, y)) candidates.push({ x, y })
+    }
+  }
+  const corners = [
+    { x: -layout.width / 2, y: -layout.length / 2 },
+    { x: layout.width / 2, y: -layout.length / 2 },
+    { x: layout.width / 2, y: layout.length / 2 },
+    { x: -layout.width / 2, y: layout.length / 2 },
+  ]
+  const chosen: HolderTierPost[] = []
+  for (const corner of corners) {
+    const best = candidates
+      .filter((candidate) => chosen.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 12))
+      .sort((a, b) => Math.hypot(a.x - corner.x, a.y - corner.y) - Math.hypot(b.x - corner.x, b.y - corner.y))[0]
+    if (best) chosen.push(best)
+  }
+  return chosen
 }
 
 export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
   const models = config.groups.map(holderGroupNamePart).join('-')
-  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
+  return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}${config.tier.enabled ? '-upper-floor-kit' : ''}`
+}
+
+export function holderPrintSize(config: HolderConfig) {
+  const layout = holderLayout(config)
+  if (!config.tier.enabled) return { width: layout.width, length: layout.length, height: config.height }
+  const postRadius = config.tier.postDiameter / 2
+  return {
+    width: layout.width * 2 + 24 + postRadius * 2,
+    length: layout.length,
+    height: Math.max(config.height, config.tier.deckThickness, config.tier.clearance + TIER_SOCKET_DEPTH * 2),
+  }
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
@@ -833,7 +900,52 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
         }
       }
     }
+
+    const tierPosts = holderTierPostCenters(config)
+    if (config.tier.enabled) {
+      if (tierPosts.length < 3) throw new Error('This holder has too little unused space for three upper-floor post sockets')
+      const socketRadius = (config.tier.postDiameter + config.tier.fitClearance) / 2
+      const socketDisc = section(CrossSection.circle(socketRadius, segmentsFor(socketRadius * 2, 32)))
+      const socketOutlines = tierPosts.map((post) => section(socketDisc.translate([post.x, post.y])))
+      const sockets = section(CrossSection.union(socketOutlines))
+      const socketCut = solidOf(sockets.extrude(TIER_SOCKET_DEPTH + 0.01))
+      cutters.push(solidOf(socketCut.translate([0, 0, config.height - TIER_SOCKET_DEPTH])))
+    }
     solid = solidOf(Manifold.difference([solid, ...cutters]))
+
+    if (config.tier.enabled) {
+      const deckOffsetX = layout.width + 12
+      const deck = solidOf(top.extrude(config.tier.deckThickness).translate([deckOffsetX, 0, 0]))
+      const deckCutters: Manifold[] = []
+      for (let unitY = 0; unitY < layout.unitsDeep; unitY++) {
+        for (let unitX = 0; unitX < layout.unitsWide; unitX++) {
+          const x = (unitX - (layout.unitsWide - 1) / 2) * GRID + deckOffsetX
+          const y = (unitY - (layout.unitsDeep - 1) / 2) * GRID
+          const receiver = roundedRect(GRID - GAP + 0.7, GRID - GAP + 0.7, PROFILE[2].inset)
+          const receiverCut = solidOf(receiver.extrude(TIER_DECK_SOCKET_DEPTH + 0.01))
+          deckCutters.push(solidOf(receiverCut.translate([x, y, config.tier.deckThickness - TIER_DECK_SOCKET_DEPTH])))
+        }
+      }
+      const upperSocketRadius = (config.tier.postDiameter + config.tier.fitClearance) / 2
+      const upperSocketDisc = section(CrossSection.circle(upperSocketRadius, segmentsFor(upperSocketRadius * 2, 32)))
+      for (const post of tierPosts) {
+        const outline = section(upperSocketDisc.translate([post.x + deckOffsetX, post.y]))
+        const cut = solidOf(outline.extrude(TIER_SOCKET_DEPTH + 0.01))
+        deckCutters.push(cut)
+      }
+      const cutDeck = solidOf(Manifold.difference([deck, ...deckCutters]))
+      const postRadius = config.tier.postDiameter / 2
+      const postDisc = section(CrossSection.circle(postRadius, segmentsFor(postRadius * 2, 32)))
+      const postLength = config.tier.clearance + TIER_SOCKET_DEPTH * 2
+      const looseParts: Manifold[] = [cutDeck]
+      for (let index = 0; index < tierPosts.length; index++) {
+        const x = layout.width / 2 + deckOffsetX + 12 + postRadius
+        const y = (index - (tierPosts.length - 1) / 2) * (config.tier.postDiameter + 3)
+        const post = solidOf(postDisc.extrude(postLength))
+        looseParts.push(solidOf(post.translate([x, y, 0])))
+      }
+      solid = solidOf(Manifold.union([solid, ...looseParts]))
+    }
 
     const volume = solid.volume()
     const triangles = solid.numTri()

@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add adjustable Gridfinity tier modules for storing holders above miniatures.
+Add interchangeable Gridfinity upper-floor kits to holders with enough room for removable post sockets.

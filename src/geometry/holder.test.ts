@@ -10,6 +10,7 @@ import {
   holderMagnetPocketCount,
   holderPlan,
   holderSlotMagnetCenters,
+  holderTierPostCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
@@ -242,6 +243,34 @@ describe('holderLayout', () => {
   it('reports no layout when the box constraints are too small', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 2, { width: 90 })], maxColumns: 3, maxRows: 2 }
     expect(holderLayout(config).slotCenters).toHaveLength(0)
+  })
+})
+
+describe('upper floor kit', () => {
+  it('places removable post sockets only in unused holder space', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      groups: [holderGroup('large', 1, { width: 50 })],
+      tier: { ...defaults.tier, enabled: true },
+    }
+    const posts = holderTierPostCenters(config)
+    expect(posts).toHaveLength(4)
+    expect(posts.every((post) => Math.hypot(post.x, post.y) > 25 + config.tier.postDiameter / 2)).toBe(true)
+  })
+
+  it('exports the lower holder, universal floor, and removable posts as one printable kit', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      groups: [holderGroup('large', 1, { width: 50 })],
+      tier: { ...defaults.tier, enabled: true },
+    }
+    const plain = buildHolder(wasm, { ...config, tier: { ...config.tier, enabled: false } })
+    const kit = buildHolder(wasm, config)
+    expect(kit.stats.solid).toBe(true)
+    expect(kit.stats.volume).toBeGreaterThan(plain.stats.volume)
+    expect(bounds(kit.mesh).size[0]).toBeGreaterThan(bounds(plain.mesh).size[0] * 2)
   })
 })
 
