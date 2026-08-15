@@ -1,6 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { loadManifold } from './manifold'
-import { buildRack, defaultRackConfig, rackDimensions, rackName, rackShelfDimensions, rackSlotLevels, rackTiles } from './rack'
+import {
+  buildRack,
+  defaultRackConfig,
+  rackDimensions,
+  rackHardware,
+  rackName,
+  rackShelfDimensions,
+  rackShelfLevels,
+  rackTiles,
+} from './rack'
 
 let wasm: Awaited<ReturnType<typeof loadManifold>>
 
@@ -13,7 +22,7 @@ describe('transport rack', () => {
     const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
-    expect(result.stats.volume).toBeLessThan(350_000)
+    expect(result.stats.volume).toBeLessThan(310_000)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
@@ -27,7 +36,7 @@ describe('transport rack', () => {
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
     expect(rackDimensions(config).height).toBe(196)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(config.shelfThickness)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(14)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -37,14 +46,15 @@ describe('transport rack', () => {
     expect(tiles.reduce((area, tile) => area + tile.columns * tile.rows, 0)).toBe(35)
   })
 
-  it('provides both example trip arrangements with the same 14mm frame', () => {
-    const levels = rackSlotLevels(defaultRackConfig())
-    expect(levels).toEqual(expect.arrayContaining([42, 84, 140, 56, 126, 168]))
+  it('uses continuous threaded rods for every example trip height', () => {
+    const config = defaultRackConfig()
+    expect([42, 56, 84, 126, 140, 168].every((height) => height < rackHardware(config).m6RodLength)).toBe(true)
+    expect(rackHardware(config)).toMatchObject({ m6Rods: 4, m6RodLength: 196, m6Nuts: 32, m4Bolts: 4, m3Bolts: 56 })
   })
 
-  it('provides at least three positions and shelves', () => {
+  it('provides at least three adjustable shelves', () => {
     const config = { ...defaultRackConfig(), height: 70, shelfCount: 3 }
-    expect(rackSlotLevels(config).length).toBeGreaterThanOrEqual(3)
+    expect(rackShelfLevels(config)).toHaveLength(3)
     expect(() => buildRack(wasm, config)).not.toThrow()
   })
 

@@ -115,7 +115,6 @@ export interface RackConfig {
   columns: number
   rows: number
   height: number
-  slotPitch: 7 | 14
   shelfCount: number
   shelfThickness: number
   tileColumns: number

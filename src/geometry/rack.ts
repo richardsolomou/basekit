@@ -9,7 +9,10 @@ const RECEIVER_INSET = 2.15
 const FRAME_THICKNESS = 5
 const UPRIGHT_WIDTH = 8
 const POST_SIZE = 10
-const LOCK_PIN_SIZE = 3.2
+const ROD_DIAMETER = 6
+const ROD_CLEARANCE = 0.5
+const M3_CLEARANCE = 3.4
+const M4_CLEARANCE = 4.5
 const BEAM_WIDTH = 8
 const BEAM_HEIGHT = 5
 const TONGUE_REACH = 3.5
@@ -39,7 +42,6 @@ export function defaultRackConfig(): RackConfig {
     columns: 4,
     rows: 4,
     height: 196,
-    slotPitch: 14,
     shelfCount: 3,
     shelfThickness: 5.5,
     tileColumns: 2,
@@ -82,9 +84,30 @@ export function rackShelfDimensions(config: RackConfig) {
   return { width: Math.round(config.columns) * GRID - GAP, length: Math.round(config.rows) * GRID - GAP }
 }
 
-export function rackSlotLevels(config: RackConfig): number[] {
-  const pitch = config.slotPitch === 7 ? 7 : 14
-  return Array.from({ length: Math.max(0, Math.floor((config.height - pitch * 2) / pitch) + 1) }, (_, index) => pitch + index * pitch)
+export function rackShelfLevels(config: RackConfig): number[] {
+  const margin = 14
+  return Array.from(
+    { length: config.shelfCount },
+    (_, index) => margin + (index * (config.height - margin * 2)) / Math.max(1, config.shelfCount - 1),
+  )
+}
+
+export function rackHardware(config: RackConfig) {
+  const shelfCorners = config.shelfCount * 4
+  const { width, length } = rackShelfDimensions(config)
+  const splitJoints = (barLength: number) => Math.max(0, Math.ceil(barLength / (GRID * 2)) - 1)
+  const m3Joints = config.shelfCount * 2 * splitJoints(width + POST_SIZE) + 2 * splitJoints(width + POST_SIZE * 2) + 2 * splitJoints(length)
+  const m3Mounts = config.shelfCount * 4 + 8
+  return {
+    m6Rods: 4,
+    m6RodLength: config.height,
+    m6Nuts: shelfCorners * 2 + 8,
+    m6Washers: shelfCorners * 2 + 8,
+    m4Bolts: 4,
+    m4Nuts: 4,
+    m3Bolts: m3Joints * 2 + m3Mounts,
+    m3Nuts: m3Joints * 2 + m3Mounts,
+  }
 }
 
 export function rackDimensions(config: RackConfig) {
@@ -100,7 +123,7 @@ export function rackDimensions(config: RackConfig) {
   return {
     width: Math.max(tileAreaWidth, length * 2 + PART_GAP, width + UPRIGHT_WIDTH * 2),
     length: tileAreaLength + config.height * 2 + PART_GAP * 4,
-    height: Math.max(config.shelfThickness, FRAME_THICKNESS),
+    height: Math.max(config.shelfThickness, config.baseplateThickness + FRAME_THICKNESS + 4, 10),
   }
 }
 
@@ -128,9 +151,8 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
     const shelfCount = Math.max(3, Math.round(config.shelfCount))
     const shelfWidth = columns * GRID - GAP
     const shelfDepth = rows * GRID - GAP
-    const levels = rackSlotLevels(config)
-    if (config.height < 70 || levels.length < 3) throw new Error('Rack height must provide at least three shelf positions')
-    if (![7, 14].includes(config.slotPitch)) throw new Error('Shelf slot pitch must be 7 or 14 mm')
+    const levels = rackShelfLevels(config)
+    if (config.height < 70) throw new Error('Rack height must be at least 70 mm')
     if (config.shelfThickness < 5) throw new Error('Rack shelves must be at least 5 mm thick')
     if (config.baseplateThickness < 3) throw new Error('Existing baseplate thickness must be at least 3 mm')
 
@@ -171,14 +193,20 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       return solid(Manifold.difference([deck, ...receiverCutters, ...undersideCutters, ...keyways]))
     }
 
-    const uprightPrint = () => {
-      const post = cube([POST_SIZE, config.height, POST_SIZE])
-      const hole = section(CrossSection.circle((LOCK_PIN_SIZE + config.fitClearance) / 2, 24))
-      const cutters = levels.map((height) => {
-        const drill = solid(hole.extrude(POST_SIZE + 0.02))
-        return solid(drill.translate([0, -config.height / 2 + height, -POST_SIZE / 2 - 0.01]))
-      })
-      return solid(Manifold.difference([post, ...cutters]))
+    const verticalDrill = (diameter: number, height: number, z = -0.01) => {
+      const outline = section(CrossSection.circle(diameter / 2, 32))
+      const drill = solid(outline.extrude(height + 0.02))
+      return solid(drill.translate([0, 0, z]))
+    }
+
+    const cornerBlock = (height: number) => {
+      const block = cube([18, 18, height], [0, 0, height / 2])
+      const rod = verticalDrill(ROD_DIAMETER + ROD_CLEARANCE, height)
+      const screw = verticalDrill(M3_CLEARANCE, height)
+      const movedScrew = solid(screw.translate([6, 0, 0]))
+      const secondScrew = verticalDrill(M3_CLEARANCE, height)
+      const movedSecondScrew = solid(secondScrew.translate([0, 6, 0]))
+      return solid(Manifold.difference([block, rod, movedScrew, movedSecondScrew]))
     }
 
     const splitBar = (barLength: number) => {
@@ -196,6 +224,10 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
               [-length / 2 + KEY_LENGTH / 4, 0, -BEAM_HEIGHT / 2 + keyDepth / 2 - 0.005],
             ),
           )
+        if (index > 0) {
+          const drill = verticalDrill(M3_CLEARANCE, BEAM_HEIGHT, -BEAM_HEIGHT / 2 - 0.01)
+          cutters.push(solid(drill.translate([-length / 2 + 4, 0, 0])))
+        }
         if (index < count - 1)
           cutters.push(
             cube(
@@ -203,25 +235,32 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
               [length / 2 - KEY_LENGTH / 4, 0, -BEAM_HEIGHT / 2 + keyDepth / 2 - 0.005],
             ),
           )
+        if (index < count - 1) {
+          const drill = verticalDrill(M3_CLEARANCE, BEAM_HEIGHT, -BEAM_HEIGHT / 2 - 0.01)
+          cutters.push(solid(drill.translate([length / 2 - 4, 0, 0])))
+        }
+        if (index === 0) {
+          const drill = verticalDrill(M3_CLEARANCE, BEAM_HEIGHT, -BEAM_HEIGHT / 2 - 0.01)
+          cutters.push(solid(drill.translate([-length / 2 + 7, 0, 0])))
+        }
+        if (index === count - 1) {
+          const drill = verticalDrill(M3_CLEARANCE, BEAM_HEIGHT, -BEAM_HEIGHT / 2 - 0.01)
+          cutters.push(solid(drill.translate([length / 2 - 7, 0, 0])))
+        }
         return cutters.length === 0 ? beam : solid(Manifold.difference([beam, ...cutters]))
       })
     }
 
     const key = () => cube([KEY_LENGTH, KEY_WIDTH, KEY_THICKNESS])
-    const lockPin = () => {
-      const length = POST_SIZE + 4
-      return solid(
-        Manifold.union([
-          cube([length, LOCK_PIN_SIZE, LOCK_PIN_SIZE]),
-          cube([2, LOCK_PIN_SIZE + 3, LOCK_PIN_SIZE + 3], [-length / 2 - 1, 0, 0]),
-          cube([1.5, LOCK_PIN_SIZE + 1, LOCK_PIN_SIZE + 1], [length / 2 - 0.5, 0, 0]),
-        ]),
-      )
-    }
-    const clamp = () => {
-      const outer = cube([16, 14, config.baseplateThickness + FRAME_THICKNESS + 4])
+    const clamp = (side: -1 | 1) => {
+      const clampHeight = config.baseplateThickness + FRAME_THICKNESS + 4
+      const outer = cube([24, 18, clampHeight])
       const slot = cube([12, 14.02, config.baseplateThickness + config.fitClearance], [0, 0, FRAME_THICKNESS / 2])
-      return solid(Manifold.difference([outer, slot]))
+      const rod = verticalDrill(ROD_DIAMETER + ROD_CLEARANCE, clampHeight)
+      const movedRod = solid(rod.translate([side * 8, 0, 0]))
+      const bolt = verticalDrill(M4_CLEARANCE, clampHeight)
+      const movedBolt = solid(bolt.translate([-side * 8, 0, 0]))
+      return solid(Manifold.difference([outer, slot, movedRod, movedBolt]))
     }
 
     const retainerPrint = () => {
@@ -247,8 +286,13 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       parts.push(cube([shelfWidth, shelfDepth, config.baseplateThickness], [0, 0, config.baseplateThickness / 2]))
       const postX = (shelfWidth + POST_SIZE) / 2
       const postY = (shelfDepth - POST_SIZE) / 2
-      for (const x of [-postX, postX])
-        for (const y of [-postY, postY]) parts.push(cube([POST_SIZE, POST_SIZE, config.height], [x, y, config.height / 2]))
+      const rodOutline = section(CrossSection.circle(ROD_DIAMETER / 2, 32))
+      for (const x of [-postX, postX]) {
+        for (const y of [-postY, postY]) {
+          const rod = solid(rodOutline.extrude(config.height))
+          parts.push(solid(rod.translate([x, y, 0])))
+        }
+      }
       parts.push(cube([shelfWidth + POST_SIZE * 2, POST_SIZE, POST_SIZE], [0, -postY, config.height - POST_SIZE / 2]))
       parts.push(cube([shelfWidth + POST_SIZE * 2, POST_SIZE, POST_SIZE], [0, postY, config.height - POST_SIZE / 2]))
       parts.push(cube([POST_SIZE, shelfDepth, POST_SIZE], [-postX, 0, config.height - POST_SIZE / 2]))
@@ -260,16 +304,15 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       for (const level of shownLevels) {
         for (const y of [-postY, postY])
           parts.push(cube([shelfWidth + POST_SIZE, BEAM_WIDTH, BEAM_HEIGHT], [0, y, level + BEAM_HEIGHT / 2]))
-        for (const x of [-postX, postX])
-          for (const y of [-postY, postY])
-            parts.push(cube([LOCK_PIN_SIZE, POST_SIZE + 4, LOCK_PIN_SIZE], [x, y, level + LOCK_PIN_SIZE / 2]))
+        for (const x of [-postX, postX]) for (const y of [-postY, postY]) parts.push(solid(cornerBlock(6).translate([x, y, level])))
         for (const tile of tiles) {
           const x = -shelfWidth / 2 + tile.column * GRID + (tile.columns * GRID - GAP) / 2
           const y = -shelfDepth / 2 + tile.row * GRID + (tile.rows * GRID - GAP) / 2
           parts.push(solid(tileSolid(tile).translate([x, y, level + BEAM_HEIGHT])))
         }
       }
-      for (const x of [-postX, postX]) for (const y of [-postY, postY]) parts.push(solid(clamp().translate([x, y, 8])))
+      for (const side of [-1, 1] as const)
+        for (const y of [-postY, postY]) parts.push(solid(clamp(side).translate([side * (postX - 8), y, 8])))
       if (config.retainer) {
         const frontY = -shelfDepth / 2 - FRAME_THICKNESS
         const retainerWidth = shelfWidth + POST_SIZE * 2 + UPRIGHT_WIDTH
@@ -292,12 +335,9 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
         const y = Math.floor(index / across) * (deepestTile + PART_GAP)
         parts.push(solid(tileSolid(tile).translate([x, y, 0])))
       })
-      const upright = uprightPrint()
-      const frameY = rowsOfTiles * (deepestTile + PART_GAP) + config.height / 2
-      for (let index = 0; index < 4; index++) parts.push(solid(upright.translate([index * (POST_SIZE + PART_GAP), frameY, POST_SIZE / 2])))
       const shelfBeamLength = shelfWidth + POST_SIZE
       const segments = splitBar(shelfBeamLength)
-      let looseY = frameY + config.height / 2 + PART_GAP + BEAM_WIDTH / 2
+      let looseY = rowsOfTiles * (deepestTile + PART_GAP) + BEAM_WIDTH / 2
       for (let shelf = 0; shelf < shelfCount; shelf++) {
         for (let beam = 0; beam < 2; beam++) {
           let x = 0
@@ -308,6 +348,9 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           looseY += BEAM_WIDTH + PART_GAP / 2
         }
       }
+      for (let index = 0; index < shelfCount * 4; index++)
+        parts.push(solid(cornerBlock(6).translate([(index % 12) * (18 + PART_GAP), looseY + Math.floor(index / 12) * 24, 0])))
+      looseY += Math.ceil((shelfCount * 4) / 12) * 24 + PART_GAP
       let topBraceJoins = 0
       for (const length of [shelfWidth + POST_SIZE * 2, shelfWidth + POST_SIZE * 2, shelfDepth, shelfDepth]) {
         const brace = splitBar(length)
@@ -319,6 +362,8 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
         }
         looseY += BEAM_WIDTH + PART_GAP / 2
       }
+      for (let index = 0; index < 4; index++) parts.push(solid(cornerBlock(10).translate([index * 26, looseY, 0])))
+      looseY += 18 + PART_GAP
       const tileColumnGroups = Math.ceil(columns / Math.max(1, Math.round(config.tileColumns)))
       const tileRowGroups = Math.ceil(rows / Math.max(1, Math.round(config.tileRows)))
       const tileJoins = (tileColumnGroups - 1) * tileRowGroups + (tileRowGroups - 1) * tileColumnGroups
@@ -329,19 +374,10 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           solid(key().translate([(index % 16) * (KEY_LENGTH + 3), looseY + Math.floor(index / 16) * (KEY_WIDTH + 3), KEY_THICKNESS / 2])),
         )
       looseY += Math.ceil(joiningKeyCount / 16) * (KEY_WIDTH + 3) + PART_GAP
-      for (let index = 0; index < shelfCount * 4; index++)
-        parts.push(
-          solid(
-            lockPin().translate([
-              (index % 12) * (POST_SIZE + 7),
-              looseY + Math.floor(index / 12) * (LOCK_PIN_SIZE + 4),
-              (LOCK_PIN_SIZE + 3) / 2,
-            ]),
-          ),
-        )
-      looseY += Math.ceil((shelfCount * 4) / 12) * (LOCK_PIN_SIZE + 4) + PART_GAP
-      for (let index = 0; index < 4; index++)
-        parts.push(solid(clamp().translate([index * 20, looseY, (config.baseplateThickness + FRAME_THICKNESS + 4) / 2])))
+      for (let index = 0; index < 4; index++) {
+        const side = index % 2 === 0 ? -1 : 1
+        parts.push(solid(clamp(side).translate([index * 28, looseY, (config.baseplateThickness + FRAME_THICKNESS + 4) / 2])))
+      }
       if (config.retainer)
         parts.push(solid(retainerPrint().translate([shelfWidth / 2, looseY + config.height + PART_GAP, FRAME_THICKNESS / 2])))
     }

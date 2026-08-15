@@ -35,7 +35,7 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import { defaultRackConfig, rackDimensions, rackName } from '@/geometry/rack'
+import { defaultRackConfig, rackDimensions, rackHardware, rackName } from '@/geometry/rack'
 import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, RackConfig, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
@@ -1023,16 +1023,6 @@ export function App() {
             defaultValue={RACK_DEFAULTS.tileRows}
             onChange={(tileRows) => setRack({ ...rack, tileRows })}
           />
-          <Choice
-            label="Upright hole pitch"
-            value={rack.slotPitch}
-            defaultValue={RACK_DEFAULTS.slotPitch}
-            options={[
-              { value: 14 as const, label: '14 mm' },
-              { value: 7 as const, label: '7 mm' },
-            ]}
-            onChange={(slotPitch) => setRack({ ...rack, slotPitch })}
-          />
           <Dimension
             label="Printed shelves"
             value={rack.shelfCount}
@@ -1076,8 +1066,28 @@ export function App() {
             onChange={(retainer) => setRack({ ...rack, retainer })}
           />
           <FieldDescription>
-            Four perforated uprights clamp to your existing baseplate. Reusable pins lock split beams and keyed tiles at each shelf height.
+            M6 threaded rods clamp to your existing baseplate. Nuts and washers lock split beams and keyed tiles at any shelf height.
           </FieldDescription>
+        </Section>
+        <Section title="Hardware">
+          <div className="space-y-1 border-y border-border py-3 text-xs">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Threaded rods</span>
+              <span className="readout">4× M6 × {rackHardware(rack).m6RodLength}mm</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">M6 nuts + washers</span>
+              <span className="readout">{rackHardware(rack).m6Nuts} each</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Clamp bolts</span>
+              <span className="readout">4× M4 + nuts</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Beam bolts</span>
+              <span className="readout">{rackHardware(rack).m3Bolts}× M3 + nuts</span>
+            </div>
+          </div>
         </Section>
         <RepositoryLink />
       </aside>
