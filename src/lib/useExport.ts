@@ -96,7 +96,7 @@ export function useExport({ model, base, holder, rack, width, length }: ExportOp
           mesh: part,
           name: `${name}-part-${String(index + 1).padStart(3, '0')}`,
         }))
-        download(`${name}.3mf`, to3mf(parts))
+        download(`${name}.3mf`, to3mf(parts, true, 180))
         return
       }
       download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
