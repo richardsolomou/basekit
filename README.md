@@ -36,9 +36,9 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 ## Adjustable Gridfinity transport rack 🪜
 
-Generate an open transport rack with two ladder frames, interchangeable receiving shelves, and a removable front retainer. Every shelf accepts ordinary Gridfinity modules and slides into repeated positions at 7 or 14mm pitch, so one printed rack can be rearranged for different miniature heights before each trip.
+Generate an open transport rack that clamps around an existing Gridfinity baseplate. Split, keyed crossbeams slide into repeated positions at 7 or 14mm pitch, and printer-sized receiving tiles lock together on top. A 7×5 level can therefore be assembled from small tiles instead of requiring a 7×5 build plate.
 
-The rack never changes miniature holders or their packing. Shelves insert from the open front, stop against the rear uprights, and remain captured during transport by a reusable front frame.
+The rack never changes miniature holders or their packing. Tiles accept ordinary Gridfinity modules, reusable underside keys keep neighboring tiles together, and a removable open front frame retains every level during transport. The Rack view switches between the finished assembly and the support-free export layout.
 
 ## Designed for one job 🎯
 

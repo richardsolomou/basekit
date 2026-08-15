@@ -27,7 +27,7 @@ const font = parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes
 
 mkdirSync(outDir, { recursive: true })
 if (family === 'rack') {
-  const config = defaultRackConfig()
+  const config = { ...defaultRackConfig(), view: 'print' as const }
   const { mesh, stats } = buildRack(wasm, config)
   const name = `${rackName(config)}.stl`
   writeFileSync(join(outDir, name), toStl(mesh, name))

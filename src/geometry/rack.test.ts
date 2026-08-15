@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { loadManifold } from './manifold'
-import { buildRack, defaultRackConfig, rackName, rackShelfDimensions, rackSlotLevels } from './rack'
+import { buildRack, defaultRackConfig, rackDimensions, rackName, rackShelfDimensions, rackSlotLevels, rackTiles } from './rack'
 
 let wasm: Awaited<ReturnType<typeof loadManifold>>
 
@@ -9,16 +9,31 @@ beforeAll(async () => {
 })
 
 describe('transport rack', () => {
-  it('builds two frames, interchangeable shelves, and one reusable retainer', () => {
-    const config = defaultRackConfig()
+  it('builds a support-free multi-part print kit', () => {
+    const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
-    expect(parts).toHaveLength(2 + config.shelfCount + 1)
+    expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
     expect(rack.boundingBox().min[2]).toBeCloseTo(0)
     for (const part of parts) part.delete()
     rack.delete()
+  })
+
+  it('shows the finished rack assembled without changing the exportable parts', () => {
+    const config = defaultRackConfig()
+    const assembled = buildRack(wasm, config)
+    expect(assembled.stats.solid).toBe(true)
+    expect(rackDimensions(config).height).toBe(196)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(config.shelfThickness)
+  })
+
+  it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
+    const tiles = rackTiles({ ...defaultRackConfig(), columns: 7, rows: 5, tileColumns: 2, tileRows: 2 })
+    expect(tiles).toHaveLength(12)
+    expect(tiles.every((tile) => tile.columns <= 2 && tile.rows <= 2)).toBe(true)
+    expect(tiles.reduce((area, tile) => area + tile.columns * tile.rows, 0)).toBe(35)
   })
 
   it('provides both example trip arrangements with the same 14mm frame', () => {

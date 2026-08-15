@@ -118,8 +118,12 @@ export interface RackConfig {
   slotPitch: 7 | 14
   shelfCount: number
   shelfThickness: number
+  tileColumns: number
+  tileRows: number
+  baseplateThickness: number
   fitClearance: number
   retainer: boolean
+  view: 'assembled' | 'print'
   segments: number
 }
 

@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add a reusable, height-adjustable Gridfinity transport rack with open ladder frames and interchangeable shelves.
+Add a reusable Gridfinity transport rack with an assembled preview, existing-baseplate clamps, adjustable rails, split beams, and interconnecting shelf tiles.

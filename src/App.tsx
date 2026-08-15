@@ -962,6 +962,19 @@ export function App() {
   const rackPanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Rack settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Preview">
+          <Choice
+            label="Rack view"
+            value={rack.view}
+            defaultValue={RACK_DEFAULTS.view}
+            options={[
+              { value: 'assembled' as const, label: 'Assembled' },
+              { value: 'print' as const, label: 'Print layout' },
+            ]}
+            onChange={(view) => setRack({ ...rack, view })}
+          />
+          <FieldDescription>Downloads always use the support-free print layout.</FieldDescription>
+        </Section>
         <Section title="Footprint">
           <Dimension
             label="Gridfinity columns"
@@ -970,7 +983,7 @@ export function App() {
             max={7}
             step={1}
             defaultValue={RACK_DEFAULTS.columns}
-            onChange={(columns) => setRack({ ...rack, columns })}
+            onChange={(columns) => setRack({ ...rack, columns, tileColumns: Math.min(rack.tileColumns, columns) })}
           />
           <Dimension
             label="Gridfinity rows"
@@ -979,7 +992,7 @@ export function App() {
             max={5}
             step={1}
             defaultValue={RACK_DEFAULTS.rows}
-            onChange={(rows) => setRack({ ...rack, rows })}
+            onChange={(rows) => setRack({ ...rack, rows, tileRows: Math.min(rack.tileRows, rows) })}
           />
           <Dimension
             label="Rack height"
@@ -991,7 +1004,25 @@ export function App() {
             onChange={(height) => setRack({ ...rack, height })}
           />
         </Section>
-        <Section title="Shelf Positions">
+        <Section title="Modular Shelves">
+          <Dimension
+            label="Maximum tile columns"
+            value={rack.tileColumns}
+            min={1}
+            max={Math.min(3, rack.columns)}
+            step={1}
+            defaultValue={RACK_DEFAULTS.tileColumns}
+            onChange={(tileColumns) => setRack({ ...rack, tileColumns })}
+          />
+          <Dimension
+            label="Maximum tile rows"
+            value={rack.tileRows}
+            min={1}
+            max={Math.min(3, rack.rows)}
+            step={1}
+            defaultValue={RACK_DEFAULTS.tileRows}
+            onChange={(tileRows) => setRack({ ...rack, tileRows })}
+          />
           <Choice
             label="Slot pitch"
             value={rack.slotPitch}
@@ -1021,6 +1052,15 @@ export function App() {
             onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
           />
           <Dimension
+            label="Existing baseplate thickness"
+            value={rack.baseplateThickness}
+            min={3}
+            max={10}
+            step={0.5}
+            defaultValue={RACK_DEFAULTS.baseplateThickness}
+            onChange={(baseplateThickness) => setRack({ ...rack, baseplateThickness })}
+          />
+          <Dimension
             label="Rail fit clearance"
             value={rack.fitClearance}
             min={0.15}
@@ -1036,7 +1076,7 @@ export function App() {
             onChange={(retainer) => setRack({ ...rack, retainer })}
           />
           <FieldDescription>
-            Every shelf fits every rail position. Rear stops and the removable front retainer keep shelves captured.
+            Edge clamps reuse your existing bottom baseplate. Small receiving tiles and split beams join into each movable shelf level.
           </FieldDescription>
         </Section>
         <RepositoryLink />

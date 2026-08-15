@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
-import { rackSlotLevels } from '@/geometry/rack'
+import { rackSlotLevels, rackTiles } from '@/geometry/rack'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -49,6 +49,7 @@ export function TitleBlock({ config, status, name }: Props) {
     return (
       <TitleFrame status={status} name={name}>
         <Row label="Shelves" value={`${config.shelfCount} interchangeable`} />
+        <Row label="Each level" value={`${rackTiles(config).length} keyed tiles`} />
         <Row label="Positions" value={`${rackSlotLevels(config).length} at ${config.slotPitch} mm`} />
         <Row label="Retainer" value={config.retainer ? 'removable front frame' : 'none'} />
       </TitleFrame>

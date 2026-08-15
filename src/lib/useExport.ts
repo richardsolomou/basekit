@@ -47,7 +47,12 @@ export function useExport({ model, base, holder, rack, width, length }: ExportOp
     }
   }
 
-  const build = () => buildMesh({ ...config, segments: exportSegmentsFor(Math.max(width, length)) })
+  const build = () =>
+    buildMesh({
+      ...config,
+      ...(config.kind === 'rack' ? { view: 'print' as const } : {}),
+      segments: exportSegmentsFor(Math.max(width, length)),
+    })
   const plan = model === 'holder' ? holderPlan(holder) : undefined
   const buildModules = () =>
     Promise.all(
