@@ -14,6 +14,9 @@ const POST_SIZE = 16
 const LOCK_PIN_SIZE = 4
 const BEAM_WIDTH = 12
 const BEAM_HEIGHT = 32
+const BEAM_FLANGE = 3
+const BEAM_WEB = 2.4
+const UPRIGHT_WALL = 3
 const BEAM_KEY_LENGTH = 32
 const BEAM_KEY_WIDTH = 12
 const BEAM_KEY_THICKNESS = 6
@@ -121,9 +124,13 @@ export function rackHardware(config: RackConfig) {
 
 export function rackStructuralAnalysis(config: RackConfig) {
   const span = rackShelfDimensions(config).width + POST_SIZE
-  const force = config.designLoadKg * 9.81 * 3 * 0.5
-  // Treat every removable beam splice as retaining only half the solid section stiffness.
-  const inertia = ((BEAM_WIDTH * BEAM_HEIGHT ** 3) / 12) * 0.5
+  const force = (config.designLoadKg * 9.81 * 3) / rackBeamPositions(config).length
+  // Side-printed I-sections put most material at the faces where it resists
+  // bending. Treat every removable splice as retaining half that stiffness.
+  const webHeight = BEAM_HEIGHT - BEAM_FLANGE * 2
+  const flangeInertia = 2 * ((BEAM_WIDTH * BEAM_FLANGE ** 3) / 12 + BEAM_WIDTH * BEAM_FLANGE * ((BEAM_HEIGHT - BEAM_FLANGE) / 2) ** 2)
+  const webInertia = (BEAM_WEB * webHeight ** 3) / 12
+  const inertia = (flangeInertia + webInertia) * 0.5
   const stress = (((force * span) / 4) * (BEAM_HEIGHT / 2)) / inertia
   const deflection = (force * span ** 3) / (48 * 2_000 * inertia)
   const safetyFactor = 8 / stress
@@ -229,14 +236,28 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       return solid(Manifold.difference([deck, ...receiverCutters, ...latticeOpenings, ...keyways]))
     }
 
+    const beamSolid = (length: number) => {
+      const top = cube([length, BEAM_WIDTH, BEAM_FLANGE], [0, 0, (BEAM_HEIGHT - BEAM_FLANGE) / 2])
+      const bottom = cube([length, BEAM_WIDTH, BEAM_FLANGE], [0, 0, -(BEAM_HEIGHT - BEAM_FLANGE) / 2])
+      const web = cube([length, BEAM_WEB, BEAM_HEIGHT - BEAM_FLANGE * 2])
+      return solid(Manifold.union([top, bottom, web]))
+    }
+
     const uprightPrint = () => {
       const post = cube([POST_SIZE, config.height, POST_SIZE])
+      const hollow = cube([POST_SIZE - UPRIGHT_WALL * 2, config.height + 0.02, POST_SIZE - UPRIGHT_WALL * 2], [0, 0, 0])
       const hole = section(CrossSection.circle((LOCK_PIN_SIZE + config.fitClearance) / 2, 24))
       const cutters = levels.map((height) => {
         const drill = solid(hole.extrude(POST_SIZE + 0.02))
         return solid(drill.translate([0, -config.height / 2 + height, -POST_SIZE / 2 - 0.01]))
       })
-      return solid(Manifold.difference([post, ...cutters]))
+      return solid(Manifold.difference([post, hollow, ...cutters]))
+    }
+
+    const uprightAssembled = () => {
+      const post = cube([POST_SIZE, POST_SIZE, config.height])
+      const hollow = cube([POST_SIZE - UPRIGHT_WALL * 2, POST_SIZE - UPRIGHT_WALL * 2, config.height + 0.02])
+      return solid(Manifold.difference(post, hollow))
     }
 
     const splitBar = (barLength: number) => {
@@ -244,7 +265,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const segmentLength = barLength / count
       return Array.from({ length: count }, (_, index) => {
         const length = segmentLength - config.fitClearance
-        const beam = cube([length, BEAM_WIDTH, BEAM_HEIGHT])
+        const beam = beamSolid(length)
         const keyDepth = BEAM_KEY_THICKNESS + config.fitClearance
         const cutters: Manifold[] = []
         if (index > 0)
@@ -284,20 +305,38 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const postX = (shelfWidth + POST_SIZE) / 2
       const postY = (shelfDepth + POST_SIZE) / 2
       for (const x of [-postX, postX])
-        for (const y of [-postY, postY]) parts.push(cube([POST_SIZE, POST_SIZE, config.height], [x, y, config.height / 2]))
-      parts.push(cube([shelfWidth + POST_SIZE * 2, POST_SIZE, POST_SIZE], [0, -postY, config.height - POST_SIZE / 2]))
-      parts.push(cube([shelfWidth + POST_SIZE * 2, POST_SIZE, POST_SIZE], [0, postY, config.height - POST_SIZE / 2]))
-      parts.push(cube([POST_SIZE, shelfDepth, POST_SIZE], [-postX, 0, config.height - POST_SIZE / 2]))
-      parts.push(cube([POST_SIZE, shelfDepth, POST_SIZE], [postX, 0, config.height - POST_SIZE / 2]))
+        for (const y of [-postY, postY]) parts.push(solid(uprightAssembled().translate([x, y, config.height / 2])))
+      parts.push(solid(beamSolid(shelfWidth + POST_SIZE * 2).translate([0, -postY, config.height - BEAM_HEIGHT / 2])))
+      parts.push(solid(beamSolid(shelfWidth + POST_SIZE * 2).translate([0, postY, config.height - BEAM_HEIGHT / 2])))
+      parts.push(
+        solid(
+          beamSolid(shelfDepth)
+            .rotate([0, 0, 90])
+            .translate([-postX, 0, config.height - BEAM_HEIGHT / 2]),
+        ),
+      )
+      parts.push(
+        solid(
+          beamSolid(shelfDepth)
+            .rotate([0, 0, 90])
+            .translate([postX, 0, config.height - BEAM_HEIGHT / 2]),
+        ),
+      )
       const shownLevels = Array.from(
         { length: shelfCount },
         (_, index) => levels[Math.round((index * (levels.length - 1)) / Math.max(1, shelfCount - 1))],
       )
       for (const level of shownLevels) {
         for (const y of rackBeamPositions(config))
-          parts.push(cube([shelfWidth + POST_SIZE, BEAM_WIDTH, BEAM_HEIGHT], [0, y, level + BEAM_HEIGHT / 2]))
+          parts.push(solid(beamSolid(shelfWidth + POST_SIZE).translate([0, y, level + BEAM_HEIGHT / 2])))
         for (const x of [-postX, postX])
-          parts.push(cube([BEAM_WIDTH, shelfDepth + POST_SIZE, BEAM_HEIGHT], [x, 0, level + BEAM_HEIGHT / 2]))
+          parts.push(
+            solid(
+              beamSolid(shelfDepth + POST_SIZE)
+                .rotate([0, 0, 90])
+                .translate([x, 0, level + BEAM_HEIGHT / 2]),
+            ),
+          )
         for (const x of [-postX, postX])
           for (const y of [-postY, postY])
             parts.push(cube([LOCK_PIN_SIZE, POST_SIZE + 4, LOCK_PIN_SIZE], [x, y, level + LOCK_PIN_SIZE / 2]))

@@ -36,7 +36,7 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 ## Adjustable Gridfinity transport rack 🪜
 
-Generate a completely printed open transport rack with four perforated ladder uprights. Reusable printed pins lock each shelf frame into positions spaced every 7mm or 14mm, so levels move without tools or replacement parts. Structural rails split into printer-sized sections joined by deep removable keys, and a crossrail supports every tile-row boundary.
+Generate a completely printed open transport rack with four hollow ladder uprights. Reusable printed pins lock each shelf frame into positions spaced every 7mm or 14mm, so levels move without tools or replacement parts. Material-efficient I-section rails split into printer-sized sections joined by deep removable keys, and a crossrail supports every tile-row boundary.
 
 The rack never changes miniature holders or their packing. Each empty lattice uses the same 42mm pitch and 4.75mm tapered foot profile as BaseKit holders, with a small selectable fit clearance. Modular tiles use smaller alignment keys and sit on the shelf frame rather than carrying structural bending loads. The Rack view switches between the assembled rack and every support-free printed part.
 
