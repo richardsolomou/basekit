@@ -80,6 +80,7 @@ export interface BaseStats {
 
 export interface HolderConfig {
   kind: 'holder'
+  mode: 'fitted' | 'universal'
   groups: HolderGroup[]
   maxColumns: number
   maxRows: number
@@ -94,6 +95,14 @@ export interface HolderConfig {
   slotClearance: number
   slotDepth: number
   height: number
+  universal: {
+    /** Centre-to-centre spacing of tray magnet pockets. */
+    pitch: number
+    layout: 'square' | 'staggered'
+    /** Wall height above the magnetic deck. Zero disables the retaining rim. */
+    rimHeight: number
+    rimThickness: number
+  }
   magnets: {
     enabled: boolean
     layout: MagnetLayout

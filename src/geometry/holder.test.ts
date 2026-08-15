@@ -13,6 +13,7 @@ import {
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
+  universalMagnetCenters,
 } from './holder'
 import { loadManifold } from './manifold'
 
@@ -296,6 +297,54 @@ describe('holderPlan', () => {
 })
 
 describe('buildHolder', () => {
+  it('builds a universal magnetic deck across the requested Gridfinity footprint', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 2, maxRows: 2 }
+    const centers = universalMagnetCenters(config)
+    const result = buildHolder(wasm, config)
+
+    expect(centers).toHaveLength(27)
+    expect(result.stats.solid).toBe(true)
+    expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
+    expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })
+  })
+
+  it('keeps universal pockets within the retaining rim and rejects overlapping grids', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 1, maxRows: 1 }
+    const radius = (config.magnets.diameter + config.magnets.clearance) / 2
+    const edge = 41.5 / 2 - config.universal.rimThickness - radius - 0.5
+
+    expect(universalMagnetCenters(config).every(({ x, y }) => Math.abs(x) <= edge && Math.abs(y) <= edge)).toBe(true)
+    expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, pitch: 6 } })).toThrow(
+      'Magnet grid pitch leaves too little material between pockets',
+    )
+  })
+
+  it('opens universal magnet pockets flush with the deck', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 1,
+      maxRows: 1,
+      universal: { ...defaults.universal, pitch: 40, rimHeight: 0 },
+    }
+    const { mesh } = buildHolder(wasm, config)
+    const { numProp, vertProperties } = mesh
+    const radius = (config.magnets.diameter + config.magnets.clearance) / 2
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (let i = 0; i < vertProperties.length; i += numProp) {
+      if (Math.hypot(vertProperties[i], vertProperties[i + 1]) <= radius + 0.05) {
+        minZ = Math.min(minZ, vertProperties[i + 2])
+        maxZ = Math.max(maxZ, vertProperties[i + 2])
+      }
+    }
+    expect(minZ).toBeCloseTo(config.height - config.magnets.thickness - config.magnets.depthClearance, 2)
+    expect(maxZ).toBeCloseTo(config.height, 2)
+  })
+
   it('builds a solid with the exact Gridfinity footprint and requested height', () => {
     const config = defaultHolderConfig()
     const result = buildHolder(wasm, config)

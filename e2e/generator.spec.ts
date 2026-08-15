@@ -301,6 +301,20 @@ test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, asyn
   await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
 })
 
+test('builds a universal magnetic tray without miniature slots', { tag: '@ci' }, async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const previous = await triangles(page)
+  await pickChoice(page, 'Holder type', 'Universal grid')
+  await rebuilt(page, previous)
+
+  await expect(page.getByText('Universal deck', { exact: true })).toBeVisible()
+  await expect(page.getByText('Miniatures', { exact: true })).not.toBeVisible()
+  await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('15')
+  await expect(page.getByRole('switch', { name: 'Tray magnets' })).toBeChecked()
+  await expect(footer(page)).toContainText('universal-tray-7x5-15mm-grid')
+})
+
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)

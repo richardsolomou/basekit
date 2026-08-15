@@ -4,7 +4,7 @@ import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCount
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 3
+const WORKSPACE_VERSION = 4
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -117,11 +117,13 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))
+        ? migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace)))
         : parsed.version === 2
-          ? migrateWorkspaceV2(parsed.workspace)
-          : parsed.workspace
-    if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1 && parsed.version !== 2) return defaultWorkspace()
+          ? migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace))
+          : parsed.version === 3
+            ? migrateWorkspaceV3(parsed.workspace)
+            : parsed.workspace
+    if (![1, 2, 3, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
@@ -129,6 +131,15 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV3(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const holder = workspace.holder
+  if (typeof holder !== 'object' || holder === null) return value
+  const defaults = defaultHolderConfig()
+  return { ...workspace, holder: { ...defaults, ...(holder as Record<string, unknown>), mode: 'fitted', universal: defaults.universal } }
 }
 
 function migrateWorkspaceV2(value: unknown): unknown {

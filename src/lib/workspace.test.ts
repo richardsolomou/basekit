@@ -131,6 +131,20 @@ describe('workspace state', () => {
     })
   })
 
+  it('migrates existing fitted holders without changing their layout', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.holder.mode
+    delete legacy.holder.universal
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 3, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder).toMatchObject({
+      mode: 'fitted',
+      groups: [{ width: 32 }],
+      universal: { pitch: 15, layout: 'staggered', rimHeight: 3, rimThickness: 2 },
+    })
+  })
+
   it('automatically responds to magnet dimensions until the count is overridden', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 80, length: 80 }

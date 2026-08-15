@@ -20,6 +20,7 @@ import {
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
+  universalMagnetCenters,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
@@ -82,6 +83,14 @@ const MODELS = [
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
   { value: 'module' as const, label: 'On module' },
+]
+const HOLDER_MODES = [
+  { value: 'fitted' as const, label: 'Fitted slots' },
+  { value: 'universal' as const, label: 'Universal grid' },
+]
+const UNIVERSAL_GRID_LAYOUTS = [
+  { value: 'staggered' as const, label: 'Staggered' },
+  { value: 'square' as const, label: 'Square' },
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
@@ -196,7 +205,7 @@ export function App() {
     })
   const partWidth = model === 'base' ? width : holderSize.width
   const partLength = model === 'base' ? length : holderSize.length
-  const partHeight = model === 'base' ? config.height : holder.height
+  const partHeight = model === 'base' ? config.height : holder.height + (holder.mode === 'universal' ? holder.universal.rimHeight : 0)
   const partName = model === 'base' ? baseName(config) : holderName(holder)
   const {
     exporting,
@@ -606,7 +615,25 @@ export function App() {
   const holderPanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Holder settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Holder type">
+          <Choice
+            label="Holder type"
+            value={holder.mode}
+            defaultValue={HOLDER_DEFAULTS.mode}
+            options={HOLDER_MODES}
+            onChange={(mode) => {
+              posthog.capture('holder_mode_changed', { mode })
+              setHolder({ ...holder, mode })
+            }}
+          />
+          <FieldDescription>
+            {holder.mode === 'universal'
+              ? 'A continuous deck accepts mixed base sizes wherever their magnets meet the grid.'
+              : 'Recesses locate each configured miniature and match its base magnets.'}
+          </FieldDescription>
+        </Section>
         <Section
+          hidden={holder.mode !== 'fitted'}
           title="Miniatures"
           aside={
             <span className="readout text-xs text-muted-foreground">
@@ -796,7 +823,7 @@ export function App() {
           }
         >
           <Dimension
-            label="Maximum columns"
+            label={holder.mode === 'universal' ? 'Tray columns' : 'Maximum columns'}
             value={holder.maxColumns}
             min={1}
             max={12}
@@ -806,7 +833,7 @@ export function App() {
             onChange={(maxColumns) => setHolder({ ...holder, maxColumns: Math.round(maxColumns) })}
           />
           <Dimension
-            label="Maximum rows"
+            label={holder.mode === 'universal' ? 'Tray rows' : 'Maximum rows'}
             value={holder.maxRows}
             min={1}
             max={12}
@@ -815,35 +842,41 @@ export function App() {
             defaultValue={HOLDER_DEFAULTS.maxRows}
             onChange={(maxRows) => setHolder({ ...holder, maxRows: Math.round(maxRows) })}
           />
-          <Dimension
-            label="Between miniatures"
-            value={holder.spacing}
-            min={0}
-            max={10}
-            step={0.5}
-            defaultValue={HOLDER_DEFAULTS.spacing}
-            onChange={(spacing) => setHolder({ ...holder, spacing })}
-          />
-          <ToggleSetting
-            label="Split into modules"
-            checked={holder.splitGroups}
-            defaultChecked={HOLDER_DEFAULTS.splitGroups}
-            onChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
-          />
-          <div className="space-y-1 border-y border-border py-3 text-xs">
-            {plan.modules.map((module, index) => (
-              <div
-                key={`${module.config.groups[0].id}-${module.column}-${module.row}`}
-                className="flex flex-wrap justify-between gap-x-3 gap-y-1"
-              >
-                <span className="text-muted-foreground">Module {index + 1}</span>
-                <span className="readout text-right">
-                  {module.config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' + ')} ·{' '}
-                  {module.layout.unitsWide}×{module.layout.unitsDeep}
-                </span>
-              </div>
-            ))}
-          </div>
+          {holder.mode === 'fitted' && (
+            <Dimension
+              label="Between miniatures"
+              value={holder.spacing}
+              min={0}
+              max={10}
+              step={0.5}
+              defaultValue={HOLDER_DEFAULTS.spacing}
+              onChange={(spacing) => setHolder({ ...holder, spacing })}
+            />
+          )}
+          {holder.mode === 'fitted' && (
+            <ToggleSetting
+              label="Split into modules"
+              checked={holder.splitGroups}
+              defaultChecked={HOLDER_DEFAULTS.splitGroups}
+              onChange={(splitGroups) => setHolder({ ...holder, splitGroups })}
+            />
+          )}
+          {holder.mode === 'fitted' && (
+            <div className="space-y-1 border-y border-border py-3 text-xs">
+              {plan.modules.map((module, index) => (
+                <div
+                  key={`${module.config.groups[0]?.id ?? 'universal'}-${module.column}-${module.row}`}
+                  className="flex flex-wrap justify-between gap-x-3 gap-y-1"
+                >
+                  <span className="text-muted-foreground">Module {index + 1}</span>
+                  <span className="readout text-right">
+                    {module.config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' + ')} ·{' '}
+                    {module.layout.unitsWide}×{module.layout.unitsDeep}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <Dimension
             label="Holder height"
             value={holder.height}
@@ -855,41 +888,91 @@ export function App() {
           />
         </Section>
 
-        <Section title="Slots" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(holder.slotDepth)}mm deep</span>}>
-          <Dimension
-            label="Slot depth"
-            value={holder.slotDepth}
-            min={1}
-            max={maxSlotDepth}
-            step={0.5}
-            defaultValue={HOLDER_DEFAULTS.slotDepth}
-            onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
-          />
-          <Dimension
-            label="Slot clearance"
-            value={holder.slotClearance}
-            min={0.1}
-            max={2}
-            step={0.1}
-            defaultValue={HOLDER_DEFAULTS.slotClearance}
-            onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
-          />
-          <ToggleSetting
-            label="Size labels"
-            checked={holder.engraving.enabled}
-            defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
-            onChange={setSharedLabels}
-          />
-          {holder.engraving.enabled && (
-            <Choice
-              label="Label location"
-              value={holder.engraving.placement}
-              defaultValue={HOLDER_DEFAULTS.engraving.placement}
-              options={ENGRAVING_PLACEMENTS}
-              onChange={(placement) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, placement } }))}
+        {holder.mode === 'fitted' ? (
+          <Section
+            title="Slots"
+            aside={<span className="readout text-xs text-muted-foreground">{trimNumber(holder.slotDepth)}mm deep</span>}
+          >
+            <Dimension
+              label="Slot depth"
+              value={holder.slotDepth}
+              min={1}
+              max={maxSlotDepth}
+              step={0.5}
+              defaultValue={HOLDER_DEFAULTS.slotDepth}
+              onChange={(slotDepth) => setHolder({ ...holder, slotDepth })}
             />
-          )}
-        </Section>
+            <Dimension
+              label="Slot clearance"
+              value={holder.slotClearance}
+              min={0.1}
+              max={2}
+              step={0.1}
+              defaultValue={HOLDER_DEFAULTS.slotClearance}
+              onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
+            />
+            <ToggleSetting
+              label="Size labels"
+              checked={holder.engraving.enabled}
+              defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
+              onChange={setSharedLabels}
+            />
+            {holder.engraving.enabled && (
+              <Choice
+                label="Label location"
+                value={holder.engraving.placement}
+                defaultValue={HOLDER_DEFAULTS.engraving.placement}
+                options={ENGRAVING_PLACEMENTS}
+                onChange={(placement) => setHolder(fitSlotDepth({ ...holder, engraving: { ...holder.engraving, placement } }))}
+              />
+            )}
+          </Section>
+        ) : (
+          <Section
+            title="Universal deck"
+            aside={<span className="readout text-xs text-muted-foreground">{universalMagnetCenters(holder).length} pockets</span>}
+          >
+            <Choice
+              label="Grid layout"
+              value={holder.universal.layout}
+              defaultValue={HOLDER_DEFAULTS.universal.layout}
+              options={UNIVERSAL_GRID_LAYOUTS}
+              onChange={(layout) => setHolder({ ...holder, universal: { ...holder.universal, layout } })}
+            />
+            <Dimension
+              label="Magnet pitch"
+              value={holder.universal.pitch}
+              min={Math.ceil(holder.magnets.diameter + holder.magnets.clearance + 1)}
+              max={40}
+              step={1}
+              defaultValue={HOLDER_DEFAULTS.universal.pitch}
+              onChange={(pitch) => setHolder({ ...holder, universal: { ...holder.universal, pitch } })}
+            />
+            <Dimension
+              label="Retaining rim height"
+              value={holder.universal.rimHeight}
+              min={0}
+              max={10}
+              step={0.5}
+              defaultValue={HOLDER_DEFAULTS.universal.rimHeight}
+              onChange={(rimHeight) => setHolder({ ...holder, universal: { ...holder.universal, rimHeight } })}
+            />
+            {holder.universal.rimHeight > 0 && (
+              <Dimension
+                label="Retaining rim thickness"
+                value={holder.universal.rimThickness}
+                min={1.2}
+                max={5}
+                step={0.2}
+                defaultValue={HOLDER_DEFAULTS.universal.rimThickness}
+                onChange={(rimThickness) => setHolder({ ...holder, universal: { ...holder.universal, rimThickness } })}
+              />
+            )}
+            <FieldDescription>
+              Smaller pitch increases the chance of alignment, but also the number, weight, and cost of magnets.
+            </FieldDescription>
+          </Section>
+        )}
 
         <Section
           title="Magnets"
@@ -900,20 +983,22 @@ export function App() {
           }
         >
           <ToggleSetting
-            label="Slot magnets"
+            label={holder.mode === 'universal' ? 'Tray magnets' : 'Slot magnets'}
             checked={holder.magnets.enabled}
             defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
             onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
           />
           {holder.magnets.enabled && (
             <>
-              <Choice
-                label="Pocket layout"
-                value={holderMagnetLayout}
-                defaultValue={HOLDER_DEFAULTS.magnets.layout}
-                options={holderMagnetLayoutOptions}
-                onChange={(layout) => setSharedMagnets({ layout })}
-              />
+              {holder.mode === 'fitted' && (
+                <Choice
+                  label="Pocket layout"
+                  value={holderMagnetLayout}
+                  defaultValue={HOLDER_DEFAULTS.magnets.layout}
+                  options={holderMagnetLayoutOptions}
+                  onChange={(layout) => setSharedMagnets({ layout })}
+                />
+              )}
               <Dimension
                 label="Magnet diameter"
                 value={holder.magnets.diameter}
@@ -950,7 +1035,11 @@ export function App() {
                 defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
                 onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
               />
-              <FieldDescription>Automatic base recommendations also apply to matching holder slots.</FieldDescription>
+              <FieldDescription>
+                {holder.mode === 'universal'
+                  ? 'Install every tray magnet with the same pole facing up, opposite to the tray-facing pole on every base.'
+                  : 'Automatic base recommendations also apply to matching holder slots.'}
+              </FieldDescription>
             </>
           )}
         </Section>
