@@ -120,8 +120,19 @@ export interface HolderGroup {
   sides: number
 }
 
+export interface TierConfig {
+  kind: 'tier'
+  columns: number
+  rows: number
+  /** Clear space from the build plate to the underside of the deck. */
+  clearance: number
+  deckThickness: number
+  pillarSize: number
+  segments: number
+}
+
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export type PartConfig = BasePartConfig | HolderConfig | TierConfig

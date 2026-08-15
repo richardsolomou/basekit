@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
+import { tierSize } from '@/geometry/tier'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -28,6 +29,16 @@ function Row({ label, value }: { label: string; value: string }) {
  * replaces a status bar rather than adding to one.
  */
 export function TitleBlock({ config, status, name }: Props) {
+  if (config.kind === 'tier') {
+    const size = tierSize(config)
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row label="Deck" value={`${config.columns} × ${config.rows} cells`} />
+        <Row label="Clearance" value={`${trimNumber(config.clearance)} mm`} />
+        <Row label="Overall" value={`${trimNumber(size.height)} mm high`} />
+      </TitleFrame>
+    )
+  }
   if (config.kind === 'holder') {
     const layout = holderLayout(config)
     const plan = holderPlan(config)

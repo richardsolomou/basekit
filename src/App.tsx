@@ -36,7 +36,8 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
+import { defaultTierConfig, tierName, tierSize } from '@/geometry/tier'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind, TierConfig } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -78,6 +79,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
+  { value: 'tier' as const, label: 'Tiers', href: '/tiers' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -85,8 +87,11 @@ const ENGRAVING_PLACEMENTS = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
+const TIER_DEFAULTS = defaultTierConfig()
+type Model = 'base' | 'holder' | 'tier'
 
-const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+const modelForPath = (): Model =>
+  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/tiers' ? 'tier' : 'base'
 
 function RepositoryLink() {
   return (
@@ -108,21 +113,24 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const tier = workspace.tier
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setTier = (next: TierConfig | ((current: TierConfig) => TierConfig)) =>
+    setWorkspace((current) => ({ ...current, tier: typeof next === 'function' ? next(current.tier) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
-  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
+  const [model, setModel] = useState<Model>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : holder
+  const partConfig = model === 'base' ? config : model === 'holder' ? holder : tier
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -132,15 +140,15 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
+    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'tier' ? 'BaseKit — Tiers' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
-  const changeModel = (next: 'base' | 'holder') => {
+  const changeModel = (next: Model) => {
     if (next === model) return
     posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'tier' ? '/tiers' : '/')
     setModel(next)
   }
 
@@ -152,6 +160,7 @@ export function App() {
     })
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
+  const currentTierSize = useMemo(() => tierSize(tier), [tier])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
@@ -194,10 +203,10 @@ export function App() {
       next.delete(id)
       return next
     })
-  const partWidth = model === 'base' ? width : holderSize.width
-  const partLength = model === 'base' ? length : holderSize.length
-  const partHeight = model === 'base' ? config.height : holder.height
-  const partName = model === 'base' ? baseName(config) : holderName(holder)
+  const partWidth = model === 'base' ? width : model === 'holder' ? holderSize.width : currentTierSize.width
+  const partLength = model === 'base' ? length : model === 'holder' ? holderSize.length : currentTierSize.length
+  const partHeight = model === 'base' ? config.height : model === 'holder' ? holder.height : currentTierSize.height
+  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : tierName(tier)
   const {
     exporting,
     error: exportError,
@@ -207,6 +216,7 @@ export function App() {
     model,
     base: config,
     holder,
+    tier,
     width: partWidth,
     length: partLength,
   })
@@ -958,7 +968,78 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : holderPanel
+  const tierPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Tier settings" className="pb-4 [counter-reset:schedule]">
+        <Section
+          title="Deck"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {tier.columns} × {tier.rows}
+            </span>
+          }
+        >
+          <Dimension
+            label="Columns"
+            value={tier.columns}
+            min={1}
+            max={4}
+            step={1}
+            unit=""
+            defaultValue={TIER_DEFAULTS.columns}
+            onChange={(columns) => setTier({ ...tier, columns: Math.round(columns) })}
+          />
+          <Dimension
+            label="Rows"
+            value={tier.rows}
+            min={1}
+            max={4}
+            step={1}
+            unit=""
+            defaultValue={TIER_DEFAULTS.rows}
+            onChange={(rows) => setTier({ ...tier, rows: Math.round(rows) })}
+          />
+          <FieldDescription>Print adjacent modules to span a wider box. Each cell locates an existing BaseKit holder.</FieldDescription>
+        </Section>
+        <Section title="Clearance" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(tier.clearance)}mm</span>}>
+          <Dimension
+            label="Space below deck"
+            value={tier.clearance}
+            min={14}
+            max={175}
+            step={7}
+            defaultValue={TIER_DEFAULTS.clearance}
+            onChange={(clearance) => setTier({ ...tier, clearance })}
+          />
+          <FieldDescription>Measure the tallest miniature below and add room to lift it out.</FieldDescription>
+        </Section>
+        <Section title="Construction">
+          <Dimension
+            label="Deck thickness"
+            value={tier.deckThickness}
+            min={4}
+            max={10}
+            step={0.5}
+            defaultValue={TIER_DEFAULTS.deckThickness}
+            onChange={(deckThickness) => setTier({ ...tier, deckThickness })}
+          />
+          <Dimension
+            label="Pillar width"
+            value={tier.pillarSize}
+            min={8}
+            max={24}
+            step={1}
+            defaultValue={TIER_DEFAULTS.pillarSize}
+            onChange={(pillarSize) => setTier({ ...tier, pillarSize })}
+          />
+          <FieldDescription>The four corner feet occupy their Gridfinity cells on the lower level.</FieldDescription>
+        </Section>
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : tierPanel
+  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Tier'
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -968,16 +1049,14 @@ export function App() {
               instead of standing beside the sheet. */}
           {!docked && (
             <Sheet>
-              <SheetTrigger
-                render={<Button size="icon-sm" variant="outline" aria-label={`${model === 'base' ? 'Base' : 'Holder'} settings`} />}
-              >
+              <SheetTrigger render={<Button size="icon-sm" variant="outline" aria-label={`${modelLabel} settings`} />}>
                 <PanelLeft />
               </SheetTrigger>
               <SheetContent side="left" className="max-w-[85vw] gap-0 p-0 data-[side=left]:w-81">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">
-                  <SheetTitle className="note">{model === 'base' ? 'Base' : 'Holder'} settings</SheetTitle>
+                  <SheetTitle className="note">{modelLabel} settings</SheetTitle>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
               </SheetContent>
@@ -1031,7 +1110,7 @@ export function App() {
             length={partLength}
             height={partHeight}
             round={model === 'base' && !elongated}
-            fitToPart={model === 'holder'}
+            fitToPart={model !== 'base'}
           />
           {(error || exportError) && (
             <div

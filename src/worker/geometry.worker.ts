@@ -3,6 +3,7 @@ import { parse, type Font } from 'opentype.js'
 import fontUrl from '@/assets/fonts/oswald-700.woff?url'
 import { buildBase, type BuildResult } from '@/geometry/base'
 import { buildHolder } from '@/geometry/holder'
+import { buildTier } from '@/geometry/tier'
 import { loadManifold } from '@/geometry/manifold'
 import type { MeshData, WorkerReply, WorkerRequest } from './protocol'
 
@@ -25,7 +26,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { id, config } = event.data
   try {
     const [wasm, font] = await ready
-    const mesh = toMeshData(config.kind === 'holder' ? buildHolder(wasm, config, font) : buildBase(wasm, config, font))
+    const result =
+      config.kind === 'holder'
+        ? buildHolder(wasm, config, font)
+        : config.kind === 'tier'
+          ? buildTier(wasm, config)
+          : buildBase(wasm, config, font)
+    const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {
     send({ id, kind: 'error', message: error instanceof Error ? error.message : String(error) }, [])

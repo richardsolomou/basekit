@@ -1,10 +1,11 @@
 import { defaultHolderConfig } from '../geometry/holder'
+import { defaultTierConfig } from '../geometry/tier'
 import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
-import type { BaseConfig, HolderConfig } from '../geometry/types'
+import type { BaseConfig, HolderConfig, TierConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 3
+const WORKSPACE_VERSION = 4
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -14,6 +15,7 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  tier: TierConfig
   /** Values exposed by both generators have one canonical owner. */
   shared: SharedSettings
 }
@@ -107,7 +109,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
 
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
-  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), shared: sharedFromBase(base) })
+  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), tier: defaultTierConfig(), shared: sharedFromBase(base) })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -115,13 +117,16 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const saved = storage.getItem(WORKSPACE_KEY)
     if (saved === null) return defaultWorkspace()
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
-    const workspace =
+    let workspace =
       parsed.version === 1
         ? migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))
         : parsed.version === 2
           ? migrateWorkspaceV2(parsed.workspace)
           : parsed.workspace
-    if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1 && parsed.version !== 2) return defaultWorkspace()
+    if ([1, 2, 3].includes(parsed.version as number) && typeof workspace === 'object' && workspace !== null) {
+      workspace = { ...(workspace as Record<string, unknown>), tier: defaultTierConfig() }
+    }
+    if (![1, 2, 3, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
