@@ -70,7 +70,7 @@ const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
     layout: 'balanced',
     patternVersion: 2,
     maxCount: 8,
-    latticePitch: 15,
+    latticePitch: 30,
     diameter: 5,
     clearance: 0.2,
     depthClearance: 0.1,
@@ -697,7 +697,7 @@ export function defaultHolderConfig(): HolderConfig {
     slotDepth: 3,
     height: 14,
     universal: {
-      pitch: 15,
+      pitch: 30,
       layout: 'staggered',
       rimHeight: 3,
       rimThickness: 2,

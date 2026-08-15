@@ -72,6 +72,21 @@ function latticeMagnetPositions(count: number, halfWidth: number, halfLength: nu
   return points
 }
 
+export function trayCompatibleMagnetCounts(config: BaseConfig): number[] {
+  const halfWidth = Math.max(0, config.width / 2 - config.wallThickness)
+  const halfLength = Math.max(0, config.length / 2 - config.wallThickness)
+  const clear = (config.magnets.diameter + config.magnets.clearance) / 2 + config.magnets.bossWall + LABEL_MARGIN
+  return [0, 1, 2, 3, 4, 5, 6, 8].filter((count) => {
+    if (count === 0) return true
+    try {
+      latticeMagnetPositions(count, halfWidth, halfLength, clear, config.magnets.latticePitch)
+      return true
+    } catch {
+      return false
+    }
+  })
+}
+
 /** Whether magnets sit on a ring, rather than in a row down the long axis. */
 export function magnetsRing(width: number, length: number): boolean {
   return Math.max(width, length) / Math.min(width, length) <= ELONGATED_RATIO

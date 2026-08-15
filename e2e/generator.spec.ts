@@ -310,9 +310,9 @@ test('builds a universal magnetic tray without miniature slots', { tag: '@ci' },
 
   await expect(page.getByText('Universal deck', { exact: true })).toBeVisible()
   await expect(page.getByText('Miniatures', { exact: true })).not.toBeVisible()
-  await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('15')
+  await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('30')
   await expect(page.getByRole('switch', { name: 'Tray magnets' })).toBeChecked()
-  await expect(footer(page)).toContainText('universal-tray-7x5-15mm-grid')
+  await expect(footer(page)).toContainText('universal-tray-7x5-30mm-grid')
 
   const unsplit = await triangles(page)
   await page.getByRole('switch', { name: 'Split tray into pieces' }).click()

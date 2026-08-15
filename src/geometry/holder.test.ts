@@ -339,10 +339,15 @@ describe('buildHolder', () => {
     const centers = universalMagnetCenters(config)
     const result = buildHolder(wasm, config)
 
-    expect(centers).toHaveLength(23)
+    expect(centers).toHaveLength(7)
     expect(result.stats.solid).toBe(true)
     expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
     expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })
+  })
+
+  it('keeps the default universal tray sparse', () => {
+    const defaults = defaultHolderConfig()
+    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(67)
   })
 
   it('keeps universal pockets within the retaining rim and rejects overlapping grids', () => {

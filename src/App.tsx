@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
-import { supportsFivePocketCross } from '@/geometry/base'
+import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '@/geometry/base'
 import {
   defaultHolderConfig,
   holderGroup,
@@ -230,7 +230,7 @@ export function App() {
   const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
   const magnetCountOptions: { value: MagnetCountChoice; label: string }[] = [
     { value: AUTOMATIC_MAGNET_COUNT, label: `Auto · ${config.magnets.count}` },
-    ...counts(MAGNET_CHOICES),
+    ...counts(config.magnets.layout === 'lattice' ? trayCompatibleMagnetCounts(config) : MAGNET_CHOICES),
   ]
   const magnetLayoutOptions = MAGNET_LAYOUTS.filter(
     ({ value }) => value !== 'five-cross' || config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width),

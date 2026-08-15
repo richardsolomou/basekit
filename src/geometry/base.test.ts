@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Mesh } from 'manifold-3d'
 import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { buildBase, magnetPositions, ribAngles } from './base'
+import { buildBase, magnetPositions, ribAngles, trayCompatibleMagnetCounts } from './base'
 import { toStl } from './exporters'
 import { LABEL_MARGIN, pointInContours } from './label'
 import { loadManifold } from './manifold'
@@ -498,6 +498,7 @@ describe('tray-compatible magnet placement', () => {
     (_label, size) => {
       const config = presetFor(size)
       config.magnets.layout = 'lattice'
+      config.magnets.count = trayCompatibleMagnetCounts(config).findLast((count) => count <= config.magnets.count)!
       expect(buildBase(wasm, config, font).stats.solid).toBe(true)
     },
   )

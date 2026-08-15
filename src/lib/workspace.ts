@@ -1,5 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
-import { supportsFivePocketCross } from '../geometry/base'
+import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
@@ -62,7 +62,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const fiveCross = shared.magnets.layout === 'five-cross' && (legacyPattern || supportsFivePocketCross(state.base.shape, state.base.width))
   const layout = fiveCross ? 'five-cross' : shared.magnets.layout === 'lattice' ? 'lattice' : 'balanced'
   const key = footprintKey(state.base.shape, state.base.width, state.base.length)
-  const count = fiveCross
+  const requestedCount = fiveCross
     ? 5
     : legacyPattern
       ? shared.magnetCounts[key]
@@ -74,6 +74,15 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
           shared.magnets.diameter,
           shared.magnets.thickness,
         ))
+  const compatibleCounts = trayCompatibleMagnetCounts({
+    ...state.base,
+    wallThickness: shared.wallThickness,
+    magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall },
+  })
+  const count =
+    layout === 'lattice' && shared.magnetCounts[key] === undefined
+      ? (compatibleCounts.findLast((candidate) => candidate <= (requestedCount ?? 1)) ?? 0)
+      : requestedCount
   return {
     ...state,
     base: {
@@ -154,12 +163,12 @@ function migrateWorkspaceV5(value: unknown): unknown {
   if (!shared || !base || !holder || !sharedMagnets || !baseMagnets || !holderMagnets) return value
   return {
     ...workspace,
-    shared: { ...shared, magnets: { latticePitch: 15, ...sharedMagnets } },
-    base: { ...base, magnets: { latticePitch: 15, ...baseMagnets } },
+    shared: { ...shared, magnets: { latticePitch: 30, ...sharedMagnets } },
+    base: { ...base, magnets: { latticePitch: 30, ...baseMagnets } },
     holder: {
       ...holder,
       universal: { ...defaultHolderConfig().universal, ...(holder.universal as Record<string, unknown>) },
-      magnets: { latticePitch: 15, ...holderMagnets },
+      magnets: { latticePitch: 30, ...holderMagnets },
     },
   }
 }

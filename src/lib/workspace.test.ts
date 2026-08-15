@@ -75,6 +75,16 @@ describe('workspace state', () => {
     }).toEqual({ baseLayout: 'lattice', basePitch: 12, holderLayout: 'lattice', trayPitch: 12, trayGrid: 'staggered' })
   })
 
+  it('reduces automatic compatible counts when the sparse pitch does not fit a base', () => {
+    const state = defaultWorkspace()
+    state.shared.magnets.layout = 'lattice'
+    state.shared.magnets.latticePitch = 30
+
+    const medium = synchronizeWorkspace({ ...state, base: { ...state.base, width: 65, length: 65 } })
+    const large = synchronizeWorkspace({ ...state, base: { ...state.base, width: 80, length: 80 } })
+    expect({ medium: medium.base.magnets.count, large: large.base.magnets.count }).toEqual({ medium: 1, large: 3 })
+  })
+
   it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
     const state = defaultWorkspace()
     state.shared.magnets.layout = 'five-cross'
@@ -158,7 +168,7 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).holder).toMatchObject({
       mode: 'fitted',
       groups: [{ width: 32 }],
-      universal: { pitch: 15, layout: 'staggered', rimHeight: 3, rimThickness: 2 },
+      universal: { pitch: 30, layout: 'staggered', rimHeight: 3, rimThickness: 2 },
     })
   })
 
