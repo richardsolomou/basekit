@@ -1095,7 +1095,7 @@ export function App() {
               <span className="readout">{rackHardware(rack).printedAnchors}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Floor crossbars</span>
+              <span className="text-muted-foreground">Perimeter floor rails</span>
               <span className="readout">{rackHardware(rack).printedShelfRails}</span>
             </div>
             <div className="flex justify-between gap-3">
@@ -1107,7 +1107,7 @@ export function App() {
               <span className="readout">none</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">3g printed-beam check</span>
+              <span className="text-muted-foreground">3g perimeter-rail check</span>
               <span className="readout">
                 SF {rackStructuralAnalysis(rack).safetyFactor.toFixed(1)} · {rackStructuralAnalysis(rack).deflection.toFixed(2)}mm
               </span>

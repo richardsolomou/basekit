@@ -39,7 +39,7 @@ describe('transport rack', () => {
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
     expect(rackDimensions(config).height).toBe(126)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(32)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(34)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -54,7 +54,7 @@ describe('transport rack', () => {
     expect(rackHardware(config)).toMatchObject({
       printedUprights: 4,
       printedAnchors: 4,
-      printedShelfRails: 8,
+      printedShelfRails: 4,
       printedLockPins: 8,
       purchasedParts: 0,
     })
@@ -84,8 +84,16 @@ describe('transport rack', () => {
     expect(config.shelfThickness - 4.75).toBeGreaterThanOrEqual(0.8)
   })
 
-  it('supports every modular tile boundary with a printed crossrail', () => {
-    expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-105, -21, 63, 105])
+  it('keeps structural rails outside the usable floor', () => {
+    expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-115, 115])
+  })
+
+  it('keeps deep supports out of every Gridfinity cell', () => {
+    const config = defaultRackConfig()
+    const result = buildRack(wasm, config)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(34)
+    expect(config.shelfThickness).toBe(6)
+    expect(result.stats.solid).toBe(true)
   })
 
   it('screens the maximum rack at transport shock load', () => {

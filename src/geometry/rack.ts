@@ -12,20 +12,17 @@ const FRAME_THICKNESS = 5
 const UPRIGHT_WIDTH = 8
 const POST_SIZE = 16
 const LOCK_PIN_SIZE = 4
-const BEAM_WIDTH = 12
-const BEAM_HEIGHT = 32
-const BEAM_FLANGE = 3
-const BEAM_WEB = 2.4
 const UPRIGHT_WALL = 3
 const ANCHOR_SIZE = 22
 const ANCHOR_HEIGHT = 20
 const ANCHOR_LEDGE = 14
-const BEAM_KEY_LENGTH = 32
-const BEAM_KEY_WIDTH = 12
-const BEAM_KEY_THICKNESS = 6
-const KEY_LENGTH = 14
-const KEY_WIDTH = 5
-const KEY_THICKNESS = 1.2
+const RAIL_WIDTH = 20
+const RAIL_HEIGHT = 34
+const RAIL_WALL = 2.4
+const RAIL_KEY_LENGTH = 24
+const KEY_LENGTH = 24
+const KEY_WIDTH = 8
+const KEY_THICKNESS = 3
 const PART_GAP = 8
 const PLA_DENSITY = 1.24e-3
 const CELL_OPENING = 33.5
@@ -94,16 +91,10 @@ export function rackShelfDimensions(config: RackConfig) {
 
 export const rackShelfLevels = rackSlotLevels
 
+/** Front and rear rail positions, outside the usable Gridfinity footprint. */
 export function rackBeamPositions(config: RackConfig): number[] {
-  const rowChunks = chunks(Math.max(1, Math.round(config.rows)), Math.max(1, Math.round(config.tileRows)))
   const length = Math.round(config.rows) * GRID
-  const positions = [-length / 2]
-  let rows = 0
-  for (const chunk of rowChunks) {
-    rows += chunk
-    positions.push(-length / 2 + rows * GRID)
-  }
-  return positions
+  return [-length / 2 - RAIL_WIDTH / 2, length / 2 + RAIL_WIDTH / 2]
 }
 
 export function rackReceiverProfile(config: RackConfig) {
@@ -115,29 +106,27 @@ export function rackReceiverProfile(config: RackConfig) {
 
 export function rackHardware(config: RackConfig) {
   const uprightSegments = 4
-  const shelfFrames = config.shelfCount
-  const crossrails = rackBeamPositions(config).length * shelfFrames
   return {
     printedUprights: uprightSegments,
     printedAnchors: 4,
-    printedShelfRails: crossrails,
-    printedLockPins: shelfFrames * 4,
+    printedShelfRails: rackBeamPositions(config).length * config.shelfCount,
+    printedLockPins: config.shelfCount * 4,
     purchasedParts: 0,
   }
 }
 
 export function rackStructuralAnalysis(config: RackConfig) {
   const span = rackShelfDimensions(config).width + POST_SIZE
-  const force = (config.designLoadKg * 9.81 * 3) / rackBeamPositions(config).length
-  // Side-printed I-sections put most material at the faces where it resists
-  // bending. Treat every removable splice as retaining half that stiffness.
-  const webHeight = BEAM_HEIGHT - BEAM_FLANGE * 2
-  const flangeInertia = 2 * ((BEAM_WIDTH * BEAM_FLANGE ** 3) / 12 + BEAM_WIDTH * BEAM_FLANGE * ((BEAM_HEIGHT - BEAM_FLANGE) / 2) ** 2)
-  const webInertia = (BEAM_WEB * webHeight ** 3) / 12
-  const inertia = (flangeInertia + webInertia) * 0.5
-  const stress = (((force * span) / 4) * (BEAM_HEIGHT / 2)) / inertia
+  const loadSharingRibs = Math.max(2, rackBeamPositions(config).length)
+  const force = (config.designLoadKg * 9.81 * 3) / loadSharingRibs
+  // Hollow edge rails keep their depth outside the cargo footprint. Discount
+  // the section at removable rail joints by 50%.
+  const innerWidth = RAIL_WIDTH - RAIL_WALL * 2
+  const innerHeight = RAIL_HEIGHT - RAIL_WALL * 2
+  const inertia = ((RAIL_WIDTH * RAIL_HEIGHT ** 3 - innerWidth * innerHeight ** 3) / 12) * 0.5
+  const stress = (((force * span) / 4) * (RAIL_HEIGHT / 2)) / inertia
   const deflection = (force * span ** 3) / (48 * 2_000 * inertia)
-  const safetyFactor = 8 / stress
+  const safetyFactor = 16 / stress
   return { stress, deflection, safetyFactor, passes: safetyFactor >= 2 && deflection <= 1 }
 }
 
@@ -159,7 +148,7 @@ export function rackDimensions(config: RackConfig) {
   return {
     width: Math.max(tileAreaWidth, length * 2 + PART_GAP, width + UPRIGHT_WIDTH * 2),
     length: tileAreaLength + config.height * 2 + PART_GAP * 4,
-    height: Math.max(config.shelfThickness, FRAME_THICKNESS, POST_SIZE, BEAM_HEIGHT),
+    height: Math.max(config.shelfThickness, FRAME_THICKNESS, POST_SIZE, RAIL_HEIGHT),
   }
 }
 
@@ -192,7 +181,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
     if (![7, 14].includes(config.slotPitch)) throw new Error('Shelf slot pitch must be 7 or 14 mm')
     if (config.shelfThickness < GRIDFINITY_FOOT_HEIGHT + 0.8)
       throw new Error('Rack shelves must leave at least 0.8 mm below the Gridfinity foot profile')
-    if (!rackStructuralAnalysis(config).passes) throw new Error('The selected shelf load exceeds the printed-frame design screen')
+    if (!rackStructuralAnalysis(config).passes) throw new Error('The selected shelf load exceeds the integrated-floor design screen')
 
     const tileSolid = (tile: TileSpec) => {
       const width = tile.columns * GRID
@@ -240,13 +229,6 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       return solid(Manifold.difference([deck, ...receiverCutters, ...latticeOpenings, ...keyways]))
     }
 
-    const beamSolid = (length: number) => {
-      const top = cube([length, BEAM_WIDTH, BEAM_FLANGE], [0, 0, (BEAM_HEIGHT - BEAM_FLANGE) / 2])
-      const bottom = cube([length, BEAM_WIDTH, BEAM_FLANGE], [0, 0, -(BEAM_HEIGHT - BEAM_FLANGE) / 2])
-      const web = cube([length, BEAM_WEB, BEAM_HEIGHT - BEAM_FLANGE * 2])
-      return solid(Manifold.union([top, bottom, web]))
-    }
-
     const uprightPrint = () => {
       const post = cube([POST_SIZE, config.height, POST_SIZE])
       const hollow = cube([POST_SIZE - UPRIGHT_WALL * 2, config.height + 0.02, POST_SIZE - UPRIGHT_WALL * 2], [0, 0, 0])
@@ -275,34 +257,34 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       return solid(Manifold.union([solid(Manifold.difference(body, socket)), ledgeX, ledgeY]))
     }
 
-    const splitBar = (barLength: number) => {
-      const count = Math.ceil(barLength / (GRID * 2))
-      const segmentLength = barLength / count
+    const splitRail = (railLength: number) => {
+      const count = Math.ceil(railLength / (GRID * 2))
+      const segmentLength = railLength / count
       return Array.from({ length: count }, (_, index) => {
         const length = segmentLength - config.fitClearance
-        const beam = beamSolid(length)
-        const keyDepth = BEAM_KEY_THICKNESS + config.fitClearance
+        const outer = cube([length, RAIL_WIDTH, RAIL_HEIGHT])
+        const inner = cube([length + 0.02, RAIL_WIDTH - RAIL_WALL * 2, RAIL_HEIGHT - RAIL_WALL * 2])
+        const rail = solid(Manifold.difference(outer, inner))
         const cutters: Manifold[] = []
         if (index > 0)
           cutters.push(
             cube(
-              [BEAM_KEY_LENGTH / 2 + config.fitClearance, BEAM_KEY_WIDTH + config.fitClearance, keyDepth],
-              [-length / 2 + BEAM_KEY_LENGTH / 4, 0, -BEAM_HEIGHT / 2 + keyDepth / 2 - 0.005],
+              [RAIL_KEY_LENGTH / 2 + config.fitClearance, KEY_WIDTH + config.fitClearance, KEY_THICKNESS + config.fitClearance],
+              [-length / 2 + RAIL_KEY_LENGTH / 4, 0, -RAIL_HEIGHT / 2 + KEY_THICKNESS / 2 - 0.005],
             ),
           )
         if (index < count - 1)
           cutters.push(
             cube(
-              [BEAM_KEY_LENGTH / 2 + config.fitClearance, BEAM_KEY_WIDTH + config.fitClearance, keyDepth],
-              [length / 2 - BEAM_KEY_LENGTH / 4, 0, -BEAM_HEIGHT / 2 + keyDepth / 2 - 0.005],
+              [RAIL_KEY_LENGTH / 2 + config.fitClearance, KEY_WIDTH + config.fitClearance, KEY_THICKNESS + config.fitClearance],
+              [length / 2 - RAIL_KEY_LENGTH / 4, 0, -RAIL_HEIGHT / 2 + KEY_THICKNESS / 2 - 0.005],
             ),
           )
-        return cutters.length === 0 ? beam : solid(Manifold.difference([beam, ...cutters]))
+        return cutters.length === 0 ? rail : solid(Manifold.difference([rail, ...cutters]))
       })
     }
 
     const key = () => cube([KEY_LENGTH, KEY_WIDTH, KEY_THICKNESS])
-    const beamKey = () => cube([BEAM_KEY_LENGTH, BEAM_KEY_WIDTH, BEAM_KEY_THICKNESS])
     const lockPin = () => {
       const length = POST_SIZE + 4
       return solid(
@@ -338,14 +320,14 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       )
       for (const level of shownLevels) {
         for (const y of rackBeamPositions(config))
-          parts.push(solid(beamSolid(shelfWidth + POST_SIZE).translate([0, y, level + BEAM_HEIGHT / 2])))
+          parts.push(cube([shelfWidth + POST_SIZE, RAIL_WIDTH, RAIL_HEIGHT], [0, y, level + RAIL_HEIGHT / 2]))
         for (const x of [-postX, postX])
           for (const y of [-postY, postY])
             parts.push(cube([LOCK_PIN_SIZE, POST_SIZE + 4, LOCK_PIN_SIZE], [x, y, level + LOCK_PIN_SIZE / 2]))
         for (const tile of tiles) {
           const x = -shelfWidth / 2 + tile.column * GRID + (tile.columns * GRID) / 2
           const y = -shelfDepth / 2 + tile.row * GRID + (tile.rows * GRID) / 2
-          parts.push(solid(tileSolid(tile).translate([x, y, level + BEAM_HEIGHT])))
+          parts.push(solid(tileSolid(tile).translate([x, y, level + RAIL_HEIGHT])))
         }
       }
     } else {
@@ -365,40 +347,40 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const shoe = anchorShoe()
       for (let index = 0; index < 4; index++)
         parts.push(solid(shoe.translate([index * (ANCHOR_SIZE + ANCHOR_LEDGE + PART_GAP), frameY + config.height / 2 + PART_GAP, 0])))
-      const shelfBeamLength = shelfWidth + POST_SIZE
-      const segments = splitBar(shelfBeamLength)
-      let looseY = frameY + config.height / 2 + ANCHOR_SIZE + PART_GAP * 2 + BEAM_WIDTH / 2
+      let looseY = frameY + config.height / 2 + ANCHOR_SIZE + PART_GAP * 2
+      const shelfRailLength = shelfWidth + POST_SIZE
+      const railSegments = splitRail(shelfRailLength)
       for (let shelf = 0; shelf < shelfCount; shelf++) {
-        for (let beam = 0; beam < rackBeamPositions(config).length; beam++) {
+        for (let rail = 0; rail < rackBeamPositions(config).length; rail++) {
           let x = 0
-          for (const segment of segments) {
-            parts.push(solid(segment.translate([x, looseY, BEAM_HEIGHT / 2])))
-            x += shelfBeamLength / segments.length + PART_GAP / 2
+          for (const segment of railSegments) {
+            parts.push(solid(segment.translate([x, looseY, RAIL_HEIGHT / 2])))
+            x += shelfRailLength / railSegments.length + PART_GAP / 2
           }
-          looseY += BEAM_WIDTH + PART_GAP / 2
+          looseY += RAIL_WIDTH + PART_GAP / 2
         }
       }
       const tileColumnGroups = Math.ceil(columns / Math.max(1, Math.round(config.tileColumns)))
       const tileRowGroups = Math.ceil(rows / Math.max(1, Math.round(config.tileRows)))
       const tileJoins = (tileColumnGroups - 1) * tileRowGroups + (tileRowGroups - 1) * tileColumnGroups
       const tileKeyCount = tileJoins * shelfCount
-      const beamKeyCount = Math.max(0, segments.length - 1) * rackBeamPositions(config).length * shelfCount
+      const railKeyCount = Math.max(0, railSegments.length - 1) * rackBeamPositions(config).length * shelfCount
       for (let index = 0; index < tileKeyCount; index++)
         parts.push(
           solid(key().translate([(index % 16) * (KEY_LENGTH + 3), looseY + Math.floor(index / 16) * (KEY_WIDTH + 3), KEY_THICKNESS / 2])),
         )
       looseY += Math.ceil(tileKeyCount / 16) * (KEY_WIDTH + 3) + PART_GAP
-      for (let index = 0; index < beamKeyCount; index++)
+      for (let index = 0; index < railKeyCount; index++)
         parts.push(
           solid(
-            beamKey().translate([
-              (index % 10) * (BEAM_KEY_LENGTH + 3),
-              looseY + Math.floor(index / 10) * (BEAM_KEY_WIDTH + 3),
-              BEAM_KEY_THICKNESS / 2,
+            cube([RAIL_KEY_LENGTH, KEY_WIDTH, KEY_THICKNESS]).translate([
+              (index % 10) * (RAIL_KEY_LENGTH + 3),
+              looseY + Math.floor(index / 10) * (KEY_WIDTH + 3),
+              KEY_THICKNESS / 2,
             ]),
           ),
         )
-      looseY += Math.ceil(beamKeyCount / 10) * (BEAM_KEY_WIDTH + 3) + PART_GAP
+      looseY += Math.ceil(railKeyCount / 10) * (KEY_WIDTH + 3) + PART_GAP
       for (let index = 0; index < shelfCount * 4; index++)
         parts.push(
           solid(
