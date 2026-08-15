@@ -290,11 +290,11 @@ test('exports reusable adjustable floors for an existing Gridfinity box insert',
   await expect(footer(page)).toContainText('3 interchangeable')
   await expect(footer(page)).toContainText('4 keyed tiles')
   await expect(footer(page)).toContainText('at 14 mm')
-  await expect(footer(page)).toContainText('gridfinity-box-floors-7x5-126mm-3-levels')
+  await expect(footer(page)).toContainText('gridfinity-box-floors-7x5-126mm-2-levels')
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
-  expect((await download).suggestedFilename()).toBe('gridfinity-box-floors-7x5-126mm-3-levels.stl')
+  expect((await download).suggestedFilename()).toBe('gridfinity-box-floors-7x5-126mm-2-levels.stl')
 })
 
 test('frames every slot in a tall holder', async ({ page }) => {

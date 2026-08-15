@@ -1036,7 +1036,7 @@ export function App() {
           <Dimension
             label="Printed shelves"
             value={rack.shelfCount}
-            min={3}
+            min={1}
             max={8}
             step={1}
             defaultValue={RACK_DEFAULTS.shelfCount}
@@ -1095,7 +1095,7 @@ export function App() {
               <span className="readout">{rackHardware(rack).printedAnchors}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Shelf/frame rails</span>
+              <span className="text-muted-foreground">Floor crossbars</span>
               <span className="readout">{rackHardware(rack).printedShelfRails}</span>
             </div>
             <div className="flex justify-between gap-3">

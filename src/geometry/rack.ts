@@ -28,6 +28,7 @@ const KEY_WIDTH = 5
 const KEY_THICKNESS = 1.2
 const PART_GAP = 8
 const PLA_DENSITY = 1.24e-3
+const CELL_OPENING = 33.5
 
 export interface RackBuildResult {
   mesh: Mesh
@@ -48,7 +49,7 @@ export function defaultRackConfig(): RackConfig {
     rows: 5,
     height: 126,
     slotPitch: 14,
-    shelfCount: 3,
+    shelfCount: 2,
     shelfThickness: 6,
     tileColumns: 2,
     tileRows: 2,
@@ -116,11 +117,10 @@ export function rackHardware(config: RackConfig) {
   const uprightSegments = 4
   const shelfFrames = config.shelfCount
   const crossrails = rackBeamPositions(config).length * shelfFrames
-  const sideRails = shelfFrames * 2
   return {
     printedUprights: uprightSegments,
     printedAnchors: 4,
-    printedShelfRails: crossrails + sideRails,
+    printedShelfRails: crossrails,
     printedLockPins: shelfFrames * 4,
     purchasedParts: 0,
   }
@@ -184,7 +184,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
   try {
     const columns = Math.max(1, Math.round(config.columns))
     const rows = Math.max(1, Math.round(config.rows))
-    const shelfCount = Math.max(3, Math.round(config.shelfCount))
+    const shelfCount = Math.max(1, Math.round(config.shelfCount))
     const shelfWidth = columns * GRID
     const shelfDepth = rows * GRID
     const levels = rackSlotLevels(config)
@@ -224,7 +224,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           }
           const socket = solid(Manifold.union(socketSegments))
           receiverCutters.push(solid(socket.translate([x, y, 0])))
-          const opening = rounded(30, 30, 2)
+          const opening = rounded(CELL_OPENING, CELL_OPENING, 2)
           const openingCut = solid(opening.extrude(config.shelfThickness + 0.02))
           latticeOpenings.push(solid(openingCut.translate([x, y, -0.01])))
         }
@@ -340,14 +340,6 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
         for (const y of rackBeamPositions(config))
           parts.push(solid(beamSolid(shelfWidth + POST_SIZE).translate([0, y, level + BEAM_HEIGHT / 2])))
         for (const x of [-postX, postX])
-          parts.push(
-            solid(
-              beamSolid(shelfDepth + POST_SIZE)
-                .rotate([0, 0, 90])
-                .translate([x, 0, level + BEAM_HEIGHT / 2]),
-            ),
-          )
-        for (const x of [-postX, postX])
           for (const y of [-postY, postY])
             parts.push(cube([LOCK_PIN_SIZE, POST_SIZE + 4, LOCK_PIN_SIZE], [x, y, level + LOCK_PIN_SIZE / 2]))
         for (const tile of tiles) {
@@ -385,24 +377,12 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           }
           looseY += BEAM_WIDTH + PART_GAP / 2
         }
-        for (let side = 0; side < 2; side++) {
-          const sideSegments = splitBar(shelfDepth + POST_SIZE)
-          let x = 0
-          for (const segment of sideSegments) {
-            parts.push(solid(segment.translate([x, looseY, BEAM_HEIGHT / 2])))
-            x += (shelfDepth + POST_SIZE) / sideSegments.length + PART_GAP / 2
-          }
-          looseY += BEAM_WIDTH + PART_GAP / 2
-        }
       }
       const tileColumnGroups = Math.ceil(columns / Math.max(1, Math.round(config.tileColumns)))
       const tileRowGroups = Math.ceil(rows / Math.max(1, Math.round(config.tileRows)))
       const tileJoins = (tileColumnGroups - 1) * tileRowGroups + (tileRowGroups - 1) * tileColumnGroups
       const tileKeyCount = tileJoins * shelfCount
-      const beamKeyCount =
-        (Math.max(0, segments.length - 1) * rackBeamPositions(config).length +
-          Math.max(0, splitBar(shelfDepth + POST_SIZE).length - 1) * 2) *
-        shelfCount
+      const beamKeyCount = Math.max(0, segments.length - 1) * rackBeamPositions(config).length * shelfCount
       for (let index = 0; index < tileKeyCount; index++)
         parts.push(
           solid(key().translate([(index % 16) * (KEY_LENGTH + 3), looseY + Math.floor(index / 16) * (KEY_WIDTH + 3), KEY_THICKNESS / 2])),
