@@ -287,14 +287,14 @@ test('exports a reusable adjustable Gridfinity transport rack', async ({ page })
   await rebuilt(page, before)
   await expect(page).toHaveURL(/\/rack$/)
   await expect(page.getByRole('combobox', { name: 'Rack view' })).toContainText('Assembled')
-  await expect(footer(page)).toContainText('4 interchangeable')
+  await expect(footer(page)).toContainText('3 interchangeable')
   await expect(footer(page)).toContainText('4 keyed tiles')
   await expect(footer(page)).toContainText('at 14 mm')
-  await expect(footer(page)).toContainText('gridfinity-rack-4x4-196mm-4-shelves')
+  await expect(footer(page)).toContainText('gridfinity-rack-4x4-196mm-3-shelves')
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
-  expect((await download).suggestedFilename()).toBe('gridfinity-rack-4x4-196mm-4-shelves.stl')
+  expect((await download).suggestedFilename()).toBe('gridfinity-rack-4x4-196mm-3-shelves.stl')
 })
 
 test('frames every slot in a tall holder', async ({ page }) => {

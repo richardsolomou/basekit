@@ -1024,7 +1024,7 @@ export function App() {
             onChange={(tileRows) => setRack({ ...rack, tileRows })}
           />
           <Choice
-            label="Slot pitch"
+            label="Upright hole pitch"
             value={rack.slotPitch}
             defaultValue={RACK_DEFAULTS.slotPitch}
             options={[
@@ -1061,7 +1061,7 @@ export function App() {
             onChange={(baseplateThickness) => setRack({ ...rack, baseplateThickness })}
           />
           <Dimension
-            label="Rail fit clearance"
+            label="Connector fit clearance"
             value={rack.fitClearance}
             min={0.15}
             max={0.6}
@@ -1076,7 +1076,7 @@ export function App() {
             onChange={(retainer) => setRack({ ...rack, retainer })}
           />
           <FieldDescription>
-            Edge clamps reuse your existing bottom baseplate. Small receiving tiles and split beams join into each movable shelf level.
+            Four perforated uprights clamp to your existing baseplate. Reusable pins lock split beams and keyed tiles at each shelf height.
           </FieldDescription>
         </Section>
         <RepositoryLink />

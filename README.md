@@ -36,7 +36,7 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 ## Adjustable Gridfinity transport rack 🪜
 
-Generate an open transport rack that clamps around an existing Gridfinity baseplate. Split, keyed crossbeams slide into repeated positions at 7 or 14mm pitch, and printer-sized receiving tiles lock together on top. A 7×5 level can therefore be assembled from small tiles instead of requiring a 7×5 build plate.
+Generate an open transport rack that clamps four slim perforated uprights around an existing Gridfinity baseplate. Reusable pins lock split, keyed crossbeams at 7 or 14mm intervals, and printer-sized receiving tiles lock together on top. A lightweight top brace keeps the rack square. A 7×5 level can therefore be assembled from small tiles instead of requiring a 7×5 build plate.
 
 The rack never changes miniature holders or their packing. Tiles accept ordinary Gridfinity modules, reusable underside keys keep neighboring tiles together, and a removable open front frame retains every level during transport. The Rack view switches between the finished assembly and the support-free export layout.
 
