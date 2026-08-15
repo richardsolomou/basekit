@@ -110,11 +110,29 @@ function tierPostCentersForLayout(config: Pick<HolderConfig, 'slotClearance' | '
   const chosen: HolderTierPost[] = []
   for (const corner of corners) {
     const best = candidates
+      .filter((candidate) => candidate.x * corner.x > 0 && candidate.y * corner.y > 0)
       .filter((candidate) => chosen.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 12))
       .sort((a, b) => Math.hypot(a.x - corner.x, a.y - corner.y) - Math.hypot(b.x - corner.x, b.y - corner.y))[0]
     if (best) chosen.push(best)
   }
-  return chosen
+  if (chosen.length < 4) return []
+  const minX = Math.min(...chosen.map((point) => point.x))
+  const maxX = Math.max(...chosen.map((point) => point.x))
+  const minY = Math.min(...chosen.map((point) => point.y))
+  const maxY = Math.max(...chosen.map((point) => point.y))
+  if (maxX - minX < layout.width * 0.35 || maxY - minY < layout.length * 0.35) return []
+  const ordered = [...chosen].sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x))
+  let winding = 0
+  for (let index = 0; index < ordered.length; index++) {
+    const a = ordered[index]
+    const b = ordered[(index + 1) % ordered.length]
+    const cross = a.x * b.y - a.y * b.x
+    if (Math.abs(cross) < 1e-6) continue
+    const sign = Math.sign(cross)
+    if (winding !== 0 && sign !== winding) return []
+    winding = sign
+  }
+  return winding === 0 ? [] : chosen
 }
 
 type HolderMagnetSettings = Pick<HolderConfig, 'magnetCounts' | 'magnets' | 'baseWallThickness' | 'magnetBossWall'>
@@ -924,7 +942,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
 
     const tierPosts = holderTierPostCenters(config)
     if (config.tier.enabled) {
-      if (tierPosts.length < 3) throw new Error('This holder has too little unused space for three upper-floor post sockets')
+      if (tierPosts.length < 4) throw new Error('This holder has too little distributed support space for four stable upper-floor posts')
       const socketRadius = (config.tier.postDiameter + config.tier.fitClearance) / 2
       const socketDisc = section(CrossSection.circle(socketRadius, segmentsFor(socketRadius * 2, 32)))
       const socketOutlines = tierPosts.map((post) => section(socketDisc.translate([post.x, post.y])))

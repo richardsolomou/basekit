@@ -38,6 +38,8 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 Add a removable upper floor to a holder when it has enough unused material for post sockets. Lower sockets snap to a standard underside lattice, so the floor can move between holders with the same Gridfinity footprint and post dimensions. Its top is an ordinary Gridfinity receiving grid, letting compatible holders be rearranged independently above it.
 
+Upper-floor packing reserves one post in every quadrant so the supports surround the load. When miniature capacity and a stable support footprint conflict, BaseKit reports the unsupported miniatures as overflow rather than generating an edge-supported floor.
+
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.

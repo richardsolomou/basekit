@@ -256,6 +256,25 @@ describe('upper floor kit', () => {
     expect(() => buildHolder(wasm, config)).not.toThrow()
   })
 
+  it('does not trade a balanced support footprint for maximum miniature capacity', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      groups: [holderGroup('models', 54, { width: 32 })],
+      tier: { ...defaults.tier, enabled: true },
+    }
+    const plan = holderPlan(config)
+    const module = plan.modules[0]
+    const posts = holderTierPostCenters(module.config)
+    expect(module.config.groups[0].quantity).toBeLessThan(54)
+    expect(plan.omitted.reduce((total, group) => total + group.quantity, 0)).toBe(54 - module.config.groups[0].quantity)
+    expect(posts).toHaveLength(4)
+    expect(posts.some((point) => point.x < 0 && point.y < 0)).toBe(true)
+    expect(posts.some((point) => point.x > 0 && point.y < 0)).toBe(true)
+    expect(posts.some((point) => point.x > 0 && point.y > 0)).toBe(true)
+    expect(posts.some((point) => point.x < 0 && point.y > 0)).toBe(true)
+  })
+
   it('places removable post sockets only in unused holder space', () => {
     const defaults = defaultHolderConfig()
     const config = {
