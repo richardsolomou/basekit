@@ -248,6 +248,14 @@ describe('holderLayout', () => {
 })
 
 describe('upper floor kit', () => {
+  it('reserves support space while packing instead of rejecting the smallest dense layout', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, tier: { ...defaults.tier, enabled: true } }
+    expect(holderLayout(config)).toMatchObject({ unitsWide: 1, unitsDeep: 5 })
+    expect(holderTierPostCenters(config)).toHaveLength(4)
+    expect(() => buildHolder(wasm, config)).not.toThrow()
+  })
+
   it('places removable post sockets only in unused holder space', () => {
     const defaults = defaultHolderConfig()
     const config = {

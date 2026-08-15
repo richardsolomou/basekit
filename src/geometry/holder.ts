@@ -68,7 +68,10 @@ export interface HolderTierPost {
 
 export function holderTierDeckSocketCenters(config: HolderConfig): HolderTierPost[] {
   if (!config.tier.enabled) return []
-  const layout = singleHolderLayout(config)
+  return tierDeckSocketCentersForLayout(config, singleHolderLayout(config))
+}
+
+function tierDeckSocketCentersForLayout(config: Pick<HolderConfig, 'tier'>, layout: HolderLayout): HolderTierPost[] {
   const reach = (config.tier.postDiameter + config.tier.fitClearance) / 2 + TIER_SOCKET_WALL
   const minX = Math.ceil((-layout.width / 2 + reach) / TIER_SOCKET_PITCH)
   const maxX = Math.floor((layout.width / 2 - reach) / TIER_SOCKET_PITCH)
@@ -84,6 +87,34 @@ export function holderTierDeckSocketCenters(config: HolderConfig): HolderTierPos
 interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
   x: number
   y: number
+}
+
+function tierPostCentersForLayout(config: Pick<HolderConfig, 'slotClearance' | 'tier'>, layout: HolderLayout): HolderTierPost[] {
+  const radius = (config.tier.postDiameter + config.tier.fitClearance) / 2 + TIER_SOCKET_WALL
+  const valid = (x: number, y: number) =>
+    layout.slotCenters.every((slot) => {
+      const halfWidth = (slotWidth(slot) + config.slotClearance) / 2
+      const halfLength = (slotLength(slot) + config.slotClearance) / 2
+      if (slot.shape === 'round' || slot.shape === 'polygon') return Math.hypot(x - slot.x, y - slot.y) >= halfWidth + radius
+      const dx = Math.max(Math.abs(x - slot.x) - halfWidth, 0)
+      const dy = Math.max(Math.abs(y - slot.y) - halfLength, 0)
+      return Math.hypot(dx, dy) >= radius
+    })
+  const candidates = tierDeckSocketCentersForLayout(config, layout).filter(({ x, y }) => valid(x, y))
+  const corners = [
+    { x: -layout.width / 2, y: -layout.length / 2 },
+    { x: layout.width / 2, y: -layout.length / 2 },
+    { x: layout.width / 2, y: layout.length / 2 },
+    { x: -layout.width / 2, y: layout.length / 2 },
+  ]
+  const chosen: HolderTierPost[] = []
+  for (const corner of corners) {
+    const best = candidates
+      .filter((candidate) => chosen.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 12))
+      .sort((a, b) => Math.hypot(a.x - corner.x, a.y - corner.y) - Math.hypot(b.x - corner.x, b.y - corner.y))[0]
+    if (best) chosen.push(best)
+  }
+  return chosen
 }
 
 type HolderMagnetSettings = Pick<HolderConfig, 'magnetCounts' | 'magnets' | 'baseWallThickness' | 'magnetBossWall'>
@@ -240,7 +271,7 @@ export function minHolderHeight(config: HolderConfig): number {
   return Math.max(BASE_HEIGHT, Math.ceil((required - 1e-6) / BASE_HEIGHT) * BASE_HEIGHT)
 }
 
-function distributed(points: HolderSlot[], width: number, length: number) {
+function distributed(points: HolderSlot[], width: number, length: number, stretch = true) {
   const minX = Math.min(...points.map((point) => point.x - slotWidth(point) / 2))
   const maxX = Math.max(...points.map((point) => point.x + slotWidth(point) / 2))
   const minY = Math.min(...points.map((point) => point.y - slotLength(point) / 2))
@@ -248,6 +279,7 @@ function distributed(points: HolderSlot[], width: number, length: number) {
   const cx = (minX + maxX) / 2
   const cy = (minY + maxY) / 2
   const centred = points.map((point) => ({ ...point, x: point.x - cx, y: point.y - cy }))
+  if (!stretch) return centred
   let scale = Infinity
   for (const point of centred) {
     if (Math.abs(point.x) > 1e-9) scale = Math.min(scale, (width / 2 - slotWidth(point) / 2) / Math.abs(point.x))
@@ -448,7 +480,9 @@ function boxPacking(items: HolderSlot[], width: number, length: number, spacing:
 
 const layoutCache = new Map<string, HolderLayout>()
 
-function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' | 'maxRows' | 'spacing' | 'slotClearance'>): HolderLayout {
+function singleHolderLayout(
+  config: Pick<HolderConfig, 'groups' | 'maxColumns' | 'maxRows' | 'spacing' | 'slotClearance' | 'tier'>,
+): HolderLayout {
   const maxColumns = Math.max(1, Math.round(config.maxColumns))
   const maxRows = Math.max(1, Math.round(config.maxRows))
   const groups = config.groups
@@ -467,7 +501,7 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
       Array.from({ length: group.quantity }, (_, index): HolderSlot => ({ ...group, id: `${group.id}-${index}`, x: 0, y: 0 })),
     )
     .sort((a, b) => Math.max(slotWidth(b), slotLength(b)) - Math.max(slotWidth(a), slotLength(a)))
-  const key = `${maxColumns}:${maxRows}:${config.spacing}:${config.slotClearance}:${groups
+  const key = `${maxColumns}:${maxRows}:${config.spacing}:${config.slotClearance}:${JSON.stringify(config.tier)}:${groups
     .map((group) => `${group.quantity}x${group.shape}-${group.width}x${slotLength(group)}-${group.cornerRadius}-${group.sides}`)
     .join(',')}`
   const cached = layoutCache.get(key)
@@ -503,14 +537,16 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
             config.spacing,
           )
       if (packed) {
-        const distributedSlots = distributed(packed, width, length)
-        layout = {
+        const distributedSlots = distributed(packed, width, length, !config.tier.enabled)
+        const candidate = {
           unitsWide,
           unitsDeep,
           width,
           length,
           slotCenters: distributedSlots.map((point) => ({ ...slots.find((slot) => slot.id === point.id)!, x: point.x, y: point.y })),
         }
+        if (config.tier.enabled && tierPostCentersForLayout(config, candidate).length < 3) continue
+        layout = candidate
         break
       }
     }
@@ -684,33 +720,7 @@ export function defaultHolderConfig(): HolderConfig {
 export function holderTierPostCenters(config: HolderConfig): HolderTierPost[] {
   const layout = singleHolderLayout(config)
   if (!config.tier.enabled || layout.slotCenters.length === 0) return []
-  const radius = (config.tier.postDiameter + config.tier.fitClearance) / 2 + TIER_SOCKET_WALL
-  const valid = (x: number, y: number) => {
-    if (Math.abs(x) > layout.width / 2 - radius || Math.abs(y) > layout.length / 2 - radius) return false
-    return layout.slotCenters.every((slot) => {
-      const halfWidth = (slotWidth(slot) + config.slotClearance) / 2
-      const halfLength = (slotLength(slot) + config.slotClearance) / 2
-      if (slot.shape === 'round' || slot.shape === 'polygon') return Math.hypot(x - slot.x, y - slot.y) >= halfWidth + radius
-      const dx = Math.max(Math.abs(x - slot.x) - halfWidth, 0)
-      const dy = Math.max(Math.abs(y - slot.y) - halfLength, 0)
-      return Math.hypot(dx, dy) >= radius
-    })
-  }
-  const candidates = holderTierDeckSocketCenters(config).filter(({ x, y }) => valid(x, y))
-  const corners = [
-    { x: -layout.width / 2, y: -layout.length / 2 },
-    { x: layout.width / 2, y: -layout.length / 2 },
-    { x: layout.width / 2, y: layout.length / 2 },
-    { x: -layout.width / 2, y: layout.length / 2 },
-  ]
-  const chosen: HolderTierPost[] = []
-  for (const corner of corners) {
-    const best = candidates
-      .filter((candidate) => chosen.every((point) => Math.hypot(candidate.x - point.x, candidate.y - point.y) >= 12))
-      .sort((a, b) => Math.hypot(a.x - corner.x, a.y - corner.y) - Math.hypot(b.x - corner.x, b.y - corner.y))[0]
-    if (best) chosen.push(best)
-  }
-  return chosen
+  return tierPostCentersForLayout(config, layout)
 }
 
 export function holderName(config: HolderConfig): string {
