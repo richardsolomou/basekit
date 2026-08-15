@@ -1076,7 +1076,7 @@ export function App() {
             onChange={(handle) => setRack({ ...rack, handle })}
           />
           <FieldDescription>
-            M6 threaded rods connect standalone bottom and top frames. Nuts and washers lock open Gridfinity shelves at any height.
+            Printed bolted rails connect four M6 threaded rods. Nuts and washers lock each open Gridfinity shelf at any height.
           </FieldDescription>
         </Section>
         <Section title="Hardware">
@@ -1090,27 +1090,23 @@ export function App() {
               <span className="readout">{rackHardware(rack).m6Nuts} each</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Aluminum angle</span>
-              <span className="readout">{rackHardware(rack).angleSize}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Width rails</span>
+              <span className="text-muted-foreground">Printed rail sections</span>
               <span className="readout">
-                {rackHardware(rack).widthRails.count}× {rackHardware(rack).widthRails.length}mm
+                {rackHardware(rack).printedRailSegments}× {rackHardware(rack).printedBeamSize}
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Depth rails</span>
-              <span className="readout">
-                {rackHardware(rack).depthRails.count}× {rackHardware(rack).depthRails.length}mm
-              </span>
+              <span className="text-muted-foreground">Printed splice plates</span>
+              <span className="readout">{rackHardware(rack).splicePlates}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Rail bolts</span>
-              <span className="readout">{rackHardware(rack).m4Bolts}× M4 + nuts</span>
+              <span className="readout">
+                {rackHardware(rack).m4Bolts}× M4×{rackHardware(rack).m4Length} + nuts
+              </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">3g beam check</span>
+              <span className="text-muted-foreground">3g printed-beam check</span>
               <span className="readout">
                 SF {rackStructuralAnalysis(rack).safetyFactor.toFixed(1)} · {rackStructuralAnalysis(rack).deflection.toFixed(2)}mm
               </span>

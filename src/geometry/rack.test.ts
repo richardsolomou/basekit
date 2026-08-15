@@ -25,7 +25,7 @@ describe('transport rack', () => {
     const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
-    expect(result.stats.volume).toBeLessThan(310_000)
+    expect(result.stats.volume).toBeLessThan(1_500_000)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
@@ -39,7 +39,7 @@ describe('transport rack', () => {
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
     expect(rackDimensions(config).height).toBe(234)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(6)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(16)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -57,10 +57,12 @@ describe('transport rack', () => {
       m6RodLength: 196,
       m6Nuts: 40,
       m6Washers: 40,
-      m4Bolts: 22,
-      m4Nuts: 22,
-      widthRails: { count: 14, length: 208 },
-      depthRails: { count: 10, length: 208 },
+      m4Bolts: 136,
+      m4Nuts: 136,
+      m4Length: 30,
+      printedBeamSize: '16×36mm',
+      printedRailSegments: 48,
+      splicePlates: 48,
     })
   })
 
@@ -88,7 +90,7 @@ describe('transport rack', () => {
     expect(config.shelfThickness - 4.75).toBeGreaterThanOrEqual(0.8)
   })
 
-  it('supports every modular tile boundary with a metal crossrail', () => {
+  it('supports every modular tile boundary with a printed crossrail', () => {
     expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-105, -21, 63, 105])
   })
 
