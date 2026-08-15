@@ -42,6 +42,8 @@ The default matches a 7×5 insert in an IKEA SAMLA 11L and adds two upper floors
 
 The assembled floor slides into captured grooves in its hollow front and rear rails. Long internal sleeves reinforce every rail splice, the rail ends seat in four sliding shelf collars, and snap-ended pins pass through each collar and upright. This positively locates the floor vertically and laterally instead of balancing it on pins or tangent edges. All deep structure remains outside the 7×5 cargo footprint, so nothing hangs below a Gridfinity cell. The assembled view includes the existing bottom insert for context; exports do not duplicate it.
 
+Rack 3MF downloads store every printable body as a separate top-level object, already arranged in the print layout. STL remains a single file containing multiple disconnected shells.
+
 No purchased hardware is required. The load check separately screens the perimeter rails and the receiving lattice under a 3g transport acceleration, halves calculated stiffness across removable joints, and requires a minimum analytical safety factor of 2 and 1mm deflection limit. This is not a certified rating: filament, moisture, layer adhesion, print orientation, fit, creep, and carrying shocks vary. Use at least four walls and proof-load every assembled floor safely in both downward and upward directions before trusting it with miniatures.
 
 Gridfinity sockets locate holders laterally but do not lock arbitrary standard holders against being lifted. Keep the box upright and preserve clearance above every miniature; use separate cargo restraint if the loaded box can overturn.

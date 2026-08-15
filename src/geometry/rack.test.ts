@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
+import { splitMeshComponents } from './exporters'
 import { loadManifold } from './manifold'
 import {
   buildRack,
@@ -31,6 +32,7 @@ describe('transport rack', () => {
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
+    expect(splitMeshComponents(result.mesh)).toHaveLength(parts.length)
     expect(rack.boundingBox().min[2]).toBeCloseTo(0)
     for (const part of parts) part.delete()
     rack.delete()

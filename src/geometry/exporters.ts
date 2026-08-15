@@ -7,6 +7,59 @@ export interface MeshLike {
   triVerts: Uint32Array
 }
 
+/** Split a multi-body mesh into independently selectable connected objects. */
+export function splitMeshComponents(mesh: MeshLike): MeshLike[] {
+  const vertexCount = mesh.vertProperties.length / mesh.numProp
+  const parent = Int32Array.from({ length: vertexCount }, (_, index) => index)
+  const find = (start: number): number => {
+    let root = start
+    while (parent[root] !== root) root = parent[root]
+    let current = start
+    while (parent[current] !== current) {
+      const next = parent[current]
+      parent[current] = root
+      current = next
+    }
+    return root
+  }
+  const union = (a: number, b: number) => {
+    const rootA = find(a)
+    const rootB = find(b)
+    if (rootA !== rootB) parent[rootB] = rootA
+  }
+  for (let index = 0; index < mesh.triVerts.length; index += 3) {
+    union(mesh.triVerts[index], mesh.triVerts[index + 1])
+    union(mesh.triVerts[index], mesh.triVerts[index + 2])
+  }
+
+  const triangles = new Map<number, number[]>()
+  for (let index = 0; index < mesh.triVerts.length; index += 3) {
+    const group = find(mesh.triVerts[index])
+    const values = triangles.get(group) ?? []
+    values.push(mesh.triVerts[index], mesh.triVerts[index + 1], mesh.triVerts[index + 2])
+    triangles.set(group, values)
+  }
+
+  return [...triangles.values()].map((sourceTriangles) => {
+    const oldToNew = new Map<number, number>()
+    const properties: number[] = []
+    const localTriangles = sourceTriangles.map((sourceVertex) => {
+      const existing = oldToNew.get(sourceVertex)
+      if (existing !== undefined) return existing
+      const local = oldToNew.size
+      oldToNew.set(sourceVertex, local)
+      const offset = sourceVertex * mesh.numProp
+      for (let property = 0; property < mesh.numProp; property++) properties.push(mesh.vertProperties[offset + property])
+      return local
+    })
+    return {
+      numProp: mesh.numProp,
+      vertProperties: Float32Array.from(properties),
+      triVerts: Uint32Array.from(localTriangles),
+    }
+  })
+}
+
 /** Binary STL. Slicers all read it, so it stays the default despite losing topology. */
 export function toStl(mesh: MeshLike, header = 'BaseKit'): Uint8Array {
   const triangles = mesh.triVerts.length / 3

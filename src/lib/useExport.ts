@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { zipSync } from 'fflate'
-import { to3mf, toStl } from '@/geometry/exporters'
+import { splitMeshComponents, to3mf, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
 import { baseName } from '@/geometry/outline'
 import { rackName } from '@/geometry/rack'
@@ -91,6 +91,14 @@ export function useExport({ model, base, holder, rack, width, length }: ExportOp
         return
       }
       const mesh = await build()
+      if (model === 'rack') {
+        const parts = splitMeshComponents(asMeshLike(mesh)).map((part, index) => ({
+          mesh: part,
+          name: `${name}-part-${String(index + 1).padStart(3, '0')}`,
+        }))
+        download(`${name}.3mf`, to3mf(parts))
+        return
+      }
       download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
     })
 
