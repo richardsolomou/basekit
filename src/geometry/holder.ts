@@ -68,7 +68,19 @@ export interface HolderTierPost {
 
 export function holderTierDeckSocketCenters(config: HolderConfig): HolderTierPost[] {
   if (!config.tier.enabled) return []
-  return tierDeckSocketCentersForLayout(config, singleHolderLayout(config))
+  return tierDeckSocketCentersForLayout(config, tierFloorLayout(config))
+}
+
+function tierFloorLayout(config: Pick<HolderConfig, 'tier'>): HolderLayout {
+  const unitsWide = Math.max(1, Math.round(config.tier.columns))
+  const unitsDeep = Math.max(1, Math.round(config.tier.rows))
+  return {
+    unitsWide,
+    unitsDeep,
+    width: unitsWide * GRID - GAP,
+    length: unitsDeep * GRID - GAP,
+    slotCenters: [],
+  }
 }
 
 function tierDeckSocketCentersForLayout(config: Pick<HolderConfig, 'tier'>, layout: HolderLayout): HolderTierPost[] {
@@ -100,12 +112,14 @@ function tierPostCentersForLayout(config: Pick<HolderConfig, 'slotClearance' | '
       const dy = Math.max(Math.abs(y - slot.y) - halfLength, 0)
       return Math.hypot(dx, dy) >= radius
     })
-  const candidates = tierDeckSocketCentersForLayout(config, layout).filter(({ x, y }) => valid(x, y))
+  const floor = tierFloorLayout(config)
+  const lowerSockets = new Set(tierDeckSocketCentersForLayout(config, layout).map(({ x, y }) => `${x}:${y}`))
+  const candidates = tierDeckSocketCentersForLayout(config, floor).filter(({ x, y }) => lowerSockets.has(`${x}:${y}`) && valid(x, y))
   const corners = [
-    { x: -layout.width / 2, y: -layout.length / 2 },
-    { x: layout.width / 2, y: -layout.length / 2 },
-    { x: layout.width / 2, y: layout.length / 2 },
-    { x: -layout.width / 2, y: layout.length / 2 },
+    { x: -floor.width / 2, y: -floor.length / 2 },
+    { x: floor.width / 2, y: -floor.length / 2 },
+    { x: floor.width / 2, y: floor.length / 2 },
+    { x: -floor.width / 2, y: floor.length / 2 },
   ]
   const chosen: HolderTierPost[] = []
   for (const corner of corners) {
@@ -120,7 +134,7 @@ function tierPostCentersForLayout(config: Pick<HolderConfig, 'slotClearance' | '
   const maxX = Math.max(...chosen.map((point) => point.x))
   const minY = Math.min(...chosen.map((point) => point.y))
   const maxY = Math.max(...chosen.map((point) => point.y))
-  if (maxX - minX < layout.width * 0.35 || maxY - minY < layout.length * 0.35) return []
+  if (maxX - minX < floor.width * 0.35 || maxY - minY < floor.length * 0.35) return []
   const ordered = [...chosen].sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x))
   let winding = 0
   for (let index = 0; index < ordered.length; index++) {
@@ -563,7 +577,7 @@ function singleHolderLayout(
           length,
           slotCenters: distributedSlots.map((point) => ({ ...slots.find((slot) => slot.id === point.id)!, x: point.x, y: point.y })),
         }
-        if (config.tier.enabled && tierPostCentersForLayout(config, candidate).length < 3) continue
+        if (config.tier.enabled && tierPostCentersForLayout(config, candidate).length < 4) continue
         layout = candidate
         break
       }
@@ -730,7 +744,7 @@ export function defaultHolderConfig(): HolderConfig {
     magnetCounts: {},
     baseWallThickness: 2,
     magnetBossWall: 0.9,
-    tier: { enabled: false, clearance: 84, deckThickness: 8, postDiameter: 6, fitClearance: 0.25 },
+    tier: { enabled: false, clearance: 84, columns: 1, rows: 4, deckThickness: 8, postDiameter: 6, fitClearance: 0.25 },
     segments: 160,
   }
 }
@@ -750,10 +764,11 @@ export function holderName(config: HolderConfig): string {
 export function holderPrintSize(config: HolderConfig) {
   const layout = holderLayout(config)
   if (!config.tier.enabled) return { width: layout.width, length: layout.length, height: config.height }
+  const floor = tierFloorLayout(config)
   const postRadius = config.tier.postDiameter / 2
   return {
-    width: layout.width * 2 + 24 + postRadius * 2,
-    length: layout.length,
+    width: layout.width + floor.width + 24 + postRadius * 2,
+    length: Math.max(layout.length, floor.length),
     height: Math.max(config.height, config.tier.deckThickness, config.tier.clearance + TIER_SOCKET_DEPTH * 2),
   }
 }
@@ -954,12 +969,14 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
 
     if (config.tier.enabled) {
       const deckOffsetX = layout.width + 12
-      const deck = solidOf(top.extrude(config.tier.deckThickness).translate([deckOffsetX, 0, 0]))
+      const floor = tierFloorLayout(config)
+      const floorTop = roundedRect(floor.width, floor.length, 0)
+      const deck = solidOf(floorTop.extrude(config.tier.deckThickness).translate([deckOffsetX, 0, 0]))
       const deckCutters: Manifold[] = []
-      for (let unitY = 0; unitY < layout.unitsDeep; unitY++) {
-        for (let unitX = 0; unitX < layout.unitsWide; unitX++) {
-          const x = (unitX - (layout.unitsWide - 1) / 2) * GRID + deckOffsetX
-          const y = (unitY - (layout.unitsDeep - 1) / 2) * GRID
+      for (let unitY = 0; unitY < floor.unitsDeep; unitY++) {
+        for (let unitX = 0; unitX < floor.unitsWide; unitX++) {
+          const x = (unitX - (floor.unitsWide - 1) / 2) * GRID + deckOffsetX
+          const y = (unitY - (floor.unitsDeep - 1) / 2) * GRID
           const receiver = roundedRect(GRID - GAP + 0.7, GRID - GAP + 0.7, PROFILE[2].inset)
           const receiverCut = solidOf(receiver.extrude(TIER_DECK_SOCKET_DEPTH + 0.01))
           deckCutters.push(solidOf(receiverCut.translate([x, y, config.tier.deckThickness - TIER_DECK_SOCKET_DEPTH])))

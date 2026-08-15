@@ -896,6 +896,24 @@ export function App() {
           {holder.tier.enabled && (
             <>
               <Dimension
+                label="Upper floor columns"
+                value={holder.tier.columns}
+                min={1}
+                max={holder.maxColumns}
+                step={1}
+                defaultValue={HOLDER_DEFAULTS.tier.columns}
+                onChange={(columns) => setHolder({ ...holder, tier: { ...holder.tier, columns } })}
+              />
+              <Dimension
+                label="Upper floor rows"
+                value={holder.tier.rows}
+                min={1}
+                max={holder.maxRows}
+                step={1}
+                defaultValue={HOLDER_DEFAULTS.tier.rows}
+                onChange={(rows) => setHolder({ ...holder, tier: { ...holder.tier, rows } })}
+              />
+              <Dimension
                 label="Space below floor"
                 value={holder.tier.clearance}
                 min={14}
@@ -932,7 +950,8 @@ export function App() {
                 onChange={(fitClearance) => setHolder({ ...holder, tier: { ...holder.tier, fitClearance } })}
               />
               <FieldDescription>
-                The export includes the socketed holder, removable posts, and a universal Gridfinity floor for any holders above.
+                The upper grid has its own footprint. Posts are reserved around that floor's load area, independently of the holders placed
+                above.
               </FieldDescription>
             </>
           )}

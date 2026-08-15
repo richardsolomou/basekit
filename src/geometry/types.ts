@@ -111,6 +111,9 @@ export interface HolderConfig {
     enabled: boolean
     /** Open space between the lower holder and the upper deck. */
     clearance: number
+    /** Independent Gridfinity footprint of the removable upper floor. */
+    columns: number
+    rows: number
     deckThickness: number
     postDiameter: number
     fitClearance: number

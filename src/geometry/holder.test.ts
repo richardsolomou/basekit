@@ -251,7 +251,7 @@ describe('upper floor kit', () => {
   it('reserves support space while packing instead of rejecting the smallest dense layout', () => {
     const defaults = defaultHolderConfig()
     const config = { ...defaults, tier: { ...defaults.tier, enabled: true } }
-    expect(holderLayout(config)).toMatchObject({ unitsWide: 1, unitsDeep: 5 })
+    expect(holderLayout(config)).toMatchObject({ unitsWide: 2, unitsDeep: 4 })
     expect(holderTierPostCenters(config)).toHaveLength(4)
     expect(() => buildHolder(wasm, config)).not.toThrow()
   })
@@ -295,6 +295,24 @@ describe('upper floor kit', () => {
     expect(holderLayout(large)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
     expect(holderLayout(small)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
     expect(holderTierDeckSocketCenters(large)).toEqual(holderTierDeckSocketCenters(small))
+  })
+
+  it('sizes and supports the upper floor independently of the lower holder layout', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      groups: [holderGroup('models', 5, { width: 32 })],
+      maxColumns: 4,
+      maxRows: 3,
+      tier: { ...defaults.tier, enabled: true, columns: 2, rows: 2 },
+    }
+    const layout = holderLayout(config)
+    expect(layout.unitsWide === 2 && layout.unitsDeep === 2).toBe(false)
+    expect(holderTierPostCenters(config)).toHaveLength(4)
+    const sockets = holderTierDeckSocketCenters(config)
+    expect(Math.max(...sockets.map((point) => point.x))).toBeLessThan(42)
+    expect(Math.max(...sockets.map((point) => point.y))).toBeLessThan(42)
+    expect(() => buildHolder(wasm, config)).not.toThrow()
   })
 
   it('exports the lower holder, universal floor, and removable posts as one printable kit', () => {
