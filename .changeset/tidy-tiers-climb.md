@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add a standalone Gridfinity transport rack with an assembled preview, M6 threaded-rod supports, bolted modular printed rails, exact open receiving lattices, and a centered handle.
+Add a fully printed adjustable Gridfinity transport rack with perforated uprights, reusable locking pins, modular shelf frames, and exact open receiving lattices.

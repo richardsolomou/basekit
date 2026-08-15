@@ -25,7 +25,7 @@ describe('transport rack', () => {
     const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
-    expect(result.stats.volume).toBeLessThan(1_500_000)
+    expect(result.stats.volume).toBeLessThan(1_800_000)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
@@ -38,8 +38,8 @@ describe('transport rack', () => {
     const config = defaultRackConfig()
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
-    expect(rackDimensions(config).height).toBe(234)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(16)
+    expect(rackDimensions(config).height).toBe(196)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(32)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -49,26 +49,18 @@ describe('transport rack', () => {
     expect(tiles.reduce((area, tile) => area + tile.columns * tile.rows, 0)).toBe(35)
   })
 
-  it('uses continuous threaded rods for every example trip height', () => {
+  it('requires no purchased hardware', () => {
     const config = defaultRackConfig()
-    expect([42, 56, 84, 126, 140, 168].every((height) => height < rackHardware(config).m6RodLength)).toBe(true)
     expect(rackHardware(config)).toMatchObject({
-      m6Rods: 4,
-      m6RodLength: 196,
-      m6Nuts: 40,
-      m6Washers: 40,
-      m4Bolts: 136,
-      m4Nuts: 136,
-      m4Length: 30,
-      printedBeamSize: '16×36mm',
-      printedRailSegments: 48,
-      splicePlates: 48,
+      printedUprights: 4,
+      printedLockPins: 12,
+      purchasedParts: 0,
     })
   })
 
   it('provides at least three adjustable shelves', () => {
     const config = { ...defaultRackConfig(), height: 70, shelfCount: 3 }
-    expect(rackShelfLevels(config)).toHaveLength(3)
+    expect(rackShelfLevels(config).length).toBeGreaterThanOrEqual(3)
     expect(() => buildRack(wasm, config)).not.toThrow()
   })
 
@@ -101,7 +93,7 @@ describe('transport rack', () => {
     expect(rackStructuralAnalysis(maximum).deflection).toBeLessThanOrEqual(1)
     const excessive = { ...maximum, designLoadKg: 20 }
     expect(rackStructuralAnalysis(excessive).passes).toBe(false)
-    expect(() => buildRack(wasm, excessive)).toThrow(/design limit/)
+    expect(() => buildRack(wasm, excessive)).toThrow(/design screen/)
   })
 
   it('uses a descriptive transport-rack filename', () => {

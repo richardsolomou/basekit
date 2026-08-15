@@ -1005,6 +1005,16 @@ export function App() {
           />
         </Section>
         <Section title="Modular Shelves">
+          <Choice
+            label="Shelf position pitch"
+            value={rack.slotPitch}
+            defaultValue={RACK_DEFAULTS.slotPitch}
+            options={[
+              { value: 14 as const, label: '14 mm' },
+              { value: 7 as const, label: '7 mm' },
+            ]}
+            onChange={(slotPitch) => setRack({ ...rack, slotPitch })}
+          />
           <Dimension
             label="Maximum tile columns"
             value={rack.tileColumns}
@@ -1069,41 +1079,27 @@ export function App() {
             defaultValue={RACK_DEFAULTS.designLoadKg}
             onChange={(designLoadKg) => setRack({ ...rack, designLoadKg })}
           />
-          <ToggleSetting
-            label="Centered carry handle"
-            checked={rack.handle}
-            defaultChecked={RACK_DEFAULTS.handle}
-            onChange={(handle) => setRack({ ...rack, handle })}
-          />
           <FieldDescription>
-            Printed bolted rails connect four M6 threaded rods. Nuts and washers lock each open Gridfinity shelf at any height.
+            Four printed ladder uprights provide repeated shelf positions. Reusable printed pins lock each shelf frame without tools.
           </FieldDescription>
         </Section>
-        <Section title="Hardware">
+        <Section title="Printed Structure">
           <div className="space-y-1 border-y border-border py-3 text-xs">
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Threaded rods</span>
-              <span className="readout">4× M6 × {rackHardware(rack).m6RodLength}mm</span>
+              <span className="text-muted-foreground">Ladder uprights</span>
+              <span className="readout">{rackHardware(rack).printedUprights}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">M6 nuts + washers</span>
-              <span className="readout">{rackHardware(rack).m6Nuts} each</span>
+              <span className="text-muted-foreground">Shelf/frame rails</span>
+              <span className="readout">{rackHardware(rack).printedShelfRails}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Printed rail sections</span>
-              <span className="readout">
-                {rackHardware(rack).printedRailSegments}× {rackHardware(rack).printedBeamSize}
-              </span>
+              <span className="text-muted-foreground">Reusable locking pins</span>
+              <span className="readout">{rackHardware(rack).printedLockPins}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Printed splice plates</span>
-              <span className="readout">{rackHardware(rack).splicePlates}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Rail bolts</span>
-              <span className="readout">
-                {rackHardware(rack).m4Bolts}× M4×{rackHardware(rack).m4Length} + nuts
-              </span>
+              <span className="text-muted-foreground">Purchased hardware</span>
+              <span className="readout">none</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">3g printed-beam check</span>
