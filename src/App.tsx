@@ -174,6 +174,10 @@ export function App() {
       : { slotDepth: Math.min(next.slotDepth, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5) }),
   })
   const plan = useMemo(() => holderPlan(holder), [holder])
+  const universalPocketCount = useMemo(
+    () => plan.modules.reduce((total, module) => total + universalMagnetCenters(module.config).length, 0),
+    [plan],
+  )
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
   const fittedByGroup = useMemo(() => {
     const fitted = new Map<string, number>()
@@ -930,7 +934,7 @@ export function App() {
         ) : (
           <Section
             title="Universal deck"
-            aside={<span className="readout text-xs text-muted-foreground">{universalMagnetCenters(holder).length} pockets</span>}
+            aside={<span className="readout text-xs text-muted-foreground">{universalPocketCount} pockets</span>}
           >
             <Choice
               label="Grid layout"
@@ -967,6 +971,46 @@ export function App() {
                 defaultValue={HOLDER_DEFAULTS.universal.rimThickness}
                 onChange={(rimThickness) => setHolder({ ...holder, universal: { ...holder.universal, rimThickness } })}
               />
+            )}
+            <ToggleSetting
+              label="Split tray into pieces"
+              checked={holder.universal.split}
+              defaultChecked={HOLDER_DEFAULTS.universal.split}
+              onChange={(split) => setHolder({ ...holder, universal: { ...holder.universal, split } })}
+            />
+            {holder.universal.split && (
+              <>
+                <Dimension
+                  label="Maximum piece columns"
+                  value={holder.universal.maxPieceColumns}
+                  min={1}
+                  max={holder.maxColumns}
+                  step={1}
+                  unit=""
+                  defaultValue={HOLDER_DEFAULTS.universal.maxPieceColumns}
+                  onChange={(maxPieceColumns) =>
+                    setHolder({
+                      ...holder,
+                      universal: { ...holder.universal, maxPieceColumns: Math.round(maxPieceColumns) },
+                    })
+                  }
+                />
+                <Dimension
+                  label="Maximum piece rows"
+                  value={holder.universal.maxPieceRows}
+                  min={1}
+                  max={holder.maxRows}
+                  step={1}
+                  unit=""
+                  defaultValue={HOLDER_DEFAULTS.universal.maxPieceRows}
+                  onChange={(maxPieceRows) =>
+                    setHolder({ ...holder, universal: { ...holder.universal, maxPieceRows: Math.round(maxPieceRows) } })
+                  }
+                />
+                <FieldDescription>
+                  Exports {plan.modules.length} Gridfinity-aligned pieces. Retaining walls remain only around the assembled perimeter.
+                </FieldDescription>
+              </>
             )}
             <FieldDescription>
               Smaller pitch increases the chance of alignment, but also the number, weight, and cost of magnets.

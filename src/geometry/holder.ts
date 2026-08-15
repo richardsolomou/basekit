@@ -506,11 +506,46 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   const cached = planCache.get(key)
   if (cached) return cached
   if (config.mode === 'universal') {
-    const unitsWide = Math.max(1, Math.round(config.maxColumns))
-    const unitsDeep = Math.max(1, Math.round(config.maxRows))
-    const layout = { unitsWide, unitsDeep, width: unitsWide * GRID - GAP, length: unitsDeep * GRID - GAP, slotCenters: [] }
+    const unitsWide = columns
+    const unitsDeep = rows
+    const pieceColumns = config.universal.split ? Math.max(1, Math.round(config.universal.maxPieceColumns)) : unitsWide
+    const pieceRows = config.universal.split ? Math.max(1, Math.round(config.universal.maxPieceRows)) : unitsDeep
+    const modules: HolderModule[] = []
+    for (let row = 0; row < unitsDeep; row += pieceRows) {
+      const moduleRows = Math.min(pieceRows, unitsDeep - row)
+      for (let column = 0; column < unitsWide; column += pieceColumns) {
+        const moduleColumns = Math.min(pieceColumns, unitsWide - column)
+        const layout = {
+          unitsWide: moduleColumns,
+          unitsDeep: moduleRows,
+          width: moduleColumns * GRID - GAP,
+          length: moduleRows * GRID - GAP,
+          slotCenters: [],
+        }
+        modules.push({
+          config: {
+            ...config,
+            maxColumns: moduleColumns,
+            maxRows: moduleRows,
+            universal: {
+              ...config.universal,
+              split: false,
+              rimEdges: {
+                left: column === 0,
+                right: column + moduleColumns === unitsWide,
+                front: row === 0,
+                back: row + moduleRows === unitsDeep,
+              },
+            },
+          },
+          layout,
+          column,
+          row,
+        })
+      }
+    }
     return cacheResult(planCache, key, {
-      modules: [{ config, layout, column: 0, row: 0 }],
+      modules,
       omitted: [],
       unitsWide,
       unitsDeep,
@@ -653,7 +688,16 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
-    universal: { pitch: 15, layout: 'staggered', rimHeight: 3, rimThickness: 2 },
+    universal: {
+      pitch: 15,
+      layout: 'staggered',
+      rimHeight: 3,
+      rimThickness: 2,
+      split: false,
+      maxPieceColumns: 3,
+      maxPieceRows: 3,
+      rimEdges: { left: true, right: true, front: true, back: true },
+    },
     ...DEFAULT_MAGNET_SETTINGS,
     magnets: { ...DEFAULT_MAGNET_SETTINGS.magnets },
     magnetCounts: { ...DEFAULT_MAGNET_SETTINGS.magnetCounts },
@@ -673,9 +717,15 @@ export function universalMagnetCenters(config: HolderConfig): { x: number; y: nu
   if (!config.magnets.enabled) return []
   const layout = holderLayout(config)
   const radius = (config.magnets.diameter + config.magnets.clearance) / 2
-  const margin = Math.max(radius + 1, config.universal.rimHeight > 0 ? config.universal.rimThickness + radius + 0.5 : radius + 1)
-  const usableWidth = layout.width - margin * 2
-  const usableLength = layout.length - margin * 2
+  const openMargin = radius + 1
+  const rimMargin = config.universal.rimThickness + radius + 0.5
+  const edgeMargin = (hasRim: boolean) => (config.universal.rimHeight > 0 && hasRim ? rimMargin : openMargin)
+  const left = edgeMargin(config.universal.rimEdges.left)
+  const right = edgeMargin(config.universal.rimEdges.right)
+  const front = edgeMargin(config.universal.rimEdges.front)
+  const back = edgeMargin(config.universal.rimEdges.back)
+  const usableWidth = layout.width - left - right
+  const usableLength = layout.length - front - back
   if (usableWidth < 0 || usableLength < 0) return []
   const pitchX = config.universal.pitch
   const pitchY = config.universal.layout === 'staggered' ? (pitchX * Math.sqrt(3)) / 2 : pitchX
@@ -687,8 +737,8 @@ export function universalMagnetCenters(config: HolderConfig): { x: number; y: nu
     const rowColumns = columns - (offset > 0 ? 1 : 0)
     for (let column = 0; column < rowColumns; column++) {
       centers.push({
-        x: (column - (rowColumns - 1) / 2) * pitchX,
-        y: (row - (rows - 1) / 2) * pitchY,
+        x: (left - right) / 2 + (column - (rowColumns - 1) / 2) * pitchX,
+        y: (front - back) / 2 + (row - (rows - 1) / 2) * pitchY,
       })
     }
   }
@@ -797,12 +847,22 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
       }
       if (cutters.length > 0) solid = solidOf(Manifold.difference([solid, ...cutters]))
       if (config.universal.rimHeight > 0) {
-        const outer = roundedRect(layout.width, layout.length, 0)
-        const inner = roundedRect(layout.width, layout.length, config.universal.rimThickness)
-        const ring = section(CrossSection.difference(outer, inner))
-        const rim = solidOf(ring.extrude(config.universal.rimHeight))
-        const raisedRim = solidOf(rim.translate([0, 0, config.height]))
-        solid = solidOf(Manifold.union([solid, raisedRim]))
+        const { rimThickness: thickness, rimEdges } = config.universal
+        const bars: CrossSection[] = []
+        const addBar = (width: number, length: number, x: number, y: number) => {
+          const bar = section(CrossSection.square([width, length], true))
+          bars.push(section(bar.translate([x, y])))
+        }
+        if (rimEdges.left) addBar(thickness, layout.length, -layout.width / 2 + thickness / 2, 0)
+        if (rimEdges.right) addBar(thickness, layout.length, layout.width / 2 - thickness / 2, 0)
+        if (rimEdges.front) addBar(layout.width, thickness, 0, -layout.length / 2 + thickness / 2)
+        if (rimEdges.back) addBar(layout.width, thickness, 0, layout.length / 2 - thickness / 2)
+        if (bars.length > 0) {
+          const ring = section(CrossSection.union(bars))
+          const rim = solidOf(ring.extrude(config.universal.rimHeight))
+          const raisedRim = solidOf(rim.translate([0, 0, config.height]))
+          solid = solidOf(Manifold.union([solid, raisedRim]))
+        }
       }
       const volume = solid.volume()
       const triangles = solid.numTri()

@@ -145,6 +145,24 @@ describe('workspace state', () => {
     })
   })
 
+  it('adds printable piece defaults to saved universal trays', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.holder.mode = 'universal'
+    delete legacy.holder.universal.split
+    delete legacy.holder.universal.maxPieceColumns
+    delete legacy.holder.universal.maxPieceRows
+    delete legacy.holder.universal.rimEdges
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 4, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.universal).toMatchObject({
+      split: false,
+      maxPieceColumns: 3,
+      maxPieceRows: 3,
+      rimEdges: { left: true, right: true, front: true, back: true },
+    })
+  })
+
   it('automatically responds to magnet dimensions until the count is overridden', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 80, length: 80 }

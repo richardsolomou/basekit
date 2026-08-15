@@ -313,6 +313,14 @@ test('builds a universal magnetic tray without miniature slots', { tag: '@ci' },
   await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('15')
   await expect(page.getByRole('switch', { name: 'Tray magnets' })).toBeChecked()
   await expect(footer(page)).toContainText('universal-tray-7x5-15mm-grid')
+
+  const unsplit = await triangles(page)
+  await page.getByRole('switch', { name: 'Split tray into pieces' }).click()
+  await rebuilt(page, unsplit)
+  await expect(page.getByLabel('Maximum piece columns')).toHaveValue('3')
+  await expect(page.getByLabel('Maximum piece rows')).toHaveValue('3')
+  await expect(page.getByText(/Exports 6 Gridfinity-aligned pieces/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download STLs' })).toBeVisible()
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {

@@ -102,6 +102,11 @@ export interface HolderConfig {
     /** Wall height above the magnetic deck. Zero disables the retaining rim. */
     rimHeight: number
     rimThickness: number
+    split: boolean
+    maxPieceColumns: number
+    maxPieceRows: number
+    /** Derived per exported module so only the assembled tray perimeter is raised. */
+    rimEdges: { left: boolean; right: boolean; front: boolean; back: boolean }
   }
   magnets: {
     enabled: boolean

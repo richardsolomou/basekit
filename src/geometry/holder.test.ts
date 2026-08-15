@@ -294,6 +294,30 @@ describe('holderPlan', () => {
     }
     expect(holderPlan(config).modules).toHaveLength(1)
   })
+
+  it('splits a universal tray to the requested printable piece size', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 7,
+      maxRows: 5,
+      universal: { ...defaults.universal, split: true, maxPieceColumns: 3, maxPieceRows: 3 },
+    }
+    const plan = holderPlan(config)
+
+    expect(plan.modules.map(({ layout }) => `${layout.unitsWide}x${layout.unitsDeep}`)).toEqual(['3x3', '3x3', '1x3', '3x2', '3x2', '1x2'])
+    expect(plan.modules.map(({ column, row }) => `${column},${row}`)).toEqual(['0,0', '3,0', '6,0', '0,3', '3,3', '6,3'])
+    expect(plan.modules[0].config.universal.rimEdges).toEqual({ left: true, right: false, front: true, back: false })
+    expect(plan.modules[4].config.universal.rimEdges).toEqual({ left: false, right: false, front: false, back: true })
+    expect(plan.modules[5].config.universal.rimEdges).toEqual({ left: false, right: true, front: false, back: true })
+  })
+
+  it('does not split a universal tray until piece splitting is enabled', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 7, maxRows: 5 }
+    expect(holderPlan(config).modules).toHaveLength(1)
+  })
 })
 
 describe('buildHolder', () => {
