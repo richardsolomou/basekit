@@ -24,6 +24,7 @@ const ENGRAVING_DEPTH = 0.4
 const TIER_SOCKET_DEPTH = 4
 const TIER_SOCKET_WALL = 1.2
 const TIER_DECK_SOCKET_DEPTH = 2.8
+const TIER_SOCKET_PITCH = GRID / 4
 const HEX_ROW_HEIGHT = Math.sqrt(3) / 2
 const MAX_CACHE_ENTRIES = 100
 
@@ -63,6 +64,21 @@ export interface HolderPlan {
 export interface HolderTierPost {
   x: number
   y: number
+}
+
+export function holderTierDeckSocketCenters(config: HolderConfig): HolderTierPost[] {
+  if (!config.tier.enabled) return []
+  const layout = singleHolderLayout(config)
+  const reach = (config.tier.postDiameter + config.tier.fitClearance) / 2 + TIER_SOCKET_WALL
+  const minX = Math.ceil((-layout.width / 2 + reach) / TIER_SOCKET_PITCH)
+  const maxX = Math.floor((layout.width / 2 - reach) / TIER_SOCKET_PITCH)
+  const minY = Math.ceil((-layout.length / 2 + reach) / TIER_SOCKET_PITCH)
+  const maxY = Math.floor((layout.length / 2 - reach) / TIER_SOCKET_PITCH)
+  const centers: HolderTierPost[] = []
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) centers.push({ x: x * TIER_SOCKET_PITCH, y: y * TIER_SOCKET_PITCH })
+  }
+  return centers
 }
 
 interface HolderSlot extends Omit<HolderGroup, 'quantity'> {
@@ -680,12 +696,7 @@ export function holderTierPostCenters(config: HolderConfig): HolderTierPost[] {
       return Math.hypot(dx, dy) >= radius
     })
   }
-  const candidates: HolderTierPost[] = []
-  for (let y = -layout.length / 2 + radius; y <= layout.length / 2 - radius + 1e-6; y += 1) {
-    for (let x = -layout.width / 2 + radius; x <= layout.width / 2 - radius + 1e-6; x += 1) {
-      if (valid(x, y)) candidates.push({ x, y })
-    }
-  }
+  const candidates = holderTierDeckSocketCenters(config).filter(({ x, y }) => valid(x, y))
   const corners = [
     { x: -layout.width / 2, y: -layout.length / 2 },
     { x: layout.width / 2, y: -layout.length / 2 },
@@ -928,7 +939,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
       }
       const upperSocketRadius = (config.tier.postDiameter + config.tier.fitClearance) / 2
       const upperSocketDisc = section(CrossSection.circle(upperSocketRadius, segmentsFor(upperSocketRadius * 2, 32)))
-      for (const post of tierPosts) {
+      for (const post of holderTierDeckSocketCenters(config)) {
         const outline = section(upperSocketDisc.translate([post.x + deckOffsetX, post.y]))
         const cut = solidOf(outline.extrude(TIER_SOCKET_DEPTH + 0.01))
         deckCutters.push(cut)

@@ -10,6 +10,7 @@ import {
   holderMagnetPocketCount,
   holderPlan,
   holderSlotMagnetCenters,
+  holderTierDeckSocketCenters,
   holderTierPostCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
@@ -257,6 +258,16 @@ describe('upper floor kit', () => {
     const posts = holderTierPostCenters(config)
     expect(posts).toHaveLength(4)
     expect(posts.every((post) => Math.hypot(post.x, post.y) > 25 + config.tier.postDiameter / 2)).toBe(true)
+  })
+
+  it('uses the same upper-floor socket lattice for different lower layouts with the same footprint', () => {
+    const defaults = defaultHolderConfig()
+    const tier = { ...defaults.tier, enabled: true }
+    const large = { ...defaults, groups: [holderGroup('large', 1, { width: 50 })], maxColumns: 2, maxRows: 2, tier }
+    const small = { ...defaults, groups: [holderGroup('small', 4, { width: 32 })], maxColumns: 2, maxRows: 2, tier }
+    expect(holderLayout(large)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
+    expect(holderLayout(small)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
+    expect(holderTierDeckSocketCenters(large)).toEqual(holderTierDeckSocketCenters(small))
   })
 
   it('exports the lower holder, universal floor, and removable posts as one printable kit', () => {
