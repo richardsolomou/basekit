@@ -40,7 +40,8 @@ import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, RackConfig, S
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
-import posthog from '@/lib/posthog'
+import posthog, { posthogEnvironment } from '@/lib/posthog'
+import { modelForPath, type Model } from '@/lib/modelRoute'
 import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
@@ -87,10 +88,7 @@ const ENGRAVING_PLACEMENTS = [
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
 const RACK_DEFAULTS = defaultRackConfig()
-type Model = 'base' | 'holder' | 'rack'
-
-const modelForPath = (): Model =>
-  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/rack' ? 'rack' : 'base'
+const BOX_FLOORS_FLAG = 'box-floors'
 
 function RepositoryLink() {
   return (
@@ -126,17 +124,37 @@ export function App() {
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
-  const [model, setModel] = useState<Model>(modelForPath)
+  const localFeatureFlags = posthogEnvironment === undefined
+  const [boxFloorsEnabled, setBoxFloorsEnabled] = useState(localFeatureFlags)
+  const [model, setModel] = useState<Model>(() => modelForPath(window.location.pathname, localFeatureFlags))
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig = model === 'base' ? config : model === 'holder' ? holder : rack
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
-    const syncRoute = () => setModel(modelForPath())
+    if (posthogEnvironment === undefined) return
+    const applyFlag = () => {
+      const enabled = posthog.isFeatureEnabled(BOX_FLOORS_FLAG) === true
+      setBoxFloorsEnabled(enabled)
+      if (window.location.pathname === '/rack') {
+        if (enabled) setModel('rack')
+        else {
+          window.history.replaceState(null, '', '/')
+          setModel('base')
+        }
+      }
+    }
+    const unsubscribe = posthog.onFeatureFlags(applyFlag)
+    applyFlag()
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    const syncRoute = () => setModel(modelForPath(window.location.pathname, boxFloorsEnabled))
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
-  }, [])
+  }, [boxFloorsEnabled])
 
   useEffect(() => {
     document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'rack' ? 'BaseKit — Box Floors' : 'BaseKit — Bases'
@@ -145,6 +163,7 @@ export function App() {
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
   const changeModel = (next: Model) => {
+    if (next === 'rack' && !boxFloorsEnabled) return
     if (next === model) return
     window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'rack' ? '/rack' : '/')
     setModel(next)
@@ -1157,7 +1176,7 @@ export function App() {
             </span>
           </h1>
           <nav aria-label="Generators" className="flex self-stretch">
-            {MODELS.map((item) => (
+            {MODELS.filter((item) => item.value !== 'rack' || boxFloorsEnabled).map((item) => (
               <a
                 key={item.value}
                 href={item.href}
