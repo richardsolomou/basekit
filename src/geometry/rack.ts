@@ -17,6 +17,9 @@ const BEAM_HEIGHT = 32
 const BEAM_FLANGE = 3
 const BEAM_WEB = 2.4
 const UPRIGHT_WALL = 3
+const ANCHOR_SIZE = 22
+const ANCHOR_HEIGHT = 20
+const ANCHOR_LEDGE = 14
 const BEAM_KEY_LENGTH = 32
 const BEAM_KEY_WIDTH = 12
 const BEAM_KEY_THICKNESS = 6
@@ -41,9 +44,9 @@ interface TileSpec {
 export function defaultRackConfig(): RackConfig {
   return {
     kind: 'rack',
-    columns: 4,
-    rows: 4,
-    height: 196,
+    columns: 7,
+    rows: 5,
+    height: 126,
     slotPitch: 14,
     shelfCount: 3,
     shelfThickness: 6,
@@ -59,7 +62,7 @@ export function defaultRackConfig(): RackConfig {
 }
 
 export function rackName(config: RackConfig): string {
-  return `gridfinity-rack-${Math.round(config.columns)}x${Math.round(config.rows)}-${Math.round(config.height)}mm-${Math.round(config.shelfCount)}-shelves`
+  return `gridfinity-box-floors-${Math.round(config.columns)}x${Math.round(config.rows)}-${Math.round(config.height)}mm-${Math.round(config.shelfCount)}-levels`
 }
 
 function chunks(total: number, maximum: number): number[] {
@@ -116,6 +119,7 @@ export function rackHardware(config: RackConfig) {
   const sideRails = shelfFrames * 2
   return {
     printedUprights: uprightSegments,
+    printedAnchors: 4,
     printedShelfRails: crossrails + sideRails,
     printedLockPins: shelfFrames * 4,
     purchasedParts: 0,
@@ -260,6 +264,17 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       return solid(Manifold.difference(post, hollow))
     }
 
+    const anchorShoe = () => {
+      const body = cube([ANCHOR_SIZE, ANCHOR_SIZE, ANCHOR_HEIGHT], [0, 0, ANCHOR_HEIGHT / 2])
+      const socket = cube(
+        [POST_SIZE + config.fitClearance, POST_SIZE + config.fitClearance, ANCHOR_HEIGHT - 3 + 0.01],
+        [0, 0, 3 + (ANCHOR_HEIGHT - 3) / 2],
+      )
+      const ledgeX = cube([ANCHOR_LEDGE, ANCHOR_SIZE, 3], [-(ANCHOR_SIZE + ANCHOR_LEDGE) / 2, 0, 1.5])
+      const ledgeY = cube([ANCHOR_SIZE, ANCHOR_LEDGE, 3], [0, -(ANCHOR_SIZE + ANCHOR_LEDGE) / 2, 1.5])
+      return solid(Manifold.union([solid(Manifold.difference(body, socket)), ledgeX, ledgeY]))
+    }
+
     const splitBar = (barLength: number) => {
       const count = Math.ceil(barLength / (GRID * 2))
       const segmentLength = barLength / count
@@ -305,23 +320,18 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const postX = (shelfWidth + POST_SIZE) / 2
       const postY = (shelfDepth + POST_SIZE) / 2
       for (const x of [-postX, postX])
-        for (const y of [-postY, postY]) parts.push(solid(uprightAssembled().translate([x, y, config.height / 2])))
-      parts.push(solid(beamSolid(shelfWidth + POST_SIZE * 2).translate([0, -postY, config.height - BEAM_HEIGHT / 2])))
-      parts.push(solid(beamSolid(shelfWidth + POST_SIZE * 2).translate([0, postY, config.height - BEAM_HEIGHT / 2])))
-      parts.push(
-        solid(
-          beamSolid(shelfDepth)
-            .rotate([0, 0, 90])
-            .translate([-postX, 0, config.height - BEAM_HEIGHT / 2]),
-        ),
-      )
-      parts.push(
-        solid(
-          beamSolid(shelfDepth)
-            .rotate([0, 0, 90])
-            .translate([postX, 0, config.height - BEAM_HEIGHT / 2]),
-        ),
-      )
+        for (const y of [-postY, postY]) {
+          parts.push(solid(uprightAssembled().translate([x, y, config.height / 2])))
+          const angle = x > 0 ? (y > 0 ? 0 : 90) : y > 0 ? -90 : 180
+          parts.push(solid(anchorShoe().rotate([0, 0, angle]).translate([x, y, 0])))
+        }
+      // The bottom level is the user's existing Gridfinity insert. It is
+      // previewed for context but never included in the print layout.
+      for (const tile of tiles) {
+        const x = -shelfWidth / 2 + tile.column * GRID + (tile.columns * GRID) / 2
+        const y = -shelfDepth / 2 + tile.row * GRID + (tile.rows * GRID) / 2
+        parts.push(solid(tileSolid(tile).translate([x, y, 3])))
+      }
       const shownLevels = Array.from(
         { length: shelfCount },
         (_, index) => levels[Math.round((index * (levels.length - 1)) / Math.max(1, shelfCount - 1))],
@@ -360,9 +370,12 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const upright = uprightPrint()
       const frameY = rowsOfTiles * (deepestTile + PART_GAP) + config.height / 2
       for (let index = 0; index < 4; index++) parts.push(solid(upright.translate([index * (POST_SIZE + PART_GAP), frameY, POST_SIZE / 2])))
+      const shoe = anchorShoe()
+      for (let index = 0; index < 4; index++)
+        parts.push(solid(shoe.translate([index * (ANCHOR_SIZE + ANCHOR_LEDGE + PART_GAP), frameY + config.height / 2 + PART_GAP, 0])))
       const shelfBeamLength = shelfWidth + POST_SIZE
       const segments = splitBar(shelfBeamLength)
-      let looseY = frameY + config.height / 2 + PART_GAP + BEAM_WIDTH / 2
+      let looseY = frameY + config.height / 2 + ANCHOR_SIZE + PART_GAP * 2 + BEAM_WIDTH / 2
       for (let shelf = 0; shelf < shelfCount; shelf++) {
         for (let beam = 0; beam < rackBeamPositions(config).length; beam++) {
           let x = 0
@@ -382,17 +395,6 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           looseY += BEAM_WIDTH + PART_GAP / 2
         }
       }
-      let topBraceJoins = 0
-      for (const length of [shelfWidth + POST_SIZE * 2, shelfWidth + POST_SIZE * 2, shelfDepth, shelfDepth]) {
-        const brace = splitBar(length)
-        topBraceJoins += Math.max(0, brace.length - 1)
-        let x = 0
-        for (const segment of brace) {
-          parts.push(solid(segment.translate([x, looseY, BEAM_HEIGHT / 2])))
-          x += length / brace.length + PART_GAP / 2
-        }
-        looseY += BEAM_WIDTH + PART_GAP / 2
-      }
       const tileColumnGroups = Math.ceil(columns / Math.max(1, Math.round(config.tileColumns)))
       const tileRowGroups = Math.ceil(rows / Math.max(1, Math.round(config.tileRows)))
       const tileJoins = (tileColumnGroups - 1) * tileRowGroups + (tileRowGroups - 1) * tileColumnGroups
@@ -400,8 +402,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const beamKeyCount =
         (Math.max(0, segments.length - 1) * rackBeamPositions(config).length +
           Math.max(0, splitBar(shelfDepth + POST_SIZE).length - 1) * 2) *
-          shelfCount +
-        topBraceJoins
+        shelfCount
       for (let index = 0; index < tileKeyCount; index++)
         parts.push(
           solid(key().translate([(index % 16) * (KEY_LENGTH + 3), looseY + Math.floor(index / 16) * (KEY_WIDTH + 3), KEY_THICKNESS / 2])),

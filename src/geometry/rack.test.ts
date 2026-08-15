@@ -25,7 +25,7 @@ describe('transport rack', () => {
     const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
-    expect(result.stats.volume).toBeLessThan(1_000_000)
+    expect(result.stats.volume).toBeLessThan(1_700_000)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
@@ -38,7 +38,7 @@ describe('transport rack', () => {
     const config = defaultRackConfig()
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
-    expect(rackDimensions(config).height).toBe(196)
+    expect(rackDimensions(config).height).toBe(126)
     expect(rackDimensions({ ...config, view: 'print' }).height).toBe(32)
   })
 
@@ -53,6 +53,7 @@ describe('transport rack', () => {
     const config = defaultRackConfig()
     expect(rackHardware(config)).toMatchObject({
       printedUprights: 4,
+      printedAnchors: 4,
       printedLockPins: 12,
       purchasedParts: 0,
     })
@@ -97,6 +98,6 @@ describe('transport rack', () => {
   })
 
   it('uses a descriptive transport-rack filename', () => {
-    expect(rackName(defaultRackConfig())).toBe('gridfinity-rack-4x4-196mm-3-shelves')
+    expect(rackName(defaultRackConfig())).toBe('gridfinity-box-floors-7x5-126mm-3-levels')
   })
 })

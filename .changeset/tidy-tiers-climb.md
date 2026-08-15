@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add a fully printed adjustable Gridfinity transport rack with perforated uprights, reusable locking pins, modular shelf frames, and exact open receiving lattices.
+Add fully printed adjustable Gridfinity floors above an existing box insert, with perimeter shoes, reusable locking pins, and exact open receiving lattices.

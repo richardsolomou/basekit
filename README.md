@@ -34,13 +34,13 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
-## Adjustable Gridfinity transport rack 🪜
+## Adjustable Gridfinity box floors 🪜
 
-Generate a completely printed open transport rack with four hollow ladder uprights. Reusable printed pins lock each shelf frame into positions spaced every 7mm or 14mm, so levels move without tools or replacement parts. Material-efficient I-section rails split into printer-sized sections joined by deep removable keys, and a crossrail supports every tile-row boundary.
+Add movable floors above a Gridfinity insert already fitted in a storage box. Four printed corner shoes sit beneath the insert without consuming cells, and hollow height rails provide positions every 7mm or 14mm. The box remains the enclosure; BaseKit generates only the extra floors and the structure needed to hold them.
 
-The rack never changes miniature holders or their packing. Each empty lattice uses the same 42mm pitch and 4.75mm tapered foot profile as BaseKit holders, with a small selectable fit clearance. Modular tiles use smaller alignment keys and sit on the shelf frame rather than carrying structural bending loads. The Rack view switches between the assembled rack and every support-free printed part.
+The default matches a 7×5 insert in an IKEA SAMLA 11L and its height remains adjustable for deeper boxes. Each extra floor uses the same 42mm pitch and 4.75mm tapered foot profile as BaseKit holders. Floors split into printer-sized keyed tiles on material-efficient I-section crossbars. The assembled view includes the existing bottom insert for context; exports do not duplicate it.
 
-No purchased hardware is required. The load check halves calculated beam stiffness at every removable splice and screens the configured shelf mass under a 3g transport acceleration, with a minimum analytical safety factor of 2 and 1mm deflection limit. This is not a certified rating: filament, moisture, layer adhesion, print orientation, fit, creep, and carrying shocks vary. Use at least four walls and proof-load the finished rack safely before trusting it with miniatures.
+No purchased hardware is required. Reusable printed pins lock each floor against movement in the car. The load check halves calculated beam stiffness at every removable splice and screens the configured shelf mass under a 3g transport acceleration, with a minimum analytical safety factor of 2 and 1mm deflection limit. This is not a certified rating: filament, moisture, layer adhesion, print orientation, fit, creep, and carrying shocks vary. Use at least four walls and proof-load the finished insert safely before trusting it with miniatures.
 
 ## Designed for one job 🎯
 

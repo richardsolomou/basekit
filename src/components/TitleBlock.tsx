@@ -49,8 +49,8 @@ export function TitleBlock({ config, status, name }: Props) {
     return (
       <TitleFrame status={status} name={name}>
         <Row label="Shelves" value={`${config.shelfCount} interchangeable`} />
-        <Row label="Each level" value={`${rackTiles(config).length} keyed tiles`} />
-        <Row label="Uprights" value={`${rackHardware(config).printedUprights} printed ladders`} />
+        <Row label="Extra floor" value={`${rackTiles(config).length} keyed tiles`} />
+        <Row label="Height rails" value={`${rackHardware(config).printedUprights} printed ladders`} />
         <Row label="Adjustment" value={`${config.slotPitch}mm pitch · pin locked`} />
         <Row label="Hardware" value="none · fully printed" />
       </TitleFrame>

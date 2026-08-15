@@ -78,7 +78,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
-  { value: 'rack' as const, label: 'Rack', href: '/rack' },
+  { value: 'rack' as const, label: 'Box floors', href: '/rack' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -139,7 +139,7 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'rack' ? 'BaseKit — Transport Rack' : 'BaseKit — Bases'
+    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'rack' ? 'BaseKit — Box Floors' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
@@ -961,10 +961,10 @@ export function App() {
   )
   const rackPanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
-      <aside aria-label="Rack settings" className="pb-4 [counter-reset:schedule]">
+      <aside aria-label="Box floor settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Preview">
           <Choice
-            label="Rack view"
+            label="Box floor view"
             value={rack.view}
             defaultValue={RACK_DEFAULTS.view}
             options={[
@@ -995,7 +995,7 @@ export function App() {
             onChange={(rows) => setRack({ ...rack, rows, tileRows: Math.min(rack.tileRows, rows) })}
           />
           <Dimension
-            label="Rack height"
+            label="Usable box height"
             value={rack.height}
             min={70}
             max={210}
@@ -1080,7 +1080,8 @@ export function App() {
             onChange={(designLoadKg) => setRack({ ...rack, designLoadKg })}
           />
           <FieldDescription>
-            Four printed ladder uprights provide repeated shelf positions. Reusable printed pins lock each shelf frame without tools.
+            Four corner shoes sit beneath the existing Gridfinity insert. The hollow height rails and reusable pins support extra floors
+            without replacing the bottom grid.
           </FieldDescription>
         </Section>
         <Section title="Printed Structure">
@@ -1088,6 +1089,10 @@ export function App() {
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Ladder uprights</span>
               <span className="readout">{rackHardware(rack).printedUprights}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Insert corner shoes</span>
+              <span className="readout">{rackHardware(rack).printedAnchors}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Shelf/frame rails</span>
@@ -1114,7 +1119,7 @@ export function App() {
     </ScrollArea>
   )
   const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : rackPanel
-  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Rack'
+  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Box floors'
 
   return (
     <div className="flex h-full flex-col bg-background">
