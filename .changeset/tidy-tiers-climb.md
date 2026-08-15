@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add independently sized, interchangeable Gridfinity upper-floor kits to holders with enough room for distributed removable post sockets.
+Add a reusable, height-adjustable Gridfinity transport rack with open ladder frames and interchangeable shelves.

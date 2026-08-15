@@ -4,6 +4,7 @@ import fontUrl from '@/assets/fonts/oswald-700.woff?url'
 import { buildBase, type BuildResult } from '@/geometry/base'
 import { buildHolder } from '@/geometry/holder'
 import { loadManifold } from '@/geometry/manifold'
+import { buildRack } from '@/geometry/rack'
 import type { MeshData, WorkerReply, WorkerRequest } from './protocol'
 
 const ready = Promise.all([
@@ -25,7 +26,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { id, config } = event.data
   try {
     const [wasm, font] = await ready
-    const result = config.kind === 'holder' ? buildHolder(wasm, config, font) : buildBase(wasm, config, font)
+    const result =
+      config.kind === 'holder'
+        ? buildHolder(wasm, config, font)
+        : config.kind === 'rack'
+          ? buildRack(wasm, config)
+          : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {

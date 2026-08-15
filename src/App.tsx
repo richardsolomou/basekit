@@ -35,7 +35,8 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
+import { defaultRackConfig, rackDimensions, rackName } from '@/geometry/rack'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, RackConfig, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -77,6 +78,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
+  { value: 'rack' as const, label: 'Rack', href: '/rack' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -84,9 +86,11 @@ const ENGRAVING_PLACEMENTS = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
-type Model = 'base' | 'holder'
+const RACK_DEFAULTS = defaultRackConfig()
+type Model = 'base' | 'holder' | 'rack'
 
-const modelForPath = (): Model => (window.location.pathname === '/holders' ? 'holder' : 'base')
+const modelForPath = (): Model =>
+  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/rack' ? 'rack' : 'base'
 
 function RepositoryLink() {
   return (
@@ -108,12 +112,15 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const rack = workspace.rack
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setRack = (next: RackConfig | ((current: RackConfig) => RackConfig)) =>
+    setWorkspace((current) => ({ ...current, rack: typeof next === 'function' ? next(current.rack) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
@@ -122,7 +129,7 @@ export function App() {
   const [model, setModel] = useState<Model>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : holder
+  const partConfig = model === 'base' ? config : model === 'holder' ? holder : rack
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -132,14 +139,14 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
+    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'rack' ? 'BaseKit — Transport Rack' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
   const changeModel = (next: Model) => {
     if (next === model) return
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'rack' ? '/rack' : '/')
     setModel(next)
   }
 
@@ -152,6 +159,7 @@ export function App() {
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const holderPrintedSize = useMemo(() => holderPrintSize(holder), [holder])
+  const rackPrintedSize = useMemo(() => rackDimensions(rack), [rack])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
@@ -194,10 +202,10 @@ export function App() {
       next.delete(id)
       return next
     })
-  const partWidth = model === 'base' ? width : holderPrintedSize.width
-  const partLength = model === 'base' ? length : holderPrintedSize.length
-  const partHeight = model === 'base' ? config.height : holderPrintedSize.height
-  const partName = model === 'base' ? baseName(config) : holderName(holder)
+  const partWidth = model === 'base' ? width : model === 'holder' ? holderPrintedSize.width : rackPrintedSize.width
+  const partLength = model === 'base' ? length : model === 'holder' ? holderPrintedSize.length : rackPrintedSize.length
+  const partHeight = model === 'base' ? config.height : model === 'holder' ? holderPrintedSize.height : rackPrintedSize.height
+  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : rackName(rack)
   const {
     exporting,
     error: exportError,
@@ -207,6 +215,7 @@ export function App() {
     model,
     base: config,
     holder,
+    rack,
     width: partWidth,
     length: partLength,
   })
@@ -884,80 +893,6 @@ export function App() {
         </Section>
 
         <Section
-          title="Upper Floor"
-          aside={<span className="readout text-xs text-muted-foreground">{holder.tier.enabled ? 'socketed' : 'none'}</span>}
-        >
-          <ToggleSetting
-            label="Add upper floor kit"
-            checked={holder.tier.enabled}
-            defaultChecked={HOLDER_DEFAULTS.tier.enabled}
-            onChange={(enabled) => setHolder({ ...holder, tier: { ...holder.tier, enabled } })}
-          />
-          {holder.tier.enabled && (
-            <>
-              <Dimension
-                label="Upper floor columns"
-                value={holder.tier.columns}
-                min={1}
-                max={holder.maxColumns}
-                step={1}
-                defaultValue={HOLDER_DEFAULTS.tier.columns}
-                onChange={(columns) => setHolder({ ...holder, tier: { ...holder.tier, columns } })}
-              />
-              <Dimension
-                label="Upper floor rows"
-                value={holder.tier.rows}
-                min={1}
-                max={holder.maxRows}
-                step={1}
-                defaultValue={HOLDER_DEFAULTS.tier.rows}
-                onChange={(rows) => setHolder({ ...holder, tier: { ...holder.tier, rows } })}
-              />
-              <Dimension
-                label="Space below floor"
-                value={holder.tier.clearance}
-                min={14}
-                max={175}
-                step={7}
-                defaultValue={HOLDER_DEFAULTS.tier.clearance}
-                onChange={(clearance) => setHolder({ ...holder, tier: { ...holder.tier, clearance } })}
-              />
-              <Dimension
-                label="Floor thickness"
-                value={holder.tier.deckThickness}
-                min={7}
-                max={12}
-                step={0.5}
-                defaultValue={HOLDER_DEFAULTS.tier.deckThickness}
-                onChange={(deckThickness) => setHolder({ ...holder, tier: { ...holder.tier, deckThickness } })}
-              />
-              <Dimension
-                label="Post diameter"
-                value={holder.tier.postDiameter}
-                min={4}
-                max={10}
-                step={0.5}
-                defaultValue={HOLDER_DEFAULTS.tier.postDiameter}
-                onChange={(postDiameter) => setHolder({ ...holder, tier: { ...holder.tier, postDiameter } })}
-              />
-              <Dimension
-                label="Post fit clearance"
-                value={holder.tier.fitClearance}
-                min={0.1}
-                max={0.6}
-                step={0.05}
-                defaultValue={HOLDER_DEFAULTS.tier.fitClearance}
-                onChange={(fitClearance) => setHolder({ ...holder, tier: { ...holder.tier, fitClearance } })}
-              />
-              <FieldDescription>
-                The upper grid has its own footprint. Posts are reserved around that floor's load area, independently of the holders placed
-                above.
-              </FieldDescription>
-            </>
-          )}
-        </Section>
-
-        <Section
           title="Magnets"
           aside={
             <span className="readout text-xs text-muted-foreground">
@@ -1024,8 +959,92 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : holderPanel
-  const modelLabel = model === 'base' ? 'Base' : 'Holder'
+  const rackPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Rack settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Footprint">
+          <Dimension
+            label="Gridfinity columns"
+            value={rack.columns}
+            min={1}
+            max={7}
+            step={1}
+            defaultValue={RACK_DEFAULTS.columns}
+            onChange={(columns) => setRack({ ...rack, columns })}
+          />
+          <Dimension
+            label="Gridfinity rows"
+            value={rack.rows}
+            min={1}
+            max={5}
+            step={1}
+            defaultValue={RACK_DEFAULTS.rows}
+            onChange={(rows) => setRack({ ...rack, rows })}
+          />
+          <Dimension
+            label="Rack height"
+            value={rack.height}
+            min={70}
+            max={210}
+            step={7}
+            defaultValue={RACK_DEFAULTS.height}
+            onChange={(height) => setRack({ ...rack, height })}
+          />
+        </Section>
+        <Section title="Shelf Positions">
+          <Choice
+            label="Slot pitch"
+            value={rack.slotPitch}
+            defaultValue={RACK_DEFAULTS.slotPitch}
+            options={[
+              { value: 14 as const, label: '14 mm' },
+              { value: 7 as const, label: '7 mm' },
+            ]}
+            onChange={(slotPitch) => setRack({ ...rack, slotPitch })}
+          />
+          <Dimension
+            label="Printed shelves"
+            value={rack.shelfCount}
+            min={3}
+            max={8}
+            step={1}
+            defaultValue={RACK_DEFAULTS.shelfCount}
+            onChange={(shelfCount) => setRack({ ...rack, shelfCount })}
+          />
+          <Dimension
+            label="Shelf thickness"
+            value={rack.shelfThickness}
+            min={5}
+            max={10}
+            step={0.5}
+            defaultValue={RACK_DEFAULTS.shelfThickness}
+            onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
+          />
+          <Dimension
+            label="Rail fit clearance"
+            value={rack.fitClearance}
+            min={0.15}
+            max={0.6}
+            step={0.05}
+            defaultValue={RACK_DEFAULTS.fitClearance}
+            onChange={(fitClearance) => setRack({ ...rack, fitClearance })}
+          />
+          <ToggleSetting
+            label="Transport retainer"
+            checked={rack.retainer}
+            defaultChecked={RACK_DEFAULTS.retainer}
+            onChange={(retainer) => setRack({ ...rack, retainer })}
+          />
+          <FieldDescription>
+            Every shelf fits every rail position. Rear stops and the removable front retainer keep shelves captured.
+          </FieldDescription>
+        </Section>
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : rackPanel
+  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Rack'
 
   return (
     <div className="flex h-full flex-col bg-background">

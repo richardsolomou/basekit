@@ -1,10 +1,11 @@
 import { defaultHolderConfig } from '../geometry/holder'
+import { defaultRackConfig } from '../geometry/rack'
 import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
-import type { BaseConfig, HolderConfig } from '../geometry/types'
+import type { BaseConfig, HolderConfig, RackConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 6
+const WORKSPACE_VERSION = 7
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -14,6 +15,7 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  rack: RackConfig
   /** Values exposed by both generators have one canonical owner. */
   shared: SharedSettings
 }
@@ -107,7 +109,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
 
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
-  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), shared: sharedFromBase(base) })
+  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), rack: defaultRackConfig(), shared: sharedFromBase(base) })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -121,17 +123,18 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
         : parsed.version === 2
           ? migrateWorkspaceV2(parsed.workspace)
           : parsed.workspace
-    if ([1, 2, 3, 4, 5].includes(parsed.version as number) && typeof workspace === 'object' && workspace !== null) {
+    if ([1, 2, 3, 4, 5, 6].includes(parsed.version as number) && typeof workspace === 'object' && workspace !== null) {
       const previous = workspace as Record<string, unknown>
       const holder = previous.holder as Record<string, unknown>
-      const oldTier = holder.tier as Record<string, unknown> | undefined
-      const tierDefaults = defaultHolderConfig().tier
+      const cleanHolder = { ...holder }
+      delete cleanHolder.tier
       workspace = {
         ...previous,
-        holder: { ...holder, tier: { ...tierDefaults, ...oldTier } },
+        holder: cleanHolder,
+        rack: defaultRackConfig(),
       }
     }
-    if (![1, 2, 3, 4, 5, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
+    if (![1, 2, 3, 4, 5, 6, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside

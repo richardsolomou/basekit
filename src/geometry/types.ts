@@ -107,17 +107,19 @@ export interface HolderConfig {
   magnetCounts: Record<string, number>
   baseWallThickness: number
   magnetBossWall: number
-  tier: {
-    enabled: boolean
-    /** Open space between the lower holder and the upper deck. */
-    clearance: number
-    /** Independent Gridfinity footprint of the removable upper floor. */
-    columns: number
-    rows: number
-    deckThickness: number
-    postDiameter: number
-    fitClearance: number
-  }
+  segments: number
+}
+
+export interface RackConfig {
+  kind: 'rack'
+  columns: number
+  rows: number
+  height: number
+  slotPitch: 7 | 14
+  shelfCount: number
+  shelfThickness: number
+  fitClearance: number
+  retainer: boolean
   segments: number
 }
 
@@ -135,4 +137,4 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export type PartConfig = BasePartConfig | HolderConfig | RackConfig

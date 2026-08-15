@@ -281,22 +281,18 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
-test('exports an interchangeable upper Gridfinity floor kit from a holder', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
-  await page.getByLabel(/^Quantity 1 in/).fill('1')
-  await page.getByLabel(/^Quantity 1 in/).press('Enter')
-  await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
-  await page.getByRole('option', { name: /^50\b/ }).click()
+test('exports a reusable adjustable Gridfinity transport rack', async ({ page }) => {
   const before = await triangles(page)
-  await page.getByRole('switch', { name: 'Add upper floor kit' }).click()
+  await page.getByRole('link', { name: 'Rack' }).click()
   await rebuilt(page, before)
-  await expect(footer(page)).toContainText('4 removable posts')
-  await expect(footer(page)).toContainText('upper-floor-kit')
+  await expect(page).toHaveURL(/\/rack$/)
+  await expect(footer(page)).toContainText('4 interchangeable')
+  await expect(footer(page)).toContainText('at 14 mm')
+  await expect(footer(page)).toContainText('gridfinity-rack-4x4-196mm-4-shelves')
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
-  expect((await download).suggestedFilename()).toBe('holder-2x2-1x-round-50mm-upper-floor-kit.stl')
+  expect((await download).suggestedFilename()).toBe('gridfinity-rack-4x4-196mm-4-shelves.stl')
 })
 
 test('frames every slot in a tall holder', async ({ page }) => {

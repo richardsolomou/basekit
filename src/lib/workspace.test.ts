@@ -12,11 +12,23 @@ function memoryStorage() {
 }
 
 describe('workspace state', () => {
-  it('starts both generators at their defaults', () => {
+  it('starts every generator at its defaults', () => {
     expect(defaultWorkspace()).toMatchObject({
       base: { width: 32, magnets: { patternVersion: 2 } },
       holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
+      rack: { kind: 'rack', columns: 4, rows: 4, slotPitch: 14, shelfCount: 4 },
     })
+  })
+
+  it('migrates the holder-coupled upper floor into an independent default rack', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.rack
+    legacy.holder.tier = { enabled: true, clearance: 84 }
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 6, workspace: legacy }))
+    const loaded = loadWorkspace(storage)
+    expect(loaded.holder).not.toHaveProperty('tier')
+    expect(loaded.rack).toEqual(defaultWorkspace().rack)
   })
 
   it('keeps every setting exposed by both generators synchronized', () => {

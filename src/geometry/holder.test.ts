@@ -10,8 +10,6 @@ import {
   holderMagnetPocketCount,
   holderPlan,
   holderSlotMagnetCenters,
-  holderTierDeckSocketCenters,
-  holderTierPostCenters,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
@@ -244,89 +242,6 @@ describe('holderLayout', () => {
   it('reports no layout when the box constraints are too small', () => {
     const config = { ...defaultHolderConfig(), groups: [holderGroup('models-1', 2, { width: 90 })], maxColumns: 3, maxRows: 2 }
     expect(holderLayout(config).slotCenters).toHaveLength(0)
-  })
-})
-
-describe('upper floor kit', () => {
-  it('reserves support space while packing instead of rejecting the smallest dense layout', () => {
-    const defaults = defaultHolderConfig()
-    const config = { ...defaults, tier: { ...defaults.tier, enabled: true } }
-    expect(holderLayout(config)).toMatchObject({ unitsWide: 2, unitsDeep: 4 })
-    expect(holderTierPostCenters(config)).toHaveLength(4)
-    expect(() => buildHolder(wasm, config)).not.toThrow()
-  })
-
-  it('does not trade a balanced support footprint for maximum miniature capacity', () => {
-    const defaults = defaultHolderConfig()
-    const config = {
-      ...defaults,
-      groups: [holderGroup('models', 54, { width: 32 })],
-      tier: { ...defaults.tier, enabled: true },
-    }
-    const plan = holderPlan(config)
-    const module = plan.modules[0]
-    const posts = holderTierPostCenters(module.config)
-    expect(module.config.groups[0].quantity).toBeLessThan(54)
-    expect(plan.omitted.reduce((total, group) => total + group.quantity, 0)).toBe(54 - module.config.groups[0].quantity)
-    expect(posts).toHaveLength(4)
-    expect(posts.some((point) => point.x < 0 && point.y < 0)).toBe(true)
-    expect(posts.some((point) => point.x > 0 && point.y < 0)).toBe(true)
-    expect(posts.some((point) => point.x > 0 && point.y > 0)).toBe(true)
-    expect(posts.some((point) => point.x < 0 && point.y > 0)).toBe(true)
-  })
-
-  it('places removable post sockets only in unused holder space', () => {
-    const defaults = defaultHolderConfig()
-    const config = {
-      ...defaults,
-      groups: [holderGroup('large', 1, { width: 50 })],
-      tier: { ...defaults.tier, enabled: true },
-    }
-    const posts = holderTierPostCenters(config)
-    expect(posts).toHaveLength(4)
-    expect(posts.every((post) => Math.hypot(post.x, post.y) > 25 + config.tier.postDiameter / 2)).toBe(true)
-  })
-
-  it('uses the same upper-floor socket lattice for different lower layouts with the same footprint', () => {
-    const defaults = defaultHolderConfig()
-    const tier = { ...defaults.tier, enabled: true }
-    const large = { ...defaults, groups: [holderGroup('large', 1, { width: 50 })], maxColumns: 2, maxRows: 2, tier }
-    const small = { ...defaults, groups: [holderGroup('small', 4, { width: 32 })], maxColumns: 2, maxRows: 2, tier }
-    expect(holderLayout(large)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
-    expect(holderLayout(small)).toMatchObject({ unitsWide: 2, unitsDeep: 2 })
-    expect(holderTierDeckSocketCenters(large)).toEqual(holderTierDeckSocketCenters(small))
-  })
-
-  it('sizes and supports the upper floor independently of the lower holder layout', () => {
-    const defaults = defaultHolderConfig()
-    const config = {
-      ...defaults,
-      groups: [holderGroup('models', 5, { width: 32 })],
-      maxColumns: 4,
-      maxRows: 3,
-      tier: { ...defaults.tier, enabled: true, columns: 2, rows: 2 },
-    }
-    const layout = holderLayout(config)
-    expect(layout.unitsWide === 2 && layout.unitsDeep === 2).toBe(false)
-    expect(holderTierPostCenters(config)).toHaveLength(4)
-    const sockets = holderTierDeckSocketCenters(config)
-    expect(Math.max(...sockets.map((point) => point.x))).toBeLessThan(42)
-    expect(Math.max(...sockets.map((point) => point.y))).toBeLessThan(42)
-    expect(() => buildHolder(wasm, config)).not.toThrow()
-  })
-
-  it('exports the lower holder, universal floor, and removable posts as one printable kit', () => {
-    const defaults = defaultHolderConfig()
-    const config = {
-      ...defaults,
-      groups: [holderGroup('large', 1, { width: 50 })],
-      tier: { ...defaults.tier, enabled: true },
-    }
-    const plain = buildHolder(wasm, { ...config, tier: { ...config.tier, enabled: false } })
-    const kit = buildHolder(wasm, config)
-    expect(kit.stats.solid).toBe(true)
-    expect(kit.stats.volume).toBeGreaterThan(plain.stats.volume)
-    expect(bounds(kit.mesh).size[0]).toBeGreaterThan(bounds(plain.mesh).size[0] * 2)
   })
 })
 

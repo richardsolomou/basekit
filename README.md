@@ -34,13 +34,11 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
-## Gridfinity upper floors 🪜
+## Adjustable Gridfinity transport rack 🪜
 
-Add a removable upper floor to a holder when it has enough unused material for post sockets. The upper grid has its own configurable rows and columns, independent of the miniature layout below. Lower sockets snap to its standard underside lattice, while its top accepts ordinary Gridfinity holders in any compatible arrangement.
+Generate an open transport rack with two ladder frames, interchangeable receiving shelves, and a removable front retainer. Every shelf accepts ordinary Gridfinity modules and slides into repeated positions at 7 or 14mm pitch, so one printed rack can be rearranged for different miniature heights before each trip.
 
-Upper-floor packing reserves one post in every quadrant of the upper grid so the supports surround that floor's load area. When miniature capacity and a stable support footprint conflict, BaseKit reports the unsupported miniatures as overflow rather than generating an edge-supported or excessively cantilevered floor.
-
-Upper-floor packing reserves one post in every quadrant so the supports surround the load. When miniature capacity and a stable support footprint conflict, BaseKit reports the unsupported miniatures as overflow rather than generating an edge-supported floor.
+The rack never changes miniature holders or their packing. Shelves insert from the open front, stop against the rear uprights, and remain captured during transport by a reusable front frame.
 
 ## Designed for one job 🎯
 
