@@ -321,6 +321,14 @@ test('builds a universal magnetic tray without miniature slots', { tag: '@ci' },
   await expect(page.getByLabel('Maximum piece rows')).toHaveValue('3')
   await expect(page.getByText(/Exports 6 Gridfinity-aligned pieces/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Download STLs' })).toBeVisible()
+
+  await page.getByLabel('Magnet pitch in mm').fill('14')
+  await page.getByLabel('Magnet pitch in mm').blur()
+  await expect(footer(page)).toContainText('universal-tray-7x5-14mm-grid')
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await settled(page)
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Tray-compatible')
+  await expect(page.getByLabel('Tray grid pitch in mm')).toHaveValue('14')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {

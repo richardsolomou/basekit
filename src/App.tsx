@@ -70,6 +70,7 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 
 const MAGNET_LAYOUTS: { value: MagnetLayout; label: string }[] = [
   { value: 'balanced', label: 'Balanced' },
+  { value: 'lattice', label: 'Tray-compatible' },
   { value: 'five-cross', label: 'Five-pocket cross' },
 ]
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
@@ -87,10 +88,6 @@ const ENGRAVING_PLACEMENTS = [
 const HOLDER_MODES = [
   { value: 'fitted' as const, label: 'Fitted slots' },
   { value: 'universal' as const, label: 'Universal grid' },
-]
-const UNIVERSAL_GRID_LAYOUTS = [
-  { value: 'staggered' as const, label: 'Staggered' },
-  { value: 'square' as const, label: 'Square' },
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
@@ -235,12 +232,13 @@ export function App() {
     { value: AUTOMATIC_MAGNET_COUNT, label: `Auto · ${config.magnets.count}` },
     ...counts(MAGNET_CHOICES),
   ]
-  const magnetLayoutOptions =
-    config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width) ? MAGNET_LAYOUTS : MAGNET_LAYOUTS.slice(0, 1)
+  const magnetLayoutOptions = MAGNET_LAYOUTS.filter(
+    ({ value }) => value !== 'five-cross' || config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width),
+  )
   const holderSupportsFiveCross =
     holder.magnets.patternVersion === 1 || holder.groups.some((group) => supportsFivePocketCross(group.shape, group.width))
-  const holderMagnetLayout = holderSupportsFiveCross ? holder.magnets.layout : 'balanced'
-  const holderMagnetLayoutOptions = holderSupportsFiveCross ? MAGNET_LAYOUTS : MAGNET_LAYOUTS.slice(0, 1)
+  const holderMagnetLayout = holderSupportsFiveCross || holder.magnets.layout !== 'five-cross' ? holder.magnets.layout : 'balanced'
+  const holderMagnetLayoutOptions = MAGNET_LAYOUTS.filter(({ value }) => value !== 'five-cross' || holderSupportsFiveCross)
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
@@ -250,7 +248,7 @@ export function App() {
   }
 
   const setSharedMagnets = (
-    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
+    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'latticePitch' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
   ) => {
     setWorkspace((current) => ({
       ...current,
@@ -393,6 +391,17 @@ export function App() {
             options={magnetLayoutOptions}
             onChange={(layout) => setSharedMagnets({ layout })}
           />
+          {config.magnets.layout === 'lattice' && (
+            <Dimension
+              label="Tray grid pitch"
+              value={config.magnets.latticePitch}
+              min={Math.ceil(config.magnets.diameter + config.magnets.clearance + 1)}
+              max={30}
+              step={1}
+              defaultValue={BASE_DEFAULTS.magnets.latticePitch}
+              onChange={(latticePitch) => setSharedMagnets({ latticePitch })}
+            />
+          )}
           {config.magnets.layout !== 'five-cross' && (
             <Choice
               label="Magnets per base"
@@ -405,7 +414,9 @@ export function App() {
           <FieldDescription>
             {config.magnets.layout === 'five-cross'
               ? 'The cross always provides one centre and four outer pockets.'
-              : 'Automatic balances the footprint using the selected magnet dimensions.'}
+              : config.magnets.layout === 'lattice'
+                ? 'Every pocket lands on the same staggered lattice as a universal tray.'
+                : 'Automatic balances the footprint using the selected magnet dimensions.'}
           </FieldDescription>
         </Section>
 
@@ -627,7 +638,12 @@ export function App() {
             options={HOLDER_MODES}
             onChange={(mode) => {
               posthog.capture('holder_mode_changed', { mode })
-              setHolder({ ...holder, mode })
+              setWorkspace((current) => ({
+                ...current,
+                holder: { ...current.holder, mode },
+                shared:
+                  mode === 'universal' ? { ...current.shared, magnets: { ...current.shared.magnets, layout: 'lattice' } } : current.shared,
+              }))
             }}
           />
           <FieldDescription>
@@ -936,13 +952,7 @@ export function App() {
             title="Universal deck"
             aside={<span className="readout text-xs text-muted-foreground">{universalPocketCount} pockets</span>}
           >
-            <Choice
-              label="Grid layout"
-              value={holder.universal.layout}
-              defaultValue={HOLDER_DEFAULTS.universal.layout}
-              options={UNIVERSAL_GRID_LAYOUTS}
-              onChange={(layout) => setHolder({ ...holder, universal: { ...holder.universal, layout } })}
-            />
+            <FieldDescription>The staggered grid is the canonical lattice used by tray-compatible bases.</FieldDescription>
             <Dimension
               label="Magnet pitch"
               value={holder.universal.pitch}
@@ -950,7 +960,7 @@ export function App() {
               max={40}
               step={1}
               defaultValue={HOLDER_DEFAULTS.universal.pitch}
-              onChange={(pitch) => setHolder({ ...holder, universal: { ...holder.universal, pitch } })}
+              onChange={(latticePitch) => setSharedMagnets({ latticePitch })}
             />
             <Dimension
               label="Retaining rim height"

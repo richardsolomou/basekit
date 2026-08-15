@@ -31,6 +31,7 @@ describe('workspace state', () => {
       layout: 'five-cross',
       patternVersion: 2,
       maxCount: 8,
+      latticePitch: 15,
       diameter: 6,
       thickness: 1.5,
       clearance: 0.3,
@@ -56,6 +57,22 @@ describe('workspace state', () => {
       holderWall: synchronized.holder.baseWallThickness,
       holderBoss: synchronized.holder.magnetBossWall,
     }).toEqual({ baseWall: 2.5, baseBoss: 1.1, holderWall: 2.5, holderBoss: 1.1 })
+  })
+
+  it('shares one canonical lattice pitch between tray-compatible bases and universal trays', () => {
+    const state = defaultWorkspace()
+    state.holder.mode = 'universal'
+    state.shared.magnets.layout = 'lattice'
+    state.shared.magnets.latticePitch = 12
+
+    const synchronized = synchronizeWorkspace(state)
+    expect({
+      baseLayout: synchronized.base.magnets.layout,
+      basePitch: synchronized.base.magnets.latticePitch,
+      holderLayout: synchronized.holder.magnets.layout,
+      trayPitch: synchronized.holder.universal.pitch,
+      trayGrid: synchronized.holder.universal.layout,
+    }).toEqual({ baseLayout: 'lattice', basePitch: 12, holderLayout: 'lattice', trayPitch: 12, trayGrid: 'staggered' })
   })
 
   it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
@@ -206,6 +223,7 @@ describe('workspace state', () => {
       layout: 'five-cross',
       patternVersion: 1,
       maxCount: 8,
+      latticePitch: 15,
       diameter: 6,
       thickness: 2,
       clearance: 0.3,

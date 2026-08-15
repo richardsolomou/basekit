@@ -70,6 +70,7 @@ const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
     layout: 'balanced',
     patternVersion: 2,
     maxCount: 8,
+    latticePitch: 15,
     diameter: 5,
     clearance: 0.2,
     depthClearance: 0.1,
@@ -160,11 +161,14 @@ export function holderSlotMagnetCenters(
   const halfLength = Math.max(0, slotLength(slot) / 2 - settings.baseWallThickness)
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
-    layout: fiveCross ? 'five-cross' : 'balanced',
+    layout: fiveCross ? 'five-cross' : settings.magnets.layout === 'lattice' ? 'lattice' : 'balanced',
+    latticePitch: settings.magnets.latticePitch,
   }).map(({ x, y }) => ({ x, y }))
 }
 
 export function holderMagnetPocketCount(config: HolderConfig): number {
+  if (config.mode === 'universal')
+    return holderPlan(config).modules.reduce((total, module) => total + universalMagnetCenters(module.config).length, 0)
   return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot, config).length, 0)
 }
 
@@ -536,6 +540,10 @@ export function holderPlan(config: HolderConfig): HolderPlan {
                 front: row === 0,
                 back: row + moduleRows === unitsDeep,
               },
+              latticeOffset: {
+                x: (column + moduleColumns / 2 - unitsWide / 2) * GRID,
+                y: (row + moduleRows / 2 - unitsDeep / 2) * GRID,
+              },
             },
           },
           layout,
@@ -697,6 +705,7 @@ export function defaultHolderConfig(): HolderConfig {
       maxPieceColumns: 3,
       maxPieceRows: 3,
       rimEdges: { left: true, right: true, front: true, back: true },
+      latticeOffset: { x: 0, y: 0 },
     },
     ...DEFAULT_MAGNET_SETTINGS,
     magnets: { ...DEFAULT_MAGNET_SETTINGS.magnets },
@@ -724,21 +733,22 @@ export function universalMagnetCenters(config: HolderConfig): { x: number; y: nu
   const right = edgeMargin(config.universal.rimEdges.right)
   const front = edgeMargin(config.universal.rimEdges.front)
   const back = edgeMargin(config.universal.rimEdges.back)
-  const usableWidth = layout.width - left - right
-  const usableLength = layout.length - front - back
-  if (usableWidth < 0 || usableLength < 0) return []
-  const pitchX = config.universal.pitch
-  const pitchY = config.universal.layout === 'staggered' ? (pitchX * Math.sqrt(3)) / 2 : pitchX
-  const columns = Math.floor(usableWidth / pitchX) + 1
-  const rows = Math.floor(usableLength / pitchY) + 1
+  const minX = config.universal.latticeOffset.x - layout.width / 2 + left
+  const maxX = config.universal.latticeOffset.x + layout.width / 2 - right
+  const minY = config.universal.latticeOffset.y - layout.length / 2 + front
+  const maxY = config.universal.latticeOffset.y + layout.length / 2 - back
+  if (minX > maxX || minY > maxY) return []
+  const pitch = config.universal.pitch
+  const pitchY = config.universal.layout === 'staggered' ? (pitch * Math.sqrt(3)) / 2 : pitch
   const centers: { x: number; y: number }[] = []
-  for (let row = 0; row < rows; row++) {
-    const offset = config.universal.layout === 'staggered' && row % 2 === 1 ? pitchX / 2 : 0
-    const rowColumns = columns - (offset > 0 ? 1 : 0)
-    for (let column = 0; column < rowColumns; column++) {
+  for (let row = Math.ceil(minY / pitchY); row <= Math.floor(maxY / pitchY); row++) {
+    const offset = config.universal.layout === 'staggered' ? row * pitch * 0.5 : 0
+    const firstColumn = Math.ceil((minX - offset) / pitch)
+    const lastColumn = Math.floor((maxX - offset) / pitch)
+    for (let column = firstColumn; column <= lastColumn; column++) {
       centers.push({
-        x: (left - right) / 2 + (column - (rowColumns - 1) / 2) * pitchX,
-        y: (front - back) / 2 + (row - (rows - 1) / 2) * pitchY,
+        x: column * pitch + offset - config.universal.latticeOffset.x,
+        y: row * pitchY - config.universal.latticeOffset.y,
       })
     }
   }

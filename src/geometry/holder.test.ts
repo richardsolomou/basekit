@@ -311,6 +311,18 @@ describe('holderPlan', () => {
     expect(plan.modules[0].config.universal.rimEdges).toEqual({ left: true, right: false, front: true, back: false })
     expect(plan.modules[4].config.universal.rimEdges).toEqual({ left: false, right: false, front: false, back: true })
     expect(plan.modules[5].config.universal.rimEdges).toEqual({ left: false, right: true, front: false, back: true })
+    const pitch = config.universal.pitch
+    const rowPitch = (pitch * Math.sqrt(3)) / 2
+    for (const module of plan.modules) {
+      for (const point of universalMagnetCenters(module.config)) {
+        const globalX = point.x + module.config.universal.latticeOffset.x
+        const globalY = point.y + module.config.universal.latticeOffset.y
+        const latticeRow = globalY / rowPitch
+        const latticeColumn = globalX / pitch - latticeRow / 2
+        expect(latticeRow).toBeCloseTo(Math.round(latticeRow), 6)
+        expect(latticeColumn).toBeCloseTo(Math.round(latticeColumn), 6)
+      }
+    }
   })
 
   it('does not split a universal tray until piece splitting is enabled', () => {
@@ -327,7 +339,7 @@ describe('buildHolder', () => {
     const centers = universalMagnetCenters(config)
     const result = buildHolder(wasm, config)
 
-    expect(centers).toHaveLength(27)
+    expect(centers).toHaveLength(23)
     expect(result.stats.solid).toBe(true)
     expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
     expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })

@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add universal magnetic trays for mixing miniature base sizes on one continuous Gridfinity deck.
+Add universal magnetic trays and tray-compatible base pockets for mixing miniature sizes on one continuous Gridfinity deck.
