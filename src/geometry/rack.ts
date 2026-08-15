@@ -20,9 +20,12 @@ const RAIL_WIDTH = 20
 const RAIL_HEIGHT = 34
 const RAIL_WALL = 2.4
 const RAIL_KEY_LENGTH = 24
-const KEY_LENGTH = 24
 const KEY_WIDTH = 8
 const KEY_THICKNESS = 3
+const PUZZLE_HEIGHT = 1.1
+const PUZZLE_NECK = 3.2
+const PUZZLE_REACH = 4
+const PUZZLE_HEAD_RADIUS = 3.2
 const PART_GAP = 8
 const PLA_DENSITY = 1.24e-3
 const CELL_OPENING = 33.5
@@ -83,6 +86,12 @@ export function rackTiles(config: RackConfig): TileSpec[] {
     rowStart += rows
   }
   return tiles
+}
+
+export function rackPuzzleJointCount(config: RackConfig): number {
+  const columnGroups = chunks(Math.max(1, Math.round(config.columns)), Math.max(1, Math.round(config.tileColumns))).length
+  const rowGroups = chunks(Math.max(1, Math.round(config.rows)), Math.max(1, Math.round(config.tileRows))).length
+  return ((columnGroups - 1) * rowGroups + (rowGroups - 1) * columnGroups) * Math.max(1, Math.round(config.shelfCount))
 }
 
 export function rackShelfDimensions(config: RackConfig) {
@@ -187,7 +196,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       const width = tile.columns * GRID
       const depth = tile.rows * GRID
       const outline = rounded(width, depth, Math.min(CORNER_RADIUS, width / 2 - 0.01, depth / 2 - 0.01))
-      const deck = solid(outline.extrude(config.shelfThickness))
+      let deck = solid(outline.extrude(config.shelfThickness))
       const receiverCutters: Manifold[] = []
       const latticeOpenings: Manifold[] = []
       const pointsAt = (shape: CrossSection, z: number): [number, number, number][] =>
@@ -218,15 +227,33 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           latticeOpenings.push(solid(openingCut.translate([x, y, -0.01])))
         }
       }
-      const keyDepth = KEY_THICKNESS + config.fitClearance
-      const halfKey = KEY_LENGTH / 2 + config.fitClearance
-      const keyways = [
-        cube([KEY_WIDTH + config.fitClearance, halfKey, keyDepth], [0, -depth / 2 + halfKey / 2, keyDepth / 2 - 0.005]),
-        cube([KEY_WIDTH + config.fitClearance, halfKey, keyDepth], [0, depth / 2 - halfKey / 2, keyDepth / 2 - 0.005]),
-        cube([halfKey, KEY_WIDTH + config.fitClearance, keyDepth], [-width / 2 + halfKey / 2, 0, keyDepth / 2 - 0.005]),
-        cube([halfKey, KEY_WIDTH + config.fitClearance, keyDepth], [width / 2 - halfKey / 2, 0, keyDepth / 2 - 0.005]),
-      ]
-      return solid(Manifold.difference([deck, ...receiverCutters, ...latticeOpenings, ...keyways]))
+      const puzzle = (side: 'east' | 'west' | 'north' | 'south', female: boolean) => {
+        const clearance = female ? config.fitClearance : 0
+        const radius = PUZZLE_HEAD_RADIUS + clearance
+        const neck = PUZZLE_NECK + clearance * 2
+        const height = PUZZLE_HEIGHT + (female ? 0.02 : 0)
+        const horizontal = side === 'east' || side === 'west'
+        const sign = side === 'east' || side === 'north' ? 1 : -1
+        const edge = horizontal ? width / 2 : depth / 2
+        const center = sign * (edge + (female ? -PUZZLE_REACH : PUZZLE_REACH))
+        const bridgeCenter = sign * (edge + (female ? -PUZZLE_REACH / 2 : PUZZLE_REACH / 2))
+        const bridge = horizontal
+          ? cube([PUZZLE_REACH + 0.8, neck, height], [bridgeCenter, 0, height / 2 - (female ? 0.01 : 0)])
+          : cube([neck, PUZZLE_REACH + 0.8, height], [0, bridgeCenter, height / 2 - (female ? 0.01 : 0)])
+        const headBase = solid(Manifold.cylinder(height, radius, radius, 32, true))
+        const head = solid(
+          headBase.translate(horizontal ? [center, 0, height / 2 - (female ? 0.01 : 0)] : [0, center, height / 2 - (female ? 0.01 : 0)]),
+        )
+        return solid(Manifold.union(bridge, head))
+      }
+      const additions: Manifold[] = []
+      const cutters: Manifold[] = [...receiverCutters, ...latticeOpenings]
+      if (tile.column + tile.columns < columns) additions.push(puzzle('east', false))
+      if (tile.row + tile.rows < rows) additions.push(puzzle('north', false))
+      if (tile.column > 0) cutters.push(puzzle('west', true))
+      if (tile.row > 0) cutters.push(puzzle('south', true))
+      if (additions.length > 0) deck = solid(Manifold.union([deck, ...additions]))
+      return solid(Manifold.difference([deck, ...cutters]))
     }
 
     const uprightPrint = () => {
@@ -284,7 +311,6 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
       })
     }
 
-    const key = () => cube([KEY_LENGTH, KEY_WIDTH, KEY_THICKNESS])
     const lockPin = () => {
       const length = POST_SIZE + 4
       return solid(
@@ -360,16 +386,7 @@ export function buildRack(wasm: ManifoldToplevel, config: RackConfig): RackBuild
           looseY += RAIL_WIDTH + PART_GAP / 2
         }
       }
-      const tileColumnGroups = Math.ceil(columns / Math.max(1, Math.round(config.tileColumns)))
-      const tileRowGroups = Math.ceil(rows / Math.max(1, Math.round(config.tileRows)))
-      const tileJoins = (tileColumnGroups - 1) * tileRowGroups + (tileRowGroups - 1) * tileColumnGroups
-      const tileKeyCount = tileJoins * shelfCount
       const railKeyCount = Math.max(0, railSegments.length - 1) * rackBeamPositions(config).length * shelfCount
-      for (let index = 0; index < tileKeyCount; index++)
-        parts.push(
-          solid(key().translate([(index % 16) * (KEY_LENGTH + 3), looseY + Math.floor(index / 16) * (KEY_WIDTH + 3), KEY_THICKNESS / 2])),
-        )
-      looseY += Math.ceil(tileKeyCount / 16) * (KEY_WIDTH + 3) + PART_GAP
       for (let index = 0; index < railKeyCount; index++)
         parts.push(
           solid(

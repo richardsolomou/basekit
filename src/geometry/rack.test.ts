@@ -7,6 +7,7 @@ import {
   rackHardware,
   rackName,
   rackBeamPositions,
+  rackPuzzleJointCount,
   rackReceiverProfile,
   rackShelfDimensions,
   rackShelfLevels,
@@ -47,6 +48,7 @@ describe('transport rack', () => {
     expect(tiles).toHaveLength(12)
     expect(tiles.every((tile) => tile.columns <= 2 && tile.rows <= 2)).toBe(true)
     expect(tiles.reduce((area, tile) => area + tile.columns * tile.rows, 0)).toBe(35)
+    expect(rackPuzzleJointCount(defaultRackConfig())).toBe(34)
   })
 
   it('requires no purchased hardware', () => {
