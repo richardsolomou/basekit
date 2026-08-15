@@ -119,7 +119,9 @@ export interface RackConfig {
   shelfThickness: number
   tileColumns: number
   tileRows: number
+  gridfinityClearance: number
   fitClearance: number
+  designLoadKg: number
   handle: boolean
   view: 'assembled' | 'print'
   segments: number

@@ -6,8 +6,11 @@ import {
   rackDimensions,
   rackHardware,
   rackName,
+  rackBeamPositions,
+  rackReceiverProfile,
   rackShelfDimensions,
   rackShelfLevels,
+  rackStructuralAnalysis,
   rackTiles,
 } from './rack'
 
@@ -36,7 +39,7 @@ describe('transport rack', () => {
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
     expect(rackDimensions(config).height).toBe(234)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(10)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(6)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -49,7 +52,16 @@ describe('transport rack', () => {
   it('uses continuous threaded rods for every example trip height', () => {
     const config = defaultRackConfig()
     expect([42, 56, 84, 126, 140, 168].every((height) => height < rackHardware(config).m6RodLength)).toBe(true)
-    expect(rackHardware(config)).toMatchObject({ m6Rods: 4, m6RodLength: 196, m6Nuts: 40, m4Bolts: 2, m3Bolts: 76 })
+    expect(rackHardware(config)).toMatchObject({
+      m6Rods: 4,
+      m6RodLength: 196,
+      m6Nuts: 40,
+      m6Washers: 40,
+      m4Bolts: 22,
+      m4Nuts: 22,
+      widthRails: { count: 14, length: 208 },
+      depthRails: { count: 10, length: 208 },
+    })
   })
 
   it('provides at least three adjustable shelves', () => {
@@ -60,9 +72,34 @@ describe('transport rack', () => {
 
   it('presents exact Gridfinity dimensions for ordinary 1x2 holders', () => {
     const dimensions = rackShelfDimensions({ ...defaultRackConfig(), columns: 2, rows: 2 })
-    expect(dimensions).toEqual({ width: 83.5, length: 83.5 })
+    expect(dimensions).toEqual({ width: 84, length: 84 })
     expect(dimensions.width).toBeGreaterThanOrEqual(41.5)
     expect(dimensions.length).toBeGreaterThanOrEqual(83.5)
+  })
+
+  it('uses the canonical holder foot as its receiving profile', () => {
+    const config = defaultRackConfig()
+    expect(rackReceiverProfile(config)).toEqual([
+      { depth: 0, size: 41.65 },
+      { depth: 2.15, size: 37.35 },
+      { depth: 3.95, size: 37.35 },
+      { depth: 4.75, size: 35.75 },
+    ])
+    expect(config.shelfThickness - 4.75).toBeGreaterThanOrEqual(0.8)
+  })
+
+  it('supports every modular tile boundary with a metal crossrail', () => {
+    expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-105, -21, 63, 105])
+  })
+
+  it('screens the maximum rack at transport shock load', () => {
+    const maximum = { ...defaultRackConfig(), columns: 7, rows: 5, designLoadKg: 3 }
+    expect(rackStructuralAnalysis(maximum)).toMatchObject({ passes: true })
+    expect(rackStructuralAnalysis(maximum).safetyFactor).toBeGreaterThanOrEqual(2)
+    expect(rackStructuralAnalysis(maximum).deflection).toBeLessThanOrEqual(1)
+    const excessive = { ...maximum, designLoadKg: 20 }
+    expect(rackStructuralAnalysis(excessive).passes).toBe(false)
+    expect(() => buildRack(wasm, excessive)).toThrow(/design limit/)
   })
 
   it('uses a descriptive transport-rack filename', () => {

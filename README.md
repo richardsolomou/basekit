@@ -36,11 +36,11 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 ## Adjustable Gridfinity transport rack 🪜
 
-Generate a standalone open transport rack using four M6 threaded rods between lightweight bottom and top perimeter frames. Printed corner blocks are clamped between ordinary nuts and washers, so every shelf moves continuously without reprinting and its load transfers through steel. Printer-sized open Gridfinity lattice tiles lock together on split crossbeams, so a 7×5 level never requires a 7×5 build plate.
+Generate a standalone open transport rack from four M6 threaded rods and 20×20×2mm aluminium angle. Nuts and washers clamp each shelf rail at any height, so every shelf moves continuously without reprinting. Printer-sized open Gridfinity lattice tiles sit on a metal crossrail at every tile-row boundary, so a 7×5 level never requires a 7×5 build plate. Printed keys align adjacent tiles; they do not carry shelf bending loads.
 
-The rack never changes miniature holders or their packing. Each empty lattice presents ordinary Gridfinity locating pockets directly to the holders, while reusable underside keys keep neighboring tiles together. An optional M4-bolted handle carries the rack from its center. The Rack view switches between the finished assembly and the support-free export layout.
+The rack never changes miniature holders or their packing. Each empty lattice uses the same 42mm pitch and 4.75mm tapered foot profile as BaseKit holders, with a small selectable fit clearance. An optional purchased handle bolts through a center metal rail. The Rack view switches between the finished assembly, including hardware, and the support-free printed lattice layout.
 
-The Rack panel lists the required commodity hardware for the chosen size: four M6 rods cut to rack height, M6 nuts and washers around every shelf and frame corner, optional M4 handle bolts, and M3 fasteners for split beam joints. Hardware carries the structural load; printed parts locate and brace it.
+The Rack panel lists rod, nut, washer, aluminium-angle cut, and M4 fastener quantities. Its load check conservatively screens one aluminium crossrail for the configured shelf mass under a 3g transport acceleration, with a minimum analytical safety factor of 2 and 1mm deflection limit. This is a design check, not a certified rating: aluminium grade, printed material, fastener torque, assembly, and carrying shocks vary. Proof-load the finished rack safely before trusting it with miniatures, and use an external strap if cargo must remain seated during vertical shocks.
 
 ## Designed for one job 🎯
 

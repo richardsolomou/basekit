@@ -35,7 +35,7 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import { defaultRackConfig, rackDimensions, rackHardware, rackName } from '@/geometry/rack'
+import { defaultRackConfig, rackDimensions, rackHardware, rackName, rackStructuralAnalysis } from '@/geometry/rack'
 import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, RackConfig, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
@@ -1035,11 +1035,20 @@ export function App() {
           <Dimension
             label="Shelf thickness"
             value={rack.shelfThickness}
-            min={5}
+            min={5.75}
             max={10}
             step={0.5}
             defaultValue={RACK_DEFAULTS.shelfThickness}
             onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
+          />
+          <Dimension
+            label="Gridfinity fit clearance"
+            value={rack.gridfinityClearance}
+            min={0.05}
+            max={0.25}
+            step={0.05}
+            defaultValue={RACK_DEFAULTS.gridfinityClearance}
+            onChange={(gridfinityClearance) => setRack({ ...rack, gridfinityClearance })}
           />
           <Dimension
             label="Connector fit clearance"
@@ -1049,6 +1058,16 @@ export function App() {
             step={0.05}
             defaultValue={RACK_DEFAULTS.fitClearance}
             onChange={(fitClearance) => setRack({ ...rack, fitClearance })}
+          />
+          <Dimension
+            label="Design load per shelf"
+            value={rack.designLoadKg}
+            min={0.5}
+            max={3}
+            step={0.25}
+            unit="kg"
+            defaultValue={RACK_DEFAULTS.designLoadKg}
+            onChange={(designLoadKg) => setRack({ ...rack, designLoadKg })}
           />
           <ToggleSetting
             label="Centered carry handle"
@@ -1071,12 +1090,30 @@ export function App() {
               <span className="readout">{rackHardware(rack).m6Nuts} each</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Handle bolts</span>
+              <span className="text-muted-foreground">Aluminum angle</span>
+              <span className="readout">{rackHardware(rack).angleSize}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Width rails</span>
+              <span className="readout">
+                {rackHardware(rack).widthRails.count}× {rackHardware(rack).widthRails.length}mm
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Depth rails</span>
+              <span className="readout">
+                {rackHardware(rack).depthRails.count}× {rackHardware(rack).depthRails.length}mm
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Rail bolts</span>
               <span className="readout">{rackHardware(rack).m4Bolts}× M4 + nuts</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Beam bolts</span>
-              <span className="readout">{rackHardware(rack).m3Bolts}× M3 + nuts</span>
+              <span className="text-muted-foreground">3g beam check</span>
+              <span className="readout">
+                SF {rackStructuralAnalysis(rack).safetyFactor.toFixed(1)} · {rackStructuralAnalysis(rack).deflection.toFixed(2)}mm
+              </span>
             </div>
           </div>
         </Section>

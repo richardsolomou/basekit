@@ -5,7 +5,7 @@ import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCount
 import type { BaseConfig, HolderConfig, RackConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 9
+const WORKSPACE_VERSION = 10
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -123,7 +123,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
         : parsed.version === 2
           ? migrateWorkspaceV2(parsed.workspace)
           : parsed.workspace
-    if ([1, 2, 3, 4, 5, 6, 7, 8].includes(parsed.version as number) && typeof workspace === 'object' && workspace !== null) {
+    if ([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(parsed.version as number) && typeof workspace === 'object' && workspace !== null) {
       const previous = workspace as Record<string, unknown>
       const holder = previous.holder as Record<string, unknown>
       const oldRack = previous.rack as Record<string, unknown> | undefined
@@ -141,7 +141,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
         rack: migratedRack,
       }
     }
-    if (![1, 2, 3, 4, 5, 6, 7, 8, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside

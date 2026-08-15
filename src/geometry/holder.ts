@@ -2,22 +2,19 @@ import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manif
 import type { Font } from 'opentype.js'
 import { magnetPositions, supportsFivePocketCross } from './base'
 import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
+import {
+  GRIDFINITY_CORNER_RADIUS as CORNER_RADIUS,
+  GRIDFINITY_FOOT_CLEARANCE as GAP,
+  GRIDFINITY_FOOT_PROFILE as PROFILE,
+  GRIDFINITY_HEIGHT_UNIT as BASE_HEIGHT,
+  GRIDFINITY_PITCH as GRID,
+} from './gridfinity'
 import { isElongated, trimNumber } from './outline'
 import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
 
-const GRID = 42
-const GAP = 0.5
-const BASE_HEIGHT = 7
-const PROFILE = [
-  { inset: 2.95, z: 0 },
-  { inset: 2.15, z: 0.8 },
-  { inset: 2.15, z: 2.6 },
-  { inset: 0, z: 4.75 },
-] as const
-const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
