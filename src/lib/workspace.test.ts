@@ -44,6 +44,14 @@ describe('workspace state', () => {
     expect(loaded.rack).not.toHaveProperty('baseplateThickness')
   })
 
+  it('migrates thin experimental rack floors to the structural minimum', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.rack.shelfThickness = 6
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 11, workspace: legacy }))
+    expect(loadWorkspace(storage).rack.shelfThickness).toBe(15)
+  })
+
   it('keeps every setting exposed by both generators synchronized', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 60, length: 60 }

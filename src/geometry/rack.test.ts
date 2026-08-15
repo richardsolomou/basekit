@@ -3,6 +3,7 @@ import { loadManifold } from './manifold'
 import {
   buildRack,
   defaultRackConfig,
+  rackConnectionDimensions,
   rackDimensions,
   rackHardware,
   rackName,
@@ -26,7 +27,7 @@ describe('transport rack', () => {
     const config = { ...defaultRackConfig(), view: 'print' as const }
     const result = buildRack(wasm, config)
     expect(result.stats.solid).toBe(true)
-    expect(result.stats.volume).toBeLessThan(700_000)
+    expect(result.stats.volume).toBeLessThan(1_200_000)
     const rack = new wasm.Manifold(result.mesh)
     const parts = rack.decompose()
     expect(parts.length).toBeGreaterThan(2 + config.shelfCount)
@@ -40,7 +41,7 @@ describe('transport rack', () => {
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
     expect(rackDimensions(config).height).toBe(126)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(34)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(40)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -48,7 +49,7 @@ describe('transport rack', () => {
     expect(tiles).toHaveLength(12)
     expect(tiles.every((tile) => tile.columns <= 2 && tile.rows <= 2)).toBe(true)
     expect(tiles.reduce((area, tile) => area + tile.columns * tile.rows, 0)).toBe(35)
-    expect(rackPuzzleJointCount(defaultRackConfig())).toBe(34)
+    expect(rackPuzzleJointCount(defaultRackConfig())).toBe(58)
   })
 
   it('requires no purchased hardware', () => {
@@ -57,13 +58,15 @@ describe('transport rack', () => {
       printedUprights: 4,
       printedAnchors: 4,
       printedShelfRails: 4,
+      printedShelfCollars: 8,
+      printedSpliceSleeves: 12,
       printedLockPins: 8,
       purchasedParts: 0,
     })
   })
 
   it('provides at least three adjustable shelves', () => {
-    const config = { ...defaultRackConfig(), height: 70, shelfCount: 3 }
+    const config = { ...defaultRackConfig(), height: 84, shelfCount: 3 }
     expect(rackShelfLevels(config).length).toBeGreaterThanOrEqual(3)
     expect(() => buildRack(wasm, config)).not.toThrow()
   })
@@ -87,15 +90,26 @@ describe('transport rack', () => {
   })
 
   it('keeps structural rails outside the usable floor', () => {
-    expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-115, 115])
+    expect(rackBeamPositions({ ...defaultRackConfig(), columns: 7, rows: 5, tileRows: 2 })).toEqual([-119, 119])
   })
 
   it('keeps deep supports out of every Gridfinity cell', () => {
     const config = defaultRackConfig()
     const result = buildRack(wasm, config)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(34)
-    expect(config.shelfThickness).toBe(6)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(40)
+    expect(config.shelfThickness).toBe(15)
     expect(result.stats.solid).toBe(true)
+  })
+
+  it('captures floors and rail joints with positive engagement', () => {
+    const dimensions = rackConnectionDimensions(defaultRackConfig())
+    expect(dimensions.puzzleHeight).toBeLessThan(dimensions.materialBelowSocket)
+    expect(dimensions.puzzleRoof).toBeGreaterThanOrEqual(5)
+    expect(dimensions.tongueEngagement).toBeGreaterThanOrEqual(4)
+    expect(dimensions.collarRailInsert).toBeGreaterThanOrEqual(5)
+    expect(dimensions.collarBearing).toBeGreaterThanOrEqual(3)
+    expect(dimensions.spliceOverlap).toBeGreaterThanOrEqual(18)
+    expect(dimensions.pinClearance).toBeCloseTo(0.5)
   })
 
   it('screens the maximum rack at transport shock load', () => {
@@ -103,6 +117,11 @@ describe('transport rack', () => {
     expect(rackStructuralAnalysis(maximum)).toMatchObject({ passes: true })
     expect(rackStructuralAnalysis(maximum).safetyFactor).toBeGreaterThanOrEqual(2)
     expect(rackStructuralAnalysis(maximum).deflection).toBeLessThanOrEqual(1)
+    expect(rackStructuralAnalysis(maximum).railDeflection).toBeLessThanOrEqual(1)
+    expect(rackStructuralAnalysis(maximum).floorDeflection).toBeLessThanOrEqual(1)
+    expect(rackStructuralAnalysis(maximum).pinStress).toBeLessThan(2)
+    expect(rackStructuralAnalysis(maximum).puzzleStress).toBeLessThan(1)
+    expect(rackStructuralAnalysis(maximum).collarBearingStress).toBeLessThan(0.3)
     const excessive = { ...maximum, designLoadKg: 20 }
     expect(rackStructuralAnalysis(excessive).passes).toBe(false)
     expect(() => buildRack(wasm, excessive)).toThrow(/design screen/)

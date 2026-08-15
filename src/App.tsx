@@ -997,7 +997,7 @@ export function App() {
           <Dimension
             label="Usable box height"
             value={rack.height}
-            min={70}
+            min={84}
             max={210}
             step={7}
             defaultValue={RACK_DEFAULTS.height}
@@ -1045,9 +1045,9 @@ export function App() {
           <Dimension
             label="Shelf thickness"
             value={rack.shelfThickness}
-            min={5.75}
-            max={10}
-            step={0.5}
+            min={15}
+            max={21}
+            step={1}
             defaultValue={RACK_DEFAULTS.shelfThickness}
             onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
           />
@@ -1080,8 +1080,8 @@ export function App() {
             onChange={(designLoadKg) => setRack({ ...rack, designLoadKg })}
           />
           <FieldDescription>
-            Four corner shoes sit beneath the existing Gridfinity insert. The hollow height rails and reusable pins support extra floors
-            without replacing the bottom grid.
+            Four corner shoes sit beneath the existing Gridfinity insert. Captured floor rails lock into pinned collars on the hollow height
+            rails without replacing the bottom grid.
           </FieldDescription>
         </Section>
         <Section title="Printed Structure">
@@ -1097,6 +1097,14 @@ export function App() {
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Perimeter floor rails</span>
               <span className="readout">{rackHardware(rack).printedShelfRails}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Pinned shelf collars</span>
+              <span className="readout">{rackHardware(rack).printedShelfCollars}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Rail splice sleeves</span>
+              <span className="readout">{rackHardware(rack).printedSpliceSleeves}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Reusable locking pins</span>
