@@ -119,9 +119,8 @@ export interface RackConfig {
   shelfThickness: number
   tileColumns: number
   tileRows: number
-  baseplateThickness: number
   fitClearance: number
-  retainer: boolean
+  handle: boolean
   view: 'assembled' | 'print'
   segments: number
 }

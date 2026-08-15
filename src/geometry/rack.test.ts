@@ -35,8 +35,8 @@ describe('transport rack', () => {
     const config = defaultRackConfig()
     const assembled = buildRack(wasm, config)
     expect(assembled.stats.solid).toBe(true)
-    expect(rackDimensions(config).height).toBe(196)
-    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(14)
+    expect(rackDimensions(config).height).toBe(234)
+    expect(rackDimensions({ ...config, view: 'print' }).height).toBe(10)
   })
 
   it('splits a 7x5 shelf into printer-sized interconnecting tiles', () => {
@@ -49,7 +49,7 @@ describe('transport rack', () => {
   it('uses continuous threaded rods for every example trip height', () => {
     const config = defaultRackConfig()
     expect([42, 56, 84, 126, 140, 168].every((height) => height < rackHardware(config).m6RodLength)).toBe(true)
-    expect(rackHardware(config)).toMatchObject({ m6Rods: 4, m6RodLength: 196, m6Nuts: 32, m4Bolts: 4, m3Bolts: 56 })
+    expect(rackHardware(config)).toMatchObject({ m6Rods: 4, m6RodLength: 196, m6Nuts: 40, m4Bolts: 2, m3Bolts: 76 })
   })
 
   it('provides at least three adjustable shelves', () => {

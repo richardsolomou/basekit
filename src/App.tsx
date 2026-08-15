@@ -1042,15 +1042,6 @@ export function App() {
             onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
           />
           <Dimension
-            label="Existing baseplate thickness"
-            value={rack.baseplateThickness}
-            min={3}
-            max={10}
-            step={0.5}
-            defaultValue={RACK_DEFAULTS.baseplateThickness}
-            onChange={(baseplateThickness) => setRack({ ...rack, baseplateThickness })}
-          />
-          <Dimension
             label="Connector fit clearance"
             value={rack.fitClearance}
             min={0.15}
@@ -1060,13 +1051,13 @@ export function App() {
             onChange={(fitClearance) => setRack({ ...rack, fitClearance })}
           />
           <ToggleSetting
-            label="Transport retainer"
-            checked={rack.retainer}
-            defaultChecked={RACK_DEFAULTS.retainer}
-            onChange={(retainer) => setRack({ ...rack, retainer })}
+            label="Centered carry handle"
+            checked={rack.handle}
+            defaultChecked={RACK_DEFAULTS.handle}
+            onChange={(handle) => setRack({ ...rack, handle })}
           />
           <FieldDescription>
-            M6 threaded rods clamp to your existing baseplate. Nuts and washers lock split beams and keyed tiles at any shelf height.
+            M6 threaded rods connect standalone bottom and top frames. Nuts and washers lock open Gridfinity shelves at any height.
           </FieldDescription>
         </Section>
         <Section title="Hardware">
@@ -1080,8 +1071,8 @@ export function App() {
               <span className="readout">{rackHardware(rack).m6Nuts} each</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Clamp bolts</span>
-              <span className="readout">4× M4 + nuts</span>
+              <span className="text-muted-foreground">Handle bolts</span>
+              <span className="readout">{rackHardware(rack).m4Bolts}× M4 + nuts</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Beam bolts</span>

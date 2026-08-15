@@ -52,7 +52,7 @@ export function TitleBlock({ config, status, name }: Props) {
         <Row label="Each level" value={`${rackTiles(config).length} keyed tiles`} />
         <Row label="Uprights" value={`${rackHardware(config).m6Rods} × M6 threaded rod`} />
         <Row label="Adjustment" value="continuous · nut locked" />
-        <Row label="Retainer" value={config.retainer ? 'removable front frame' : 'none'} />
+        <Row label="Handle" value={config.handle ? 'centered · M4 bolted' : 'none'} />
       </TitleFrame>
     )
   }

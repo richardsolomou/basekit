@@ -31,6 +31,19 @@ describe('workspace state', () => {
     expect(loaded.rack).toEqual(defaultWorkspace().rack)
   })
 
+  it('migrates the front retainer preference to the centered handle', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.rack.handle
+    legacy.rack.retainer = false
+    legacy.rack.baseplateThickness = 5
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+    const loaded = loadWorkspace(storage)
+    expect(loaded.rack.handle).toBe(false)
+    expect(loaded.rack).not.toHaveProperty('retainer')
+    expect(loaded.rack).not.toHaveProperty('baseplateThickness')
+  })
+
   it('keeps every setting exposed by both generators synchronized', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 60, length: 60 }

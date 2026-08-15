@@ -36,11 +36,11 @@ Modules export as separate STL files in one archive or separate build plates in 
 
 ## Adjustable Gridfinity transport rack 🪜
 
-Generate an open transport rack around an existing Gridfinity baseplate using four M6 threaded rods. Printed corner blocks are clamped between ordinary nuts and washers, so every shelf moves continuously without reprinting and its load transfers through steel. Split, keyed crossbeams and a lightweight top brace keep the rack square. Printer-sized receiving tiles lock together on top, so a 7×5 level never requires a 7×5 build plate.
+Generate a standalone open transport rack using four M6 threaded rods between lightweight bottom and top perimeter frames. Printed corner blocks are clamped between ordinary nuts and washers, so every shelf moves continuously without reprinting and its load transfers through steel. Printer-sized open Gridfinity lattice tiles lock together on split crossbeams, so a 7×5 level never requires a 7×5 build plate.
 
-The rack never changes miniature holders or their packing. Tiles accept ordinary Gridfinity modules, reusable underside keys keep neighboring tiles together, and a removable open front frame retains every level during transport. The Rack view switches between the finished assembly and the support-free export layout.
+The rack never changes miniature holders or their packing. Each empty lattice presents ordinary Gridfinity locating pockets directly to the holders, while reusable underside keys keep neighboring tiles together. An optional M4-bolted handle carries the rack from its center. The Rack view switches between the finished assembly and the support-free export layout.
 
-The Rack panel lists the required commodity hardware for the chosen size: four M6 rods cut to rack height, M6 nuts and washers around every shelf corner and top block, four M4 clamp bolts, and M3 fasteners for split beam joints. Hardware carries the structural load; printed parts locate and brace it.
+The Rack panel lists the required commodity hardware for the chosen size: four M6 rods cut to rack height, M6 nuts and washers around every shelf and frame corner, optional M4 handle bolts, and M3 fasteners for split beam joints. Hardware carries the structural load; printed parts locate and brace it.
 
 ## Designed for one job 🎯
 
