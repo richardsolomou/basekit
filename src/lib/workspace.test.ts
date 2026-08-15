@@ -190,6 +190,15 @@ describe('workspace state', () => {
     })
   })
 
+  it('adds the minimum attachable base size to existing universal trays', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.holder.universal.minimumBaseSize
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 6, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.universal.minimumBaseSize).toBe(25)
+  })
+
   it('automatically responds to magnet dimensions until the count is overridden', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 80, length: 80 }

@@ -107,6 +107,8 @@ export interface HolderConfig {
     split: boolean
     maxPieceColumns: number
     maxPieceRows: number
+    /** Smallest centred base that must fit wholly on the assembled deck. */
+    minimumBaseSize: number
     /** Derived per exported module so only the assembled tray perimeter is raised. */
     rimEdges: { left: boolean; right: boolean; front: boolean; back: boolean }
     /** Derived module centre in the assembled tray's canonical lattice coordinates. */

@@ -339,7 +339,7 @@ describe('buildHolder', () => {
     const centers = universalMagnetCenters(config)
     const result = buildHolder(wasm, config)
 
-    expect(centers).toHaveLength(7)
+    expect(centers).toHaveLength(5)
     expect(result.stats.solid).toBe(true)
     expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
     expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })
@@ -347,19 +347,34 @@ describe('buildHolder', () => {
 
   it('keeps the default universal tray sparse', () => {
     const defaults = defaultHolderConfig()
-    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(67)
+    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(59)
   })
 
   it('keeps universal pockets within the retaining rim and rejects overlapping grids', () => {
     const defaults = defaultHolderConfig()
     const config = { ...defaults, mode: 'universal' as const, maxColumns: 1, maxRows: 1 }
-    const radius = (config.magnets.diameter + config.magnets.clearance) / 2
-    const edge = 41.5 / 2 - config.universal.rimThickness - radius - 0.5
+    const edge = 41.5 / 2 - config.universal.minimumBaseSize / 2
 
     expect(universalMagnetCenters(config).every(({ x, y }) => Math.abs(x) <= edge && Math.abs(y) <= edge)).toBe(true)
     expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, pitch: 6 } })).toThrow(
       'Magnet grid pitch leaves too little material between pockets',
     )
+  })
+
+  it('applies the base-fit margin only to the assembled perimeter, not split seams', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 4,
+      maxRows: 5,
+      universal: { ...defaults.universal, split: true, maxPieceColumns: 2, maxPieceRows: 5, minimumBaseSize: 40 },
+    }
+    const leftModule = holderPlan(config).modules[0]
+    const centers = universalMagnetCenters(leftModule.config)
+    const distanceFromInternalEdge = Math.min(...centers.map(({ x }) => leftModule.layout.width / 2 - x))
+    expect(leftModule.config.universal.rimEdges.right).toBe(false)
+    expect(distanceFromInternalEdge).toBeLessThan(config.universal.minimumBaseSize / 2)
   })
 
   it('opens universal magnet pockets flush with the deck', () => {

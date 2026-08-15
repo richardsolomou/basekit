@@ -704,6 +704,7 @@ export function defaultHolderConfig(): HolderConfig {
       split: false,
       maxPieceColumns: 3,
       maxPieceRows: 3,
+      minimumBaseSize: 25,
       rimEdges: { left: true, right: true, front: true, back: true },
       latticeOffset: { x: 0, y: 0 },
     },
@@ -728,7 +729,9 @@ export function universalMagnetCenters(config: HolderConfig): { x: number; y: nu
   const radius = (config.magnets.diameter + config.magnets.clearance) / 2
   const openMargin = radius + 1
   const rimMargin = config.universal.rimThickness + radius + 0.5
-  const edgeMargin = (hasRim: boolean) => (config.universal.rimHeight > 0 && hasRim ? rimMargin : openMargin)
+  const attachmentMargin = config.universal.minimumBaseSize / 2
+  const edgeMargin = (hasRim: boolean) =>
+    hasRim ? Math.max(attachmentMargin, config.universal.rimHeight > 0 ? rimMargin : openMargin) : openMargin
   const left = edgeMargin(config.universal.rimEdges.left)
   const right = edgeMargin(config.universal.rimEdges.right)
   const front = edgeMargin(config.universal.rimEdges.front)

@@ -4,7 +4,7 @@ import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCount
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 6
+const WORKSPACE_VERSION = 7
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -131,17 +131,21 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace)))))
+        ? migrateWorkspaceV6(
+            migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))),
+          )
         : parsed.version === 2
-          ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace))))
+          ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace)))))
           : parsed.version === 3
-            ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace)))
+            ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace))))
             : parsed.version === 4
-              ? migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace))
+              ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace)))
               : parsed.version === 5
-                ? migrateWorkspaceV5(parsed.workspace)
-                : parsed.workspace
-    if (![1, 2, 3, 4, 5, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
+                ? migrateWorkspaceV6(migrateWorkspaceV5(parsed.workspace))
+                : parsed.version === 6
+                  ? migrateWorkspaceV6(parsed.workspace)
+                  : parsed.workspace
+    if (![1, 2, 3, 4, 5, 6, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
@@ -149,6 +153,15 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV6(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  const universal = holder?.universal as Record<string, unknown> | undefined
+  if (!holder || !universal) return value
+  return { ...workspace, holder: { ...holder, universal: { ...defaultHolderConfig().universal, ...universal } } }
 }
 
 function migrateWorkspaceV5(value: unknown): unknown {

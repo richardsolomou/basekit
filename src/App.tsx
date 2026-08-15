@@ -963,6 +963,15 @@ export function App() {
               onChange={(latticePitch) => setSharedMagnets({ latticePitch })}
             />
             <Dimension
+              label="Smallest base"
+              value={holder.universal.minimumBaseSize}
+              min={20}
+              max={50}
+              step={1}
+              defaultValue={HOLDER_DEFAULTS.universal.minimumBaseSize}
+              onChange={(minimumBaseSize) => setHolder({ ...holder, universal: { ...holder.universal, minimumBaseSize } })}
+            />
+            <Dimension
               label="Retaining rim height"
               value={holder.universal.rimHeight}
               min={0}
