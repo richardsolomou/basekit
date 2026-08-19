@@ -31,6 +31,7 @@ describe('workspace state', () => {
       layout: 'five-cross',
       patternVersion: 2,
       maxCount: 8,
+      latticePitch: 15,
       diameter: 6,
       thickness: 1.5,
       clearance: 0.3,
@@ -56,6 +57,32 @@ describe('workspace state', () => {
       holderWall: synchronized.holder.baseWallThickness,
       holderBoss: synchronized.holder.magnetBossWall,
     }).toEqual({ baseWall: 2.5, baseBoss: 1.1, holderWall: 2.5, holderBoss: 1.1 })
+  })
+
+  it('shares one canonical lattice pitch between tray-compatible bases and universal trays', () => {
+    const state = defaultWorkspace()
+    state.holder.mode = 'universal'
+    state.shared.magnets.layout = 'lattice'
+    state.shared.magnets.latticePitch = 12
+
+    const synchronized = synchronizeWorkspace(state)
+    expect({
+      baseLayout: synchronized.base.magnets.layout,
+      basePitch: synchronized.base.magnets.latticePitch,
+      holderLayout: synchronized.holder.magnets.layout,
+      trayPitch: synchronized.holder.universal.pitch,
+      trayGrid: synchronized.holder.universal.layout,
+    }).toEqual({ baseLayout: 'lattice', basePitch: 12, holderLayout: 'lattice', trayPitch: 12, trayGrid: 'staggered' })
+  })
+
+  it('reduces automatic compatible counts when the sparse pitch does not fit a base', () => {
+    const state = defaultWorkspace()
+    state.shared.magnets.layout = 'lattice'
+    state.shared.magnets.latticePitch = 30
+
+    const medium = synchronizeWorkspace({ ...state, base: { ...state.base, width: 65, length: 65 } })
+    const large = synchronizeWorkspace({ ...state, base: { ...state.base, width: 80, length: 80 } })
+    expect({ medium: medium.base.magnets.count, large: large.base.magnets.count }).toEqual({ medium: 1, large: 3 })
   })
 
   it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
@@ -131,6 +158,47 @@ describe('workspace state', () => {
     })
   })
 
+  it('migrates existing fitted holders without changing their layout', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.holder.mode
+    delete legacy.holder.universal
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 3, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder).toMatchObject({
+      mode: 'fitted',
+      groups: [{ width: 32 }],
+      universal: { pitch: 30, layout: 'staggered', rimHeight: 3, rimThickness: 2 },
+    })
+  })
+
+  it('adds printable piece defaults to saved universal trays', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.holder.mode = 'universal'
+    delete legacy.holder.universal.split
+    delete legacy.holder.universal.maxPieceColumns
+    delete legacy.holder.universal.maxPieceRows
+    delete legacy.holder.universal.rimEdges
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 4, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.universal).toMatchObject({
+      split: false,
+      maxPieceColumns: 3,
+      maxPieceRows: 3,
+      rimEdges: { left: true, right: true, front: true, back: true },
+    })
+  })
+
+  it('adds the minimum attachable base size to existing universal trays', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.holder.universal.minimumBaseSize
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 6, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.universal.minimumBaseSize).toBe(25)
+  })
+
   it('automatically responds to magnet dimensions until the count is overridden', () => {
     const state = defaultWorkspace()
     state.base = { ...state.base, width: 80, length: 80 }
@@ -174,6 +242,7 @@ describe('workspace state', () => {
       layout: 'five-cross',
       patternVersion: 1,
       maxCount: 8,
+      latticePitch: 15,
       diameter: 6,
       thickness: 2,
       clearance: 0.3,

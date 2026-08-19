@@ -13,6 +13,7 @@ import {
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
+  universalMagnetCenters,
 } from './holder'
 import { loadManifold } from './manifold'
 
@@ -293,9 +294,113 @@ describe('holderPlan', () => {
     }
     expect(holderPlan(config).modules).toHaveLength(1)
   })
+
+  it('splits a universal tray to the requested printable piece size', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 7,
+      maxRows: 5,
+      universal: { ...defaults.universal, split: true, maxPieceColumns: 3, maxPieceRows: 3 },
+    }
+    const plan = holderPlan(config)
+
+    expect(plan.modules.map(({ layout }) => `${layout.unitsWide}x${layout.unitsDeep}`)).toEqual(['3x3', '3x3', '1x3', '3x2', '3x2', '1x2'])
+    expect(plan.modules.map(({ column, row }) => `${column},${row}`)).toEqual(['0,0', '3,0', '6,0', '0,3', '3,3', '6,3'])
+    expect(plan.modules[0].config.universal.rimEdges).toEqual({ left: true, right: false, front: true, back: false })
+    expect(plan.modules[4].config.universal.rimEdges).toEqual({ left: false, right: false, front: false, back: true })
+    expect(plan.modules[5].config.universal.rimEdges).toEqual({ left: false, right: true, front: false, back: true })
+    const pitch = config.universal.pitch
+    const rowPitch = (pitch * Math.sqrt(3)) / 2
+    for (const module of plan.modules) {
+      for (const point of universalMagnetCenters(module.config)) {
+        const globalX = point.x + module.config.universal.latticeOffset.x
+        const globalY = point.y + module.config.universal.latticeOffset.y
+        const latticeRow = globalY / rowPitch
+        const latticeColumn = globalX / pitch - latticeRow / 2
+        expect(latticeRow).toBeCloseTo(Math.round(latticeRow), 6)
+        expect(latticeColumn).toBeCloseTo(Math.round(latticeColumn), 6)
+      }
+    }
+  })
+
+  it('does not split a universal tray until piece splitting is enabled', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 7, maxRows: 5 }
+    expect(holderPlan(config).modules).toHaveLength(1)
+  })
 })
 
 describe('buildHolder', () => {
+  it('builds a universal magnetic deck across the requested Gridfinity footprint', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 2, maxRows: 2 }
+    const centers = universalMagnetCenters(config)
+    const result = buildHolder(wasm, config)
+
+    expect(centers).toHaveLength(5)
+    expect(result.stats.solid).toBe(true)
+    expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
+    expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })
+  })
+
+  it('keeps the default universal tray sparse', () => {
+    const defaults = defaultHolderConfig()
+    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(59)
+  })
+
+  it('keeps universal pockets within the retaining rim and rejects overlapping grids', () => {
+    const defaults = defaultHolderConfig()
+    const config = { ...defaults, mode: 'universal' as const, maxColumns: 1, maxRows: 1 }
+    const edge = 41.5 / 2 - config.universal.minimumBaseSize / 2
+
+    expect(universalMagnetCenters(config).every(({ x, y }) => Math.abs(x) <= edge && Math.abs(y) <= edge)).toBe(true)
+    expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, pitch: 6 } })).toThrow(
+      'Magnet grid pitch leaves too little material between pockets',
+    )
+  })
+
+  it('applies the base-fit margin only to the assembled perimeter, not split seams', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 4,
+      maxRows: 5,
+      universal: { ...defaults.universal, split: true, maxPieceColumns: 2, maxPieceRows: 5, minimumBaseSize: 40 },
+    }
+    const leftModule = holderPlan(config).modules[0]
+    const centers = universalMagnetCenters(leftModule.config)
+    const distanceFromInternalEdge = Math.min(...centers.map(({ x }) => leftModule.layout.width / 2 - x))
+    expect(leftModule.config.universal.rimEdges.right).toBe(false)
+    expect(distanceFromInternalEdge).toBeLessThan(config.universal.minimumBaseSize / 2)
+  })
+
+  it('opens universal magnet pockets flush with the deck', () => {
+    const defaults = defaultHolderConfig()
+    const config = {
+      ...defaults,
+      mode: 'universal' as const,
+      maxColumns: 1,
+      maxRows: 1,
+      universal: { ...defaults.universal, pitch: 40, rimHeight: 0 },
+    }
+    const { mesh } = buildHolder(wasm, config)
+    const { numProp, vertProperties } = mesh
+    const radius = (config.magnets.diameter + config.magnets.clearance) / 2
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (let i = 0; i < vertProperties.length; i += numProp) {
+      if (Math.hypot(vertProperties[i], vertProperties[i + 1]) <= radius + 0.05) {
+        minZ = Math.min(minZ, vertProperties[i + 2])
+        maxZ = Math.max(maxZ, vertProperties[i + 2])
+      }
+    }
+    expect(minZ).toBeCloseTo(config.height - config.magnets.thickness - config.magnets.depthClearance, 2)
+    expect(maxZ).toBeCloseTo(config.height, 2)
+  })
+
   it('builds a solid with the exact Gridfinity footprint and requested height', () => {
     const config = defaultHolderConfig()
     const result = buildHolder(wasm, config)

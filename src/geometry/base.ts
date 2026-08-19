@@ -25,6 +25,66 @@ export interface Circle {
 interface MagnetPositionOptions {
   ellipticalRow?: boolean
   layout?: MagnetLayout
+  latticePitch?: number
+}
+
+const latticePoint = (column: number, row: number, pitch: number): Circle => ({
+  x: (column + row / 2) * pitch,
+  y: row * pitch * (Math.sqrt(3) / 2),
+  r: 0,
+})
+
+function latticeMagnetPositions(count: number, halfWidth: number, halfLength: number, clear: number, pitch: number): Circle[] {
+  const elongated = !magnetsRing(halfWidth, halfLength)
+  let points: Circle[]
+  if (elongated) {
+    const pairs = Math.floor(count / 2)
+    const alongX = halfWidth >= halfLength
+    points = count % 2 === 1 ? [{ x: 0, y: 0, r: 0 }] : []
+    for (let level = 1; level <= pairs; level++) {
+      points.push(
+        { x: alongX ? -level * pitch : 0, y: alongX ? 0 : -level * pitch, r: 0 },
+        { x: alongX ? level * pitch : 0, y: alongX ? 0 : level * pitch, r: 0 },
+      )
+    }
+  } else {
+    const hex = [
+      latticePoint(1, 0, pitch),
+      latticePoint(0, 1, pitch),
+      latticePoint(-1, 1, pitch),
+      latticePoint(-1, 0, pitch),
+      latticePoint(0, -1, pitch),
+      latticePoint(1, -1, pitch),
+    ]
+    const cross = [latticePoint(1, 0, pitch), latticePoint(-1, 0, pitch), latticePoint(-1, 2, pitch), latticePoint(1, -2, pitch)]
+    if (count === 1) points = [{ x: 0, y: 0, r: 0 }]
+    else if (count === 2) points = [hex[0], hex[3]]
+    else if (count === 3) points = [hex[0], hex[2], hex[4]]
+    else if (count === 4) points = cross
+    else if (count === 5) points = [{ x: 0, y: 0, r: 0 }, ...cross]
+    else if (count === 6) points = hex
+    else if (count === 8) points = [...hex, latticePoint(2, 0, pitch), latticePoint(-2, 0, pitch)]
+    else throw new Error(`The tray-compatible layout does not support ${count} magnets`)
+  }
+  if (points.some(({ x, y }) => Math.abs(x) > halfWidth - clear + 1e-6 || Math.abs(y) > halfLength - clear + 1e-6)) {
+    throw new Error('Tray-compatible magnet pitch is too wide for this base and magnet count')
+  }
+  return points
+}
+
+export function trayCompatibleMagnetCounts(config: BaseConfig): number[] {
+  const halfWidth = Math.max(0, config.width / 2 - config.wallThickness)
+  const halfLength = Math.max(0, config.length / 2 - config.wallThickness)
+  const clear = (config.magnets.diameter + config.magnets.clearance) / 2 + config.magnets.bossWall + LABEL_MARGIN
+  return [0, 1, 2, 3, 4, 5, 6, 8].filter((count) => {
+    if (count === 0) return true
+    try {
+      latticeMagnetPositions(count, halfWidth, halfLength, clear, config.magnets.latticePitch)
+      return true
+    } catch {
+      return false
+    }
+  })
 }
 
 /** Whether magnets sit on a ring, rather than in a row down the long axis. */
@@ -48,6 +108,9 @@ export function magnetPositions(
   options: MagnetPositionOptions = {},
 ): Circle[] {
   if (count <= 0) return []
+  if (options.layout === 'lattice') {
+    return latticeMagnetPositions(count, halfWidth, halfLength, clear, options.latticePitch ?? 15)
+  }
   if (options.layout === 'five-cross') {
     return [{ x: 0, y: 0, r: 0 }, ...magnetPositions(4, halfWidth, halfLength, clear, { ...options, layout: 'balanced' })]
   }
@@ -100,13 +163,21 @@ function angleBetween(a: number, b: number): number {
  * lands closest to the rest wins. A single central magnet has no bearing at
  * all, and every rib meets it at the centre regardless.
  */
-export function ribAngles(count: number, magnets: Circle[]): number[] {
+export function ribAngles(count: number, magnets: Circle[], followMagnets = false): number[] {
   if (count <= 0) return []
   const spacing = TAU / count
   const spokes = (phase: number) => Array.from({ length: count }, (_, i) => phase + spacing * i)
 
   const bosses = magnets.filter((m) => Math.hypot(m.x, m.y) > 1e-6).map((m) => Math.atan2(m.y, m.x))
   if (bosses.length === 0) return spokes(Math.PI / 2)
+  if (followMagnets) {
+    const result = bosses.filter((bearing, index) => bosses.findIndex((candidate) => angleBetween(candidate, bearing) < 1e-6) === index)
+    for (const candidate of spokes(Math.PI / 2)) {
+      if (result.length >= count) break
+      if (result.every((bearing) => angleBetween(bearing, candidate) > 1e-6)) result.push(candidate)
+    }
+    return result.slice(0, count)
+  }
 
   let best = bosses[0]
   let closest = Infinity
@@ -187,7 +258,8 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
       config.magnets.layout === 'five-cross' && (config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width))
     const magnets = magnetPositions(config.magnets.count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
       ellipticalRow: config.shape === 'oval',
-      layout: fiveCross ? 'five-cross' : 'balanced',
+      layout: fiveCross ? 'five-cross' : config.magnets.layout === 'lattice' ? 'lattice' : 'balanced',
+      latticePitch: config.magnets.latticePitch,
     })
 
     /*
@@ -209,7 +281,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
 
     // Single spokes from the centre outwards, phased to run through the bosses.
     // Intersecting the well stops them at the wall.
-    const spokeAngles = ribAngles(config.ribs.count, magnets)
+    const spokeAngles = ribAngles(config.ribs.count, magnets, config.magnets.layout === 'lattice')
     const ribHeight = Math.min(config.ribs.height, wellDepth)
     if (spokeAngles.length > 0 && ribHeight > 0) {
       const reach = wellReach + config.wallThickness

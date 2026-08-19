@@ -219,6 +219,7 @@ export function presetFor(preset: SizePreset, maxMagnets = 8, patternVersion: Ma
       layout: 'balanced',
       patternVersion,
       maxCount: maxMagnets,
+      latticePitch: 30,
       diameter: 5,
       clearance: 0.2,
       depthClearance: 0.1,

@@ -70,6 +70,7 @@ const DEFAULT_MAGNET_SETTINGS: HolderMagnetSettings = {
     layout: 'balanced',
     patternVersion: 2,
     maxCount: 8,
+    latticePitch: 30,
     diameter: 5,
     clearance: 0.2,
     depthClearance: 0.1,
@@ -160,11 +161,14 @@ export function holderSlotMagnetCenters(
   const halfLength = Math.max(0, slotLength(slot) / 2 - settings.baseWallThickness)
   return magnetPositions(count, halfWidth, halfLength, bossRadius + LABEL_MARGIN, {
     ellipticalRow: slot.shape === 'oval',
-    layout: fiveCross ? 'five-cross' : 'balanced',
+    layout: fiveCross ? 'five-cross' : settings.magnets.layout === 'lattice' ? 'lattice' : 'balanced',
+    latticePitch: settings.magnets.latticePitch,
   }).map(({ x, y }) => ({ x, y }))
 }
 
 export function holderMagnetPocketCount(config: HolderConfig): number {
+  if (config.mode === 'universal')
+    return holderPlan(config).modules.reduce((total, module) => total + universalMagnetCenters(module.config).length, 0)
   return holderLayout(config).slotCenters.reduce((total, slot) => total + holderSlotMagnetCenters(slot, config).length, 0)
 }
 
@@ -206,13 +210,15 @@ export function maxHolderSlotDepth(config: HolderConfig): number {
 }
 
 export function maxHolderMagnetThickness(config: HolderConfig): number {
-  return config.height - config.slotDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - config.magnets.depthClearance
+  const deckDepth = config.mode === 'universal' ? 0 : config.slotDepth
+  return config.height - deckDepth - PROFILE.at(-1)!.z - MIN_SLOT_FLOOR_THICKNESS - config.magnets.depthClearance
 }
 
 export function minHolderHeight(config: HolderConfig): number {
   const engravingDepth = config.engraving.enabled && config.engraving.placement === 'slots' ? ENGRAVING_DEPTH : 0
   const magnetDepth = config.magnets.enabled ? config.magnets.thickness + config.magnets.depthClearance : 0
-  const required = PROFILE.at(-1)!.z + MIN_SLOT_FLOOR_THICKNESS + config.slotDepth + Math.max(engravingDepth, magnetDepth)
+  const deckDepth = config.mode === 'universal' ? 0 : config.slotDepth
+  const required = PROFILE.at(-1)!.z + MIN_SLOT_FLOOR_THICKNESS + deckDepth + Math.max(engravingDepth, magnetDepth)
   return Math.max(BASE_HEIGHT, Math.ceil((required - 1e-6) / BASE_HEIGHT) * BASE_HEIGHT)
 }
 
@@ -503,6 +509,56 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   const key = JSON.stringify(config)
   const cached = planCache.get(key)
   if (cached) return cached
+  if (config.mode === 'universal') {
+    const unitsWide = columns
+    const unitsDeep = rows
+    const pieceColumns = config.universal.split ? Math.max(1, Math.round(config.universal.maxPieceColumns)) : unitsWide
+    const pieceRows = config.universal.split ? Math.max(1, Math.round(config.universal.maxPieceRows)) : unitsDeep
+    const modules: HolderModule[] = []
+    for (let row = 0; row < unitsDeep; row += pieceRows) {
+      const moduleRows = Math.min(pieceRows, unitsDeep - row)
+      for (let column = 0; column < unitsWide; column += pieceColumns) {
+        const moduleColumns = Math.min(pieceColumns, unitsWide - column)
+        const layout = {
+          unitsWide: moduleColumns,
+          unitsDeep: moduleRows,
+          width: moduleColumns * GRID - GAP,
+          length: moduleRows * GRID - GAP,
+          slotCenters: [],
+        }
+        modules.push({
+          config: {
+            ...config,
+            maxColumns: moduleColumns,
+            maxRows: moduleRows,
+            universal: {
+              ...config.universal,
+              split: false,
+              rimEdges: {
+                left: column === 0,
+                right: column + moduleColumns === unitsWide,
+                front: row === 0,
+                back: row + moduleRows === unitsDeep,
+              },
+              latticeOffset: {
+                x: (column + moduleColumns / 2 - unitsWide / 2) * GRID,
+                y: (row + moduleRows / 2 - unitsDeep / 2) * GRID,
+              },
+            },
+          },
+          layout,
+          column,
+          row,
+        })
+      }
+    }
+    return cacheResult(planCache, key, {
+      modules,
+      omitted: [],
+      unitsWide,
+      unitsDeep,
+    })
+  }
   const addOmitted = (omitted: HolderGroup[], group: HolderGroup, quantity: number) => {
     if (quantity <= 0) return
     const existing = omitted.find((entry) => entry.id === group.id)
@@ -630,6 +686,7 @@ export function holderLayout(config: HolderConfig): HolderLayout {
 export function defaultHolderConfig(): HolderConfig {
   return {
     kind: 'holder',
+    mode: 'fitted',
     groups: [holderGroup('models-1', 5, { width: 32 })],
     maxColumns: 7,
     maxRows: 5,
@@ -639,6 +696,18 @@ export function defaultHolderConfig(): HolderConfig {
     slotClearance: 0.5,
     slotDepth: 3,
     height: 14,
+    universal: {
+      pitch: 30,
+      layout: 'staggered',
+      rimHeight: 3,
+      rimThickness: 2,
+      split: false,
+      maxPieceColumns: 3,
+      maxPieceRows: 3,
+      minimumBaseSize: 25,
+      rimEdges: { left: true, right: true, front: true, back: true },
+      latticeOffset: { x: 0, y: 0 },
+    },
     ...DEFAULT_MAGNET_SETTINGS,
     magnets: { ...DEFAULT_MAGNET_SETTINGS.magnets },
     magnetCounts: { ...DEFAULT_MAGNET_SETTINGS.magnetCounts },
@@ -648,8 +717,45 @@ export function defaultHolderConfig(): HolderConfig {
 
 export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
+  if (config.mode === 'universal')
+    return `universal-tray-${layout.unitsWide}x${layout.unitsDeep}-${trimNumber(config.universal.pitch)}mm-grid`
   const models = config.groups.map(holderGroupNamePart).join('-')
   return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
+}
+
+export function universalMagnetCenters(config: HolderConfig): { x: number; y: number }[] {
+  if (!config.magnets.enabled) return []
+  const layout = holderLayout(config)
+  const radius = (config.magnets.diameter + config.magnets.clearance) / 2
+  const openMargin = radius + 1
+  const rimMargin = config.universal.rimThickness + radius + 0.5
+  const attachmentMargin = config.universal.minimumBaseSize / 2
+  const edgeMargin = (hasRim: boolean) =>
+    hasRim ? Math.max(attachmentMargin, config.universal.rimHeight > 0 ? rimMargin : openMargin) : openMargin
+  const left = edgeMargin(config.universal.rimEdges.left)
+  const right = edgeMargin(config.universal.rimEdges.right)
+  const front = edgeMargin(config.universal.rimEdges.front)
+  const back = edgeMargin(config.universal.rimEdges.back)
+  const minX = config.universal.latticeOffset.x - layout.width / 2 + left
+  const maxX = config.universal.latticeOffset.x + layout.width / 2 - right
+  const minY = config.universal.latticeOffset.y - layout.length / 2 + front
+  const maxY = config.universal.latticeOffset.y + layout.length / 2 - back
+  if (minX > maxX || minY > maxY) return []
+  const pitch = config.universal.pitch
+  const pitchY = config.universal.layout === 'staggered' ? (pitch * Math.sqrt(3)) / 2 : pitch
+  const centers: { x: number; y: number }[] = []
+  for (let row = Math.ceil(minY / pitchY); row <= Math.floor(maxY / pitchY); row++) {
+    const offset = config.universal.layout === 'staggered' ? row * pitch * 0.5 : 0
+    const firstColumn = Math.ceil((minX - offset) / pitch)
+    const lastColumn = Math.floor((maxX - offset) / pitch)
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      centers.push({
+        x: column * pitch + offset - config.universal.latticeOffset.x,
+        y: row * pitchY - config.universal.latticeOffset.y,
+      })
+    }
+  }
+  return centers
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
@@ -688,10 +794,23 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
   try {
     if (config.maxColumns < 1 || config.maxRows < 1) throw new Error('A holder needs at least one allowed row and column')
     if (config.height < BASE_HEIGHT) throw new Error('Holder height must be at least one Gridfinity unit')
-    if (config.slotDepth > maxHolderSlotDepth(config)) throw new Error('Slots leave too little material above the Gridfinity foot')
+    if (config.mode === 'fitted' && config.slotDepth > maxHolderSlotDepth(config))
+      throw new Error('Slots leave too little material above the Gridfinity foot')
+    if (config.mode === 'universal' && config.universal.pitch < config.magnets.diameter + config.magnets.clearance + 1)
+      throw new Error('Magnet grid pitch leaves too little material between pockets')
 
-    const layout = singleHolderLayout(config)
-    if (layout.slotCenters.length === 0) throw new Error('Miniatures do not fit within the maximum Gridfinity rows and columns')
+    const layout =
+      config.mode === 'universal'
+        ? {
+            unitsWide: Math.max(1, Math.round(config.maxColumns)),
+            unitsDeep: Math.max(1, Math.round(config.maxRows)),
+            width: Math.max(1, Math.round(config.maxColumns)) * GRID - GAP,
+            length: Math.max(1, Math.round(config.maxRows)) * GRID - GAP,
+            slotCenters: [],
+          }
+        : singleHolderLayout(config)
+    if (config.mode === 'fitted' && layout.slotCenters.length === 0)
+      throw new Error('Miniatures do not fit within the maximum Gridfinity rows and columns')
     const tolerance = curveTolerance(Math.max(layout.width, layout.length), config.segments)
     const preview = config.segments <= 256
     const segmentsFor = (diameter: number, previewMinimum: number) =>
@@ -725,6 +844,43 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
     const bridge = solidOf(top.extrude(config.height - PROFILE.at(-1)!.z))
     const raisedBridge = solidOf(bridge.translate([0, 0, PROFILE.at(-1)!.z]))
     let solid = solidOf(Manifold.union([...feet, raisedBridge]))
+
+    if (config.mode === 'universal') {
+      const cutters: Manifold[] = []
+      if (config.magnets.enabled) {
+        const radius = (config.magnets.diameter + config.magnets.clearance) / 2
+        const disc = section(CrossSection.circle(radius, segmentsFor(radius * 2, 32)))
+        const outlines = universalMagnetCenters(config).map(({ x, y }) => section(disc.translate([x, y])))
+        if (outlines.length > 0) {
+          const pockets = section(CrossSection.union(outlines))
+          const depth = config.magnets.thickness + config.magnets.depthClearance
+          const drill = solidOf(pockets.extrude(depth + 0.001))
+          cutters.push(solidOf(drill.translate([0, 0, config.height - depth])))
+        }
+      }
+      if (cutters.length > 0) solid = solidOf(Manifold.difference([solid, ...cutters]))
+      if (config.universal.rimHeight > 0) {
+        const { rimThickness: thickness, rimEdges } = config.universal
+        const bars: CrossSection[] = []
+        const addBar = (width: number, length: number, x: number, y: number) => {
+          const bar = section(CrossSection.square([width, length], true))
+          bars.push(section(bar.translate([x, y])))
+        }
+        if (rimEdges.left) addBar(thickness, layout.length, -layout.width / 2 + thickness / 2, 0)
+        if (rimEdges.right) addBar(thickness, layout.length, layout.width / 2 - thickness / 2, 0)
+        if (rimEdges.front) addBar(layout.width, thickness, 0, -layout.length / 2 + thickness / 2)
+        if (rimEdges.back) addBar(layout.width, thickness, 0, layout.length / 2 - thickness / 2)
+        if (bars.length > 0) {
+          const ring = section(CrossSection.union(bars))
+          const rim = solidOf(ring.extrude(config.universal.rimHeight))
+          const raisedRim = solidOf(rim.translate([0, 0, config.height]))
+          solid = solidOf(Manifold.union([solid, raisedRim]))
+        }
+      }
+      const volume = solid.volume()
+      const triangles = solid.numTri()
+      return { mesh: solid.getMesh(), stats: { triangles, volume, grams: volume * PLA_DENSITY, solid: volume > 0 && triangles > 0 } }
+    }
 
     const slotOutlines = layout.slotCenters.map((slot) => {
       const detail = Math.max(slotWidth(slot), slotLength(slot)) + config.slotClearance
