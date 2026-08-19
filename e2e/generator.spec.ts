@@ -281,6 +281,22 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
   expect((await readFile(path)).readUInt32LE(80)).toBeGreaterThan(previewTriangles)
 })
 
+test('exports reusable adjustable floors for an existing Gridfinity box insert', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Box floors' }).click()
+  await rebuilt(page, before)
+  await expect(page).toHaveURL(/\/rack$/)
+  await expect(page.getByRole('combobox', { name: 'Box floor view' })).toContainText('Assembled')
+  await expect(footer(page)).toContainText('3 interchangeable')
+  await expect(footer(page)).toContainText('4 puzzle tiles')
+  await expect(footer(page)).toContainText('at 14 mm')
+  await expect(footer(page)).toContainText('gridfinity-box-floors-7x5-126mm-2-levels')
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  expect((await download).suggestedFilename()).toBe('gridfinity-box-floors-7x5-126mm-2-levels.stl')
+})
+
 test('frames every slot in a tall holder', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)

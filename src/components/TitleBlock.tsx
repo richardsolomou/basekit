@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
+import { rackHardware, rackTiles } from '@/geometry/rack'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -41,6 +42,17 @@ export function TitleBlock({ config, status, name }: Props) {
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
         <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
+      </TitleFrame>
+    )
+  }
+  if (config.kind === 'rack') {
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row label="Shelves" value={`${config.shelfCount} interchangeable`} />
+        <Row label="Extra floor" value={`${rackTiles(config).length} puzzle tiles`} />
+        <Row label="Height rails" value={`${rackHardware(config).printedUprights} printed ladders`} />
+        <Row label="Adjustment" value={`${config.slotPitch}mm pitch · pin locked`} />
+        <Row label="Hardware" value="none · fully printed" />
       </TitleFrame>
     )
   }

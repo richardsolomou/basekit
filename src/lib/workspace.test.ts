@@ -12,11 +12,44 @@ function memoryStorage() {
 }
 
 describe('workspace state', () => {
-  it('starts both generators at their defaults', () => {
+  it('starts every generator at its defaults', () => {
     expect(defaultWorkspace()).toMatchObject({
       base: { width: 32, magnets: { patternVersion: 2 } },
       holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
+      rack: { kind: 'rack', columns: 7, rows: 5, shelfCount: 2 },
     })
+  })
+
+  it('migrates the holder-coupled upper floor into an independent default rack', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.rack
+    legacy.holder.tier = { enabled: true, clearance: 84 }
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 6, workspace: legacy }))
+    const loaded = loadWorkspace(storage)
+    expect(loaded.holder).not.toHaveProperty('tier')
+    expect(loaded.rack).toEqual(defaultWorkspace().rack)
+  })
+
+  it('migrates the front retainer preference to the centered handle', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.rack.handle
+    legacy.rack.retainer = false
+    legacy.rack.baseplateThickness = 5
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+    const loaded = loadWorkspace(storage)
+    expect(loaded.rack.handle).toBe(false)
+    expect(loaded.rack).not.toHaveProperty('retainer')
+    expect(loaded.rack).not.toHaveProperty('baseplateThickness')
+  })
+
+  it('migrates thin experimental rack floors to the structural minimum', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.rack.shelfThickness = 6
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 11, workspace: legacy }))
+    expect(loadWorkspace(storage).rack.shelfThickness).toBe(15)
   })
 
   it('keeps every setting exposed by both generators synchronized', () => {

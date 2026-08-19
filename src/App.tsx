@@ -17,14 +17,13 @@ import {
   holderLayout,
   holderName,
   holderPlan,
+  holderPrintSize,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
-  defaultBaseHeight,
-  defaultFloorThickness,
   DEFAULT_PRESET,
   DEFAULT_SIZE,
   footprintKey,
@@ -36,11 +35,13 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
+import { defaultRackConfig, rackDimensions, rackHardware, rackName, rackStructuralAnalysis } from '@/geometry/rack'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, RackConfig, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
-import posthog from '@/lib/posthog'
+import posthog, { posthogEnvironment } from '@/lib/posthog'
+import { modelForPath, type Model } from '@/lib/modelRoute'
 import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const SHAPES: { value: ShapeKind; label: string }[] = [
@@ -78,6 +79,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
+  { value: 'rack' as const, label: 'Box floors', href: '/rack' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -85,8 +87,8 @@ const ENGRAVING_PLACEMENTS = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
-
-const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+const RACK_DEFAULTS = defaultRackConfig()
+const BOX_FLOORS_FLAG = 'box-floors'
 
 function RepositoryLink() {
   return (
@@ -108,39 +110,62 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const rack = workspace.rack
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setRack = (next: RackConfig | ((current: RackConfig) => RackConfig)) =>
+    setWorkspace((current) => ({ ...current, rack: typeof next === 'function' ? next(current.rack) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
-  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
+  const localFeatureFlags = posthogEnvironment === undefined
+  const [boxFloorsEnabled, setBoxFloorsEnabled] = useState(localFeatureFlags)
+  const [model, setModel] = useState<Model>(() => modelForPath(window.location.pathname, localFeatureFlags))
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : holder
+  const partConfig = model === 'base' ? config : model === 'holder' ? holder : rack
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
-    const syncRoute = () => setModel(modelForPath())
-    window.addEventListener('popstate', syncRoute)
-    return () => window.removeEventListener('popstate', syncRoute)
+    if (posthogEnvironment === undefined) return
+    const applyFlag = () => {
+      const enabled = posthog.isFeatureEnabled(BOX_FLOORS_FLAG) === true
+      setBoxFloorsEnabled(enabled)
+      if (window.location.pathname === '/rack') {
+        if (enabled) setModel('rack')
+        else {
+          window.history.replaceState(null, '', '/')
+          setModel('base')
+        }
+      }
+    }
+    const unsubscribe = posthog.onFeatureFlags(applyFlag)
+    applyFlag()
+    return unsubscribe
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
+    const syncRoute = () => setModel(modelForPath(window.location.pathname, boxFloorsEnabled))
+    window.addEventListener('popstate', syncRoute)
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [boxFloorsEnabled])
+
+  useEffect(() => {
+    document.title = model === 'holder' ? 'BaseKit — Holders' : model === 'rack' ? 'BaseKit — Box Floors' : 'BaseKit — Bases'
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
-  const changeModel = (next: 'base' | 'holder') => {
+  const changeModel = (next: Model) => {
+    if (next === 'rack' && !boxFloorsEnabled) return
     if (next === model) return
-    posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'rack' ? '/rack' : '/')
     setModel(next)
   }
 
@@ -152,6 +177,8 @@ export function App() {
     })
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
+  const holderPrintedSize = useMemo(() => holderPrintSize(holder), [holder])
+  const rackPrintedSize = useMemo(() => rackDimensions(rack), [rack])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
@@ -194,10 +221,10 @@ export function App() {
       next.delete(id)
       return next
     })
-  const partWidth = model === 'base' ? width : holderSize.width
-  const partLength = model === 'base' ? length : holderSize.length
-  const partHeight = model === 'base' ? config.height : holder.height
-  const partName = model === 'base' ? baseName(config) : holderName(holder)
+  const partWidth = model === 'base' ? width : model === 'holder' ? holderPrintedSize.width : rackPrintedSize.width
+  const partLength = model === 'base' ? length : model === 'holder' ? holderPrintedSize.length : rackPrintedSize.length
+  const partHeight = model === 'base' ? config.height : model === 'holder' ? holderPrintedSize.height : rackPrintedSize.height
+  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : rackName(rack)
   const {
     exporting,
     error: exportError,
@@ -207,14 +234,13 @@ export function App() {
     model,
     base: config,
     holder,
+    rack,
     width: partWidth,
     length: partLength,
   })
   const elongated = isElongated(config.shape)
   const sizes = SIZES_BY_SHAPE[config.shape]
   const standard = sizes.find((size) => size.width === width && (size.length ?? size.width) === length)
-  const footprintDefaultHeight = defaultBaseHeight(config.width, config.length)
-  const footprintDefaultFloor = defaultFloorThickness(config.width, config.length)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
   const magnetCountOverride = workspace.shared.magnetCounts[magnetCountKey]
   const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
@@ -429,7 +455,7 @@ export function App() {
             min={2}
             max={12}
             step={0.25}
-            defaultValue={footprintDefaultHeight}
+            defaultValue={BASE_DEFAULTS.height}
             onChange={(height) => patch({ height })}
           />
           <Dimension
@@ -447,7 +473,7 @@ export function App() {
             min={0.4}
             max={Math.max(0.5, config.height - 0.5)}
             step={0.1}
-            defaultValue={footprintDefaultFloor}
+            defaultValue={BASE_DEFAULTS.floorThickness}
             onChange={(floorThickness) => patch({ floorThickness })}
           />
           <Choice
@@ -763,10 +789,7 @@ export function App() {
                       variant="ghost"
                       aria-label={`Remove miniature group ${index + 1}`}
                       disabled={holder.groups.length === 1}
-                      onClick={() => {
-                        posthog.capture('holder_group_removed', { group_count: holder.groups.length })
-                        setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })
-                      }}
+                      onClick={() => setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })}
                     >
                       <Trash2 />
                     </Button>
@@ -778,10 +801,7 @@ export function App() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              posthog.capture('holder_group_added', { group_count: holder.groups.length + 1 })
-              setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })
-            }}
+            onClick={() => setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })}
           >
             <Plus /> Add size
           </Button>
@@ -958,7 +978,175 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : holderPanel
+  const rackPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Box floor settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Preview">
+          <Choice
+            label="Box floor view"
+            value={rack.view}
+            defaultValue={RACK_DEFAULTS.view}
+            options={[
+              { value: 'assembled' as const, label: 'Assembled' },
+              { value: 'print' as const, label: 'Print layout' },
+            ]}
+            onChange={(view) => setRack({ ...rack, view })}
+          />
+          <FieldDescription>Downloads always use the support-free print layout.</FieldDescription>
+        </Section>
+        <Section title="Footprint">
+          <Dimension
+            label="Gridfinity columns"
+            value={rack.columns}
+            min={1}
+            max={7}
+            step={1}
+            defaultValue={RACK_DEFAULTS.columns}
+            onChange={(columns) => setRack({ ...rack, columns, tileColumns: Math.min(rack.tileColumns, columns) })}
+          />
+          <Dimension
+            label="Gridfinity rows"
+            value={rack.rows}
+            min={1}
+            max={5}
+            step={1}
+            defaultValue={RACK_DEFAULTS.rows}
+            onChange={(rows) => setRack({ ...rack, rows, tileRows: Math.min(rack.tileRows, rows) })}
+          />
+          <Dimension
+            label="Usable box height"
+            value={rack.height}
+            min={84}
+            max={210}
+            step={7}
+            defaultValue={RACK_DEFAULTS.height}
+            onChange={(height) => setRack({ ...rack, height })}
+          />
+        </Section>
+        <Section title="Modular Shelves">
+          <Choice
+            label="Shelf position pitch"
+            value={rack.slotPitch}
+            defaultValue={RACK_DEFAULTS.slotPitch}
+            options={[
+              { value: 14 as const, label: '14 mm' },
+              { value: 7 as const, label: '7 mm' },
+            ]}
+            onChange={(slotPitch) => setRack({ ...rack, slotPitch })}
+          />
+          <Dimension
+            label="Maximum tile columns"
+            value={rack.tileColumns}
+            min={1}
+            max={Math.min(3, rack.columns)}
+            step={1}
+            defaultValue={RACK_DEFAULTS.tileColumns}
+            onChange={(tileColumns) => setRack({ ...rack, tileColumns })}
+          />
+          <Dimension
+            label="Maximum tile rows"
+            value={rack.tileRows}
+            min={1}
+            max={Math.min(3, rack.rows)}
+            step={1}
+            defaultValue={RACK_DEFAULTS.tileRows}
+            onChange={(tileRows) => setRack({ ...rack, tileRows })}
+          />
+          <Dimension
+            label="Printed shelves"
+            value={rack.shelfCount}
+            min={1}
+            max={8}
+            step={1}
+            defaultValue={RACK_DEFAULTS.shelfCount}
+            onChange={(shelfCount) => setRack({ ...rack, shelfCount })}
+          />
+          <Dimension
+            label="Shelf thickness"
+            value={rack.shelfThickness}
+            min={15}
+            max={21}
+            step={1}
+            defaultValue={RACK_DEFAULTS.shelfThickness}
+            onChange={(shelfThickness) => setRack({ ...rack, shelfThickness })}
+          />
+          <Dimension
+            label="Gridfinity fit clearance"
+            value={rack.gridfinityClearance}
+            min={0.05}
+            max={0.25}
+            step={0.05}
+            defaultValue={RACK_DEFAULTS.gridfinityClearance}
+            onChange={(gridfinityClearance) => setRack({ ...rack, gridfinityClearance })}
+          />
+          <Dimension
+            label="Connector fit clearance"
+            value={rack.fitClearance}
+            min={0.15}
+            max={0.6}
+            step={0.05}
+            defaultValue={RACK_DEFAULTS.fitClearance}
+            onChange={(fitClearance) => setRack({ ...rack, fitClearance })}
+          />
+          <Dimension
+            label="Design load per shelf"
+            value={rack.designLoadKg}
+            min={0.5}
+            max={3}
+            step={0.25}
+            unit="kg"
+            defaultValue={RACK_DEFAULTS.designLoadKg}
+            onChange={(designLoadKg) => setRack({ ...rack, designLoadKg })}
+          />
+          <FieldDescription>
+            Four corner shoes sit beneath the existing Gridfinity insert. Captured floor rails lock into pinned collars on the hollow height
+            rails without replacing the bottom grid.
+          </FieldDescription>
+        </Section>
+        <Section title="Printed Structure">
+          <div className="space-y-1 border-y border-border py-3 text-xs">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Ladder uprights</span>
+              <span className="readout">{rackHardware(rack).printedUprights}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Insert corner shoes</span>
+              <span className="readout">{rackHardware(rack).printedAnchors}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Perimeter floor rails</span>
+              <span className="readout">{rackHardware(rack).printedShelfRails}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Pinned shelf collars</span>
+              <span className="readout">{rackHardware(rack).printedShelfCollars}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Rail splice sleeves</span>
+              <span className="readout">{rackHardware(rack).printedSpliceSleeves}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Reusable locking pins</span>
+              <span className="readout">{rackHardware(rack).printedLockPins}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Purchased hardware</span>
+              <span className="readout">none</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">3g perimeter-rail check</span>
+              <span className="readout">
+                SF {rackStructuralAnalysis(rack).safetyFactor.toFixed(1)} · {rackStructuralAnalysis(rack).deflection.toFixed(2)}mm
+              </span>
+            </div>
+          </div>
+        </Section>
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : rackPanel
+  const modelLabel = model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Box floors'
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -968,16 +1156,14 @@ export function App() {
               instead of standing beside the sheet. */}
           {!docked && (
             <Sheet>
-              <SheetTrigger
-                render={<Button size="icon-sm" variant="outline" aria-label={`${model === 'base' ? 'Base' : 'Holder'} settings`} />}
-              >
+              <SheetTrigger render={<Button size="icon-sm" variant="outline" aria-label={`${modelLabel} settings`} />}>
                 <PanelLeft />
               </SheetTrigger>
               <SheetContent side="left" className="max-w-[85vw] gap-0 p-0 data-[side=left]:w-81">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">
-                  <SheetTitle className="note">{model === 'base' ? 'Base' : 'Holder'} settings</SheetTitle>
+                  <SheetTitle className="note">{modelLabel} settings</SheetTitle>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
               </SheetContent>
@@ -990,7 +1176,7 @@ export function App() {
             </span>
           </h1>
           <nav aria-label="Generators" className="flex self-stretch">
-            {MODELS.map((item) => (
+            {MODELS.filter((item) => item.value !== 'rack' || boxFloorsEnabled).map((item) => (
               <a
                 key={item.value}
                 href={item.href}
@@ -1031,7 +1217,7 @@ export function App() {
             length={partLength}
             height={partHeight}
             round={model === 'base' && !elongated}
-            fitToPart={model === 'holder'}
+            fitToPart={model !== 'base'}
           />
           {(error || exportError) && (
             <div

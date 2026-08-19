@@ -110,6 +110,24 @@ export interface HolderConfig {
   segments: number
 }
 
+export interface RackConfig {
+  kind: 'rack'
+  columns: number
+  rows: number
+  height: number
+  slotPitch: 7 | 14
+  shelfCount: number
+  shelfThickness: number
+  tileColumns: number
+  tileRows: number
+  gridfinityClearance: number
+  fitClearance: number
+  designLoadKg: number
+  handle: boolean
+  view: 'assembled' | 'print'
+  segments: number
+}
+
 export interface HolderGroup {
   id: string
   quantity: number
@@ -124,4 +142,4 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export type PartConfig = BasePartConfig | HolderConfig | RackConfig

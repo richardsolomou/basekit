@@ -2,22 +2,19 @@ import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manif
 import type { Font } from 'opentype.js'
 import { magnetPositions, supportsFivePocketCross } from './base'
 import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
+import {
+  GRIDFINITY_CORNER_RADIUS as CORNER_RADIUS,
+  GRIDFINITY_FOOT_CLEARANCE as GAP,
+  GRIDFINITY_FOOT_PROFILE as PROFILE,
+  GRIDFINITY_HEIGHT_UNIT as BASE_HEIGHT,
+  GRIDFINITY_PITCH as GRID,
+} from './gridfinity'
 import { isElongated, trimNumber } from './outline'
 import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
 import { polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
 
-const GRID = 42
-const GAP = 0.5
-const BASE_HEIGHT = 7
-const PROFILE = [
-  { inset: 2.95, z: 0 },
-  { inset: 2.15, z: 0.8 },
-  { inset: 2.15, z: 2.6 },
-  { inset: 0, z: 4.75 },
-] as const
-const CORNER_RADIUS = 3.75
 const PLA_DENSITY = 1.24e-3
 const MIN_SLOT_FLOOR_THICKNESS = 0.4
 const ENGRAVING_DEPTH = 0.4
@@ -216,7 +213,7 @@ export function minHolderHeight(config: HolderConfig): number {
   return Math.max(BASE_HEIGHT, Math.ceil((required - 1e-6) / BASE_HEIGHT) * BASE_HEIGHT)
 }
 
-function distributed(points: HolderSlot[], width: number, length: number) {
+function distributed(points: HolderSlot[], width: number, length: number, stretch = true) {
   const minX = Math.min(...points.map((point) => point.x - slotWidth(point) / 2))
   const maxX = Math.max(...points.map((point) => point.x + slotWidth(point) / 2))
   const minY = Math.min(...points.map((point) => point.y - slotLength(point) / 2))
@@ -224,6 +221,7 @@ function distributed(points: HolderSlot[], width: number, length: number) {
   const cx = (minX + maxX) / 2
   const cy = (minY + maxY) / 2
   const centred = points.map((point) => ({ ...point, x: point.x - cx, y: point.y - cy }))
+  if (!stretch) return centred
   let scale = Infinity
   for (const point of centred) {
     if (Math.abs(point.x) > 1e-9) scale = Math.min(scale, (width / 2 - slotWidth(point) / 2) / Math.abs(point.x))
@@ -480,13 +478,14 @@ function singleHolderLayout(config: Pick<HolderConfig, 'groups' | 'maxColumns' |
           )
       if (packed) {
         const distributedSlots = distributed(packed, width, length)
-        layout = {
+        const candidate = {
           unitsWide,
           unitsDeep,
           width,
           length,
           slotCenters: distributedSlots.map((point) => ({ ...slots.find((slot) => slot.id === point.id)!, x: point.x, y: point.y })),
         }
+        layout = candidate
         break
       }
     }
@@ -650,6 +649,11 @@ export function holderName(config: HolderConfig): string {
   const layout = holderLayout(config)
   const models = config.groups.map(holderGroupNamePart).join('-')
   return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
+}
+
+export function holderPrintSize(config: HolderConfig) {
+  const layout = holderLayout(config)
+  return { width: layout.width, length: layout.length, height: config.height }
 }
 
 function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
@@ -833,6 +837,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
         }
       }
     }
+
     solid = solidOf(Manifold.difference([solid, ...cutters]))
 
     const volume = solid.volume()
