@@ -1,5 +1,11 @@
 # basekit
 
+## 0.1.4
+
+### Patch Changes
+
+- 8227229: Keep the 3D viewer responsive without browser resize warnings.
+
 ## 0.1.3
 
 ### Patch Changes
