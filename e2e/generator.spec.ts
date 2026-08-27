@@ -66,6 +66,19 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
   expect(await triangles(page)).toBeGreaterThan(0)
 })
 
+test('keeps the 3D canvas out of the observed viewer layout', { tag: '@ci' }, async ({ page }) => {
+  const resizeErrors: string[] = []
+  page.on('pageerror', (error) => {
+    if (error.message.includes('ResizeObserver')) resizeErrors.push(error.message)
+  })
+  const canvas = page.locator('main canvas')
+  await expect(canvas).toHaveCSS('position', 'absolute')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(canvas).toHaveCSS('position', 'absolute')
+  await expect.poll(() => triangles(page)).toBeGreaterThan(0)
+  expect(resizeErrors).toEqual([])
+})
+
 test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
 })

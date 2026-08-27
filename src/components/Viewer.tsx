@@ -94,6 +94,10 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     // once per geometry swap instead.
     renderer.shadowMap.autoUpdate = false
     shadowsDirty.current = renderer
+    // Keep the canvas out of the observed container's layout. setSize() writes
+    // CSS dimensions as well as buffer dimensions, so an in-flow canvas can
+    // otherwise resize its own ResizeObserver ancestor.
+    Object.assign(renderer.domElement.style, { position: 'absolute', inset: '0' })
     container.append(renderer.domElement)
 
     const world = new THREE.Scene()
@@ -160,8 +164,13 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
       held.current = true
     })
 
+    let lastWidth = -1
+    let lastHeight = -1
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = container
+      if (w === lastWidth && h === lastHeight) return
+      lastWidth = w
+      lastHeight = h
       renderer.setSize(w, h)
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
@@ -302,7 +311,7 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
 
   return (
     <div className="relative h-full w-full">
-      <div ref={host} className="sheet h-full w-full" />
+      <div ref={host} className="sheet relative h-full w-full" />
       {/* Registration marks rather than a frame: the sheet is trimmed to size. */}
       <div className="pointer-events-none absolute inset-5" aria-hidden>
         {CORNERS.map((corner) => (
