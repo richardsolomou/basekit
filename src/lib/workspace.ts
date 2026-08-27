@@ -1,10 +1,10 @@
 import { defaultHolderConfig } from '../geometry/holder'
-import { supportsFivePocketCross } from '../geometry/base'
+import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import type { BaseConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 3
+const WORKSPACE_VERSION = 7
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -23,7 +23,10 @@ export interface SharedSettings {
   wallThickness: number
   magnetBossWall: number
   magnetCounts: Record<string, number>
-  magnets: Pick<BaseConfig['magnets'], 'layout' | 'patternVersion' | 'maxCount' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
+  magnets: Pick<
+    BaseConfig['magnets'],
+    'layout' | 'patternVersion' | 'maxCount' | 'latticePitch' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'
+  >
 }
 
 export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceState): void {
@@ -44,6 +47,7 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
       layout: base.magnets.layout,
       patternVersion: base.magnets.patternVersion,
       maxCount: base.magnets.maxCount,
+      latticePitch: base.magnets.latticePitch,
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
       clearance: base.magnets.clearance,
@@ -56,9 +60,9 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
   const fiveCross = shared.magnets.layout === 'five-cross' && (legacyPattern || supportsFivePocketCross(state.base.shape, state.base.width))
-  const layout = fiveCross ? 'five-cross' : 'balanced'
+  const layout = fiveCross ? 'five-cross' : shared.magnets.layout === 'lattice' ? 'lattice' : 'balanced'
   const key = footprintKey(state.base.shape, state.base.width, state.base.length)
-  const count = fiveCross
+  const requestedCount = fiveCross
     ? 5
     : legacyPattern
       ? shared.magnetCounts[key]
@@ -70,6 +74,15 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
           shared.magnets.diameter,
           shared.magnets.thickness,
         ))
+  const compatibleCounts = trayCompatibleMagnetCounts({
+    ...state.base,
+    wallThickness: shared.wallThickness,
+    magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall },
+  })
+  const count =
+    layout === 'lattice' && shared.magnetCounts[key] === undefined
+      ? (compatibleCounts.findLast((candidate) => candidate <= (requestedCount ?? 1)) ?? 0)
+      : requestedCount
   return {
     ...state,
     base: {
@@ -100,6 +113,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       magnetBossWall: shared.magnetBossWall,
       magnetCounts: shared.magnetCounts,
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
+      universal: { ...state.holder.universal, pitch: shared.magnets.latticePitch, layout: 'staggered' },
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
   }
@@ -117,11 +131,21 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))
+        ? migrateWorkspaceV6(
+            migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))),
+          )
         : parsed.version === 2
-          ? migrateWorkspaceV2(parsed.workspace)
-          : parsed.workspace
-    if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1 && parsed.version !== 2) return defaultWorkspace()
+          ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace)))))
+          : parsed.version === 3
+            ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace))))
+            : parsed.version === 4
+              ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace)))
+              : parsed.version === 5
+                ? migrateWorkspaceV6(migrateWorkspaceV5(parsed.workspace))
+                : parsed.version === 6
+                  ? migrateWorkspaceV6(parsed.workspace)
+                  : parsed.workspace
+    if (![1, 2, 3, 4, 5, 6, WORKSPACE_VERSION].includes(parsed.version as number)) return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
@@ -129,6 +153,56 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV6(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  const universal = holder?.universal as Record<string, unknown> | undefined
+  if (!holder || !universal) return value
+  return { ...workspace, holder: { ...holder, universal: { ...defaultHolderConfig().universal, ...universal } } }
+}
+
+function migrateWorkspaceV5(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const shared = workspace.shared as Record<string, unknown> | undefined
+  const base = workspace.base as Record<string, unknown> | undefined
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  const sharedMagnets = shared?.magnets as Record<string, unknown> | undefined
+  const baseMagnets = base?.magnets as Record<string, unknown> | undefined
+  const holderMagnets = holder?.magnets as Record<string, unknown> | undefined
+  if (!shared || !base || !holder || !sharedMagnets || !baseMagnets || !holderMagnets) return value
+  return {
+    ...workspace,
+    shared: { ...shared, magnets: { latticePitch: 30, ...sharedMagnets } },
+    base: { ...base, magnets: { latticePitch: 30, ...baseMagnets } },
+    holder: {
+      ...holder,
+      universal: { ...defaultHolderConfig().universal, ...(holder.universal as Record<string, unknown>) },
+      magnets: { latticePitch: 30, ...holderMagnets },
+    },
+  }
+}
+
+function migrateWorkspaceV4(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  const universal = holder?.universal as Record<string, unknown> | undefined
+  if (!holder || !universal) return value
+  const defaults = defaultHolderConfig().universal
+  return { ...workspace, holder: { ...holder, universal: { ...defaults, ...universal } } }
+}
+
+function migrateWorkspaceV3(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const holder = workspace.holder
+  if (typeof holder !== 'object' || holder === null) return value
+  const defaults = defaultHolderConfig()
+  return { ...workspace, holder: { ...defaults, ...(holder as Record<string, unknown>), mode: 'fitted', universal: defaults.universal } }
 }
 
 function migrateWorkspaceV2(value: unknown): unknown {
@@ -183,7 +257,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   const workspace = value as WorkspaceState
   return (
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
-    ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
+    ['balanced', 'five-cross', 'lattice'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))

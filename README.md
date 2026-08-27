@@ -34,6 +34,8 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
+Universal trays provide a continuous alternative when a collection changes often. Choose the Gridfinity footprint and shared magnet-grid pitch, then generate bases with the tray-compatible pocket layout so every base magnet lands on the same staggered lattice. The sparse 30mm default reduces tray magnet count, and a smallest-base setting omits perimeter holes where a miniature could not fit on the deck. Automatic base layouts use only the compatible magnets that physically fit at that spacing. Large trays can export as printer-sized Gridfinity pieces while retaining walls remain only around the assembled perimeter. Existing balanced and five-pocket-cross bases remain supported, but cannot guarantee that more than one magnet aligns with a universal tray.
+
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.

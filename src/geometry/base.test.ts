@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Mesh } from 'manifold-3d'
 import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { buildBase, magnetPositions, ribAngles } from './base'
+import { buildBase, magnetPositions, ribAngles, trayCompatibleMagnetCounts } from './base'
 import { toStl } from './exporters'
 import { LABEL_MARGIN, pointInContours } from './label'
 import { loadManifold } from './manifold'
@@ -459,6 +459,49 @@ describe('rib placement', () => {
       }
     }
   })
+})
+
+describe('tray-compatible magnet placement', () => {
+  const pitch = 15
+  const rowPitch = (pitch * Math.sqrt(3)) / 2
+  const isLatticeNode = ({ x, y }: { x: number; y: number }) => {
+    const row = y / rowPitch
+    const column = x / pitch - row / 2
+    return Math.abs(row - Math.round(row)) < 1e-6 && Math.abs(column - Math.round(column)) < 1e-6
+  }
+
+  it.each([1, 2, 3, 4, 5, 6, 8])('places all %s round-base magnets on the canonical staggered lattice', (count) => {
+    const magnets = magnetPositions(count, 90, 90, 4, { layout: 'lattice', latticePitch: pitch })
+    expect(magnets).toHaveLength(count)
+    expect(magnets.every(isLatticeNode)).toBe(true)
+  })
+
+  it.each([1, 2, 4, 6, 8])('places all %s elongated-base magnets on the canonical staggered lattice', (count) => {
+    const magnets = magnetPositions(count, 90, 30, 4, { layout: 'lattice', latticePitch: pitch })
+    expect(magnets).toHaveLength(count)
+    expect(magnets.every(isLatticeNode)).toBe(true)
+  })
+
+  it('runs a rib through every tray-compatible magnet boss', () => {
+    const magnets = magnetPositions(8, 90, 90, 4, { layout: 'lattice', latticePitch: pitch })
+    const spokes = ribAngles(8, magnets, true)
+    const clearance = (angle: number, boss: { x: number; y: number }) => Math.abs(-Math.sin(angle) * boss.x + Math.cos(angle) * boss.y)
+    expect(magnets.every((boss) => spokes.some((angle) => clearance(angle, boss) < 1e-6))).toBe(true)
+  })
+
+  it('rejects a pitch that cannot fit the requested magnets', () => {
+    expect(() => magnetPositions(3, 20, 20, 4, { layout: 'lattice', latticePitch: 20 })).toThrow('Tray-compatible magnet pitch is too wide')
+  })
+
+  it.each([...ROUND_SIZES, ...POLYGON_SIZES, ...OVAL_SIZES, ...PILL_SIZES, ...RECT_SIZES].map((size) => [size.label, size] as const))(
+    'builds the standard %s footprint with its tray-compatible automatic count',
+    (_label, size) => {
+      const config = presetFor(size)
+      config.magnets.layout = 'lattice'
+      config.magnets.count = trayCompatibleMagnetCounts(config).findLast((count) => count <= config.magnets.count)!
+      expect(buildBase(wasm, config, font).stats.solid).toBe(true)
+    },
+  )
 })
 
 describe('scaling with the footprint', () => {

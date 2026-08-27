@@ -314,6 +314,37 @@ test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, asyn
   await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
 })
 
+test('builds a universal magnetic tray without miniature slots', { tag: '@ci' }, async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await settled(page)
+  const previous = await triangles(page)
+  await pickChoice(page, 'Holder type', 'Universal grid')
+  await rebuilt(page, previous)
+
+  await expect(page.getByText('Universal deck', { exact: true })).toBeVisible()
+  await expect(page.getByText('Miniatures', { exact: true })).not.toBeVisible()
+  await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('30')
+  await expect(page.getByLabel('Smallest base in mm')).toHaveValue('25')
+  await expect(page.getByRole('switch', { name: 'Tray magnets' })).toBeChecked()
+  await expect(footer(page)).toContainText('universal-tray-7x5-30mm-grid')
+
+  const unsplit = await triangles(page)
+  await page.getByRole('switch', { name: 'Split tray into pieces' }).click()
+  await rebuilt(page, unsplit)
+  await expect(page.getByLabel('Maximum piece columns')).toHaveValue('3')
+  await expect(page.getByLabel('Maximum piece rows')).toHaveValue('3')
+  await expect(page.getByText(/Exports 6 Gridfinity-aligned pieces/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download STLs' })).toBeVisible()
+
+  await page.getByLabel('Magnet pitch in mm').fill('14')
+  await page.getByLabel('Magnet pitch in mm').blur()
+  await expect(footer(page)).toContainText('universal-tray-7x5-14mm-grid')
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await settled(page)
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Tray-compatible')
+  await expect(page.getByLabel('Tray grid pitch in mm')).toHaveValue('14')
+})
+
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
