@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.41.1
+    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.44.0
     with:
       command: just check
       just-version: '1.58.0'
