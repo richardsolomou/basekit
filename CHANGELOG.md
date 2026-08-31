@@ -1,5 +1,11 @@
 # basekit
 
+## 0.2.0
+
+### Minor Changes
+
+- 7370713: Add configurable holder-edge spacing with a default of half the miniature spacing.
+
 ## 0.1.4
 
 ### Patch Changes

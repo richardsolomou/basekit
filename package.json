@@ -1,6 +1,6 @@
 {
   "name": "basekit",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": true,
   "description": "Parametric generator for magnetised tabletop miniature bases, with the size embossed inside the model.",
   "homepage": "https://basekit.ras.sh",
