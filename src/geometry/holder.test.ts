@@ -47,6 +47,11 @@ describe('holderLayout', () => {
     expect(second).toMatchObject({ magnets: { depthClearance: 0.1 }, magnetCounts: {} })
   })
 
+  it('defaults holder-edge spacing to half the miniature spacing', () => {
+    const config = defaultHolderConfig()
+    expect(config.edgeSpacing).toBe(config.spacing / 2)
+  })
+
   it('uses a narrow 1×4 holder for five 32mm models', () => {
     const layout = holderLayout(defaultHolderConfig())
     expect(layout).toMatchObject({ unitsWide: 1, unitsDeep: 4 })
@@ -237,6 +242,27 @@ describe('holderLayout', () => {
           (points[i].width + points[j].width) / 2 + config.slotClearance + config.spacing - 1e-5,
         )
     }
+  })
+
+  it('keeps every slot recess away from the holder edge', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      edgeSpacing: 3,
+      groups: [holderGroup('models-1', 5, { width: 32 }), holderGroup('models-2', 2, { width: 40 })],
+    }
+    const layout = holderLayout(config)
+    for (const point of layout.slotCenters) {
+      expect(Math.abs(point.x)).toBeLessThanOrEqual(layout.width / 2 - (point.width + config.slotClearance) / 2 - config.edgeSpacing + 1e-5)
+      expect(Math.abs(point.y)).toBeLessThanOrEqual(
+        layout.length / 2 - (point.length + config.slotClearance) / 2 - config.edgeSpacing + 1e-5,
+      )
+    }
+  })
+
+  it('uses another Gridfinity column when the requested edge spacing needs it', () => {
+    const group = holderGroup('models-1', 1, { width: 40 })
+    expect(holderLayout({ ...defaultHolderConfig(), groups: [group], edgeSpacing: 0.25 }).unitsWide).toBe(1)
+    expect(holderLayout({ ...defaultHolderConfig(), groups: [group], edgeSpacing: 0.75 }).unitsWide).toBe(2)
   })
 
   it('reports no layout when the box constraints are too small', () => {

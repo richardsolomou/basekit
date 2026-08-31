@@ -822,7 +822,22 @@ export function App() {
             max={10}
             step={0.5}
             defaultValue={HOLDER_DEFAULTS.spacing}
-            onChange={(spacing) => setHolder({ ...holder, spacing })}
+            onChange={(spacing) =>
+              setHolder({
+                ...holder,
+                spacing,
+                edgeSpacing: holder.edgeSpacing === holder.spacing / 2 ? spacing / 2 : holder.edgeSpacing,
+              })
+            }
+          />
+          <Dimension
+            label="From holder edge"
+            value={holder.edgeSpacing}
+            min={0}
+            max={10}
+            step={0.05}
+            defaultValue={holder.spacing / 2}
+            onChange={(edgeSpacing) => setHolder({ ...holder, edgeSpacing })}
           />
           <ToggleSetting
             label="Split into modules"

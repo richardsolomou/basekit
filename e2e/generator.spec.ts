@@ -240,6 +240,23 @@ test('aligns toggle and dimension reset columns', async ({ page }) => {
   expect(toggle?.x).toBe(dimension?.x)
 })
 
+test('defaults holder-edge spacing to half the miniature spacing until customized', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  const between = page.getByLabel('Between miniatures in mm')
+  const edge = page.getByLabel('From holder edge in mm')
+  await expect(edge).toHaveValue('0.25')
+
+  await between.fill('2')
+  await expect(edge).toHaveValue('1.00')
+  await edge.fill('2')
+  await between.fill('3')
+  await expect(edge).toHaveValue('2.00')
+  await page.getByRole('button', { name: /Reset From holder edge/ }).click()
+  await expect(edge).toHaveValue('1.50')
+  await between.fill('4')
+  await expect(edge).toHaveValue('2.00')
+})
+
 test('keeps a long dimension label on one line when its reset appears', async ({ page }) => {
   const label = page.getByText('Magnet diameter clearance', { exact: true })
   const before = await label.boundingBox()
@@ -302,7 +319,7 @@ test('frames every slot in a tall holder', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^50\b/ }).click()
   await expect(page.getByText('4/4 fitted')).toBeVisible()
-  await expect(across(page)).toHaveText('83.5 × 167.5')
+  await expect(across(page)).toHaveText('83.5 × 209.5')
   await expect(across(page)).toBeInViewport()
 })
 

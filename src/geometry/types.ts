@@ -88,8 +88,10 @@ export interface HolderConfig {
     enabled: boolean
     placement: 'slots' | 'module'
   }
-  /** Edge-to-edge distance between nominal miniature bases. */
+  /** Edge-to-edge distance between slot recesses. */
   spacing: number
+  /** Minimum distance from a slot recess to the holder edge. */
+  edgeSpacing: number
   /** Added to the diameter so bases lift out without binding. */
   slotClearance: number
   slotDepth: number
