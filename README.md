@@ -30,7 +30,7 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 
 ## Gridfinity holders 📦
 
-Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints.
+Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints. Miniature and holder-edge spacing are independently adjustable, with the edge spacing defaulting to half the miniature spacing.
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 

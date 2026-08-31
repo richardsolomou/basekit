@@ -100,6 +100,16 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).base).not.toHaveProperty('underside')
   })
 
+  it('adds half the miniature spacing at holder edges to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.holder.spacing = 3
+    delete legacy.holder.edgeSpacing
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 3, workspace: legacy }))
+
+    expect(loadWorkspace(storage).holder.edgeSpacing).toBe(1.5)
+  })
+
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()
