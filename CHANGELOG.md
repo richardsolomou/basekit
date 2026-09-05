@@ -1,5 +1,11 @@
 # basekit
 
+## 0.3.0
+
+### Minor Changes
+
+- 8ab0a9c: Add printable, configurable flying stems with flat feet and peg or ball-joint miniature connections.
+
 ## 0.2.0
 
 ### Minor Changes
