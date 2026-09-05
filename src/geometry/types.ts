@@ -122,8 +122,20 @@ export interface HolderGroup {
   sides: number
 }
 
+export interface FlightStemConfig {
+  kind: 'stem'
+  /** Height of the tapered body, excluding the miniature connection. */
+  bodyHeight: number
+  bodyDiameter: number
+  connection: 'peg' | 'ball'
+  modelPegDiameter: number
+  modelPegLength: number
+  ballDiameter: number
+  segments: number
+}
+
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export type PartConfig = BasePartConfig | HolderConfig | FlightStemConfig

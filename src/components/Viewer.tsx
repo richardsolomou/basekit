@@ -27,7 +27,7 @@ function framingDistance(aspect: number, footprint = REFERENCE_FOOTPRINT): numbe
 }
 
 /** Steep enough to look down into the well, where the size label and supports are. */
-const VIEW_DIRECTION = new THREE.Vector3(0.39, -0.54, 0.74)
+const VIEW_DIRECTION = new THREE.Vector3(0.39, -0.54, 0.74).normalize()
 
 const CORNERS = [
   'top-0 left-0 border-t border-l',
@@ -74,11 +74,12 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
   const shadowLight = useRef<THREE.DirectionalLight>(null)
   const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera>(null)
+  const controlsRef = useRef<OrbitControls>(null)
   const held = useRef(false)
   const shouldFit = useRef(fitToPart)
   const framingFootprint = useRef(REFERENCE_FOOTPRINT)
   shouldFit.current = fitToPart
-  framingFootprint.current = fitToPart ? Math.max(width, length) : REFERENCE_FOOTPRINT
+  framingFootprint.current = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
 
   useEffect(() => {
     const container = host.current
@@ -116,6 +117,7 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
      * carrying on over the top.
      */
     const controls = new OrbitControls(camera, renderer.domElement)
+    controlsRef.current = controls
     controls.enableDamping = true
     controls.dampingFactor = 0.08
     controls.target.set(0, 0, 2)
@@ -174,7 +176,9 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
       renderer.setSize(w, h)
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
-      if (!held.current) camera.position.setLength(framingDistance(camera.aspect, framingFootprint.current))
+      if (!held.current) {
+        camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, framingFootprint.current))
+      }
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -283,7 +287,7 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     // density as a 180mm one — the label is smallest exactly where the base is.
     const light = shadowLight.current
     if (light) {
-      const reach = Math.max(width, length) * 0.75
+      const reach = Math.max(width, length, height) * 0.75
       Object.assign(light.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach })
       light.shadow.camera.updateProjectionMatrix()
     }
@@ -299,7 +303,13 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     group.userData = { halfWidth: width / 2, halfLength: length / 2, height }
 
     const camera = cameraRef.current
-    if (shouldFit.current && camera && !held.current) camera.position.setLength(framingDistance(camera.aspect, Math.max(width, length)))
+    const controls = controlsRef.current
+    if (camera && controls && !held.current) {
+      controls.target.set(0, 0, height / 2)
+      const footprint = shouldFit.current ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
+      camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, footprint))
+      controls.update()
+    }
 
     // The triangle count of what is actually in the scene, which is the only
     // honest signal that a rebuild has landed — the status word reads "ready"

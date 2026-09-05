@@ -1,10 +1,11 @@
 import { defaultHolderConfig } from '../geometry/holder'
 import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
-import type { BaseConfig, HolderConfig } from '../geometry/types'
+import { defaultFlightStemConfig } from '../geometry/stem'
+import type { BaseConfig, FlightStemConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 4
+const WORKSPACE_VERSION = 6
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -14,6 +15,7 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  stem: FlightStemConfig
   /** Values exposed by both generators have one canonical owner. */
   shared: SharedSettings
 }
@@ -107,7 +109,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
 
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
-  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), shared: sharedFromBase(base) })
+  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), stem: defaultFlightStemConfig(), shared: sharedFromBase(base) })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -117,13 +119,24 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace)))
+        ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace)))))
         : parsed.version === 2
-          ? migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace))
+          ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace))))
           : parsed.version === 3
-            ? migrateWorkspaceV3(parsed.workspace)
-            : parsed.workspace
-    if (parsed.version !== WORKSPACE_VERSION && parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3)
+            ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace)))
+            : parsed.version === 4
+              ? migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace))
+              : parsed.version === 5
+                ? migrateWorkspaceV5(parsed.workspace)
+                : parsed.workspace
+    if (
+      parsed.version !== WORKSPACE_VERSION &&
+      parsed.version !== 1 &&
+      parsed.version !== 2 &&
+      parsed.version !== 3 &&
+      parsed.version !== 4 &&
+      parsed.version !== 5
+    )
       return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
@@ -132,6 +145,19 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV5(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const stem = workspace.stem
+  if (typeof stem !== 'object' || stem === null) return value
+  return { ...workspace, stem: { ...defaultFlightStemConfig(), ...stem } }
+}
+
+function migrateWorkspaceV4(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), stem: defaultFlightStemConfig() }
 }
 
 function migrateWorkspaceV3(value: unknown): unknown {
@@ -196,6 +222,8 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
+    workspace.stem.kind === 'stem' &&
+    ['peg', 'ball'].includes(workspace.stem.connection) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )
