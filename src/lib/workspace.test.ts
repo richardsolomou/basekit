@@ -16,6 +16,7 @@ describe('workspace state', () => {
     expect(defaultWorkspace()).toMatchObject({
       base: { width: 32, magnets: { patternVersion: 2 } },
       holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
+      stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
     })
   })
 
@@ -108,6 +109,26 @@ describe('workspace state', () => {
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 3, workspace: legacy }))
 
     expect(loadWorkspace(storage).holder.edgeSpacing).toBe(1.5)
+  })
+
+  it('adds the flying-stem generator to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.stem
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 4, workspace: legacy }))
+
+    expect(loadWorkspace(storage).stem).toMatchObject({ kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, modelPegDiameter: 1.8 })
+  })
+
+  it('adds ball-joint settings to saved flying stems', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.stem.bodyHeight = 20
+    delete legacy.stem.connection
+    delete legacy.stem.ballDiameter
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 5, workspace: legacy }))
+
+    expect(loadWorkspace(storage).stem).toMatchObject({ bodyHeight: 20, connection: 'peg', ballDiameter: 4 })
   })
 
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {

@@ -228,6 +228,29 @@ test('shares the size label preference between bases and holders', async ({ page
   await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
 })
 
+test('builds a matching printable flying stem', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Stems' }).click()
+  await rebuilt(page, before)
+
+  await expect(across(page)).toHaveText('Ø4.8')
+  await expect(tall(page)).toHaveText('19')
+  await expect(footer(page)).toContainText('flying-stem-15mm')
+  await expect(footer(page)).toContainText('Ø1.8 × 4 mm')
+  await pickChoice(page, 'Stem height', '20 mm')
+  await expect(tall(page)).toHaveText('24')
+  await expect(footer(page)).toContainText('flying-stem-20mm')
+
+  const pegTriangles = await triangles(page)
+  await pickChoice(page, 'Connection', 'Ball joint')
+  await rebuilt(page, pegTriangles)
+  await expect(page.getByLabel('Ball diameter in mm')).toHaveValue('4.0')
+  await expect(tall(page)).toHaveText('23.95')
+  await expect(footer(page)).toContainText('flying-stem-20mm-ball')
+  await expect(footer(page)).toContainText('Ball joint')
+  await expect(footer(page)).toContainText('Ø4 mm')
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between miniatures in mm').fill('1.5')

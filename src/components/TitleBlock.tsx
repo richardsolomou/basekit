@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
+import { stemOverallHeight } from '@/geometry/stem'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -28,6 +29,18 @@ function Row({ label, value }: { label: string; value: string }) {
  * replaces a status bar rather than adding to one.
  */
 export function TitleBlock({ config, status, name }: Props) {
+  if (config.kind === 'stem') {
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row label="Overall" value={`${trimNumber(stemOverallHeight(config))} mm`} />
+        {config.connection === 'peg' ? (
+          <Row label="Model peg" value={`Ø${trimNumber(config.modelPegDiameter)} × ${trimNumber(config.modelPegLength)} mm`} />
+        ) : (
+          <Row label="Ball joint" value={`Ø${trimNumber(config.ballDiameter)} mm`} />
+        )}
+      </TitleFrame>
+    )
+  }
   if (config.kind === 'holder') {
     const layout = holderLayout(config)
     const plan = holderPlan(config)

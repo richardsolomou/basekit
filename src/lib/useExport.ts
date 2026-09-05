@@ -4,7 +4,8 @@ import { to3mf, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
 import { baseName } from '@/geometry/outline'
 import { exportSegmentsFor } from '@/geometry/quality'
-import type { BaseConfig, HolderConfig, PartConfig } from '@/geometry/types'
+import { stemName, stemOverallHeight } from '@/geometry/stem'
+import type { BaseConfig, FlightStemConfig, HolderConfig, PartConfig } from '@/geometry/types'
 import posthog from '@/lib/posthog'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
@@ -12,25 +13,31 @@ import { asMeshLike, download } from './download'
 type ExportFormat = 'stl' | '3mf'
 
 interface ExportOptions {
-  model: 'base' | 'holder'
+  model: 'base' | 'holder' | 'stem'
   base: BaseConfig
   holder: HolderConfig
+  stem: FlightStemConfig
   width: number
   length: number
 }
 
-export function useExport({ model, base, holder, width, length }: ExportOptions) {
+export function useExport({ model, base, holder, stem, width, length }: ExportOptions) {
   const [exporting, setExporting] = useState<ExportFormat>()
   const [error, setError] = useState<string>()
-  const config: PartConfig = model === 'base' ? base : holder
-  const name = model === 'base' ? baseName(base) : holderName(holder)
+  const config: PartConfig = model === 'base' ? base : model === 'holder' ? holder : stem
+  const name = model === 'base' ? baseName(base) : model === 'holder' ? holderName(holder) : stemName(stem)
 
   const run = async <T>(format: ExportFormat, operation: () => Promise<T>): Promise<T | undefined> => {
     setExporting(format)
     setError(undefined)
     try {
       const result = await operation()
-      posthog.capture(`${model}_exported`, { format, width, length, height: config.height })
+      posthog.capture(`${model}_exported`, {
+        format,
+        width,
+        length,
+        height: config.kind === 'stem' ? stemOverallHeight(config) : config.height,
+      })
       return result
     } catch (failure) {
       posthog.captureException(failure, { export_format: format, model })
