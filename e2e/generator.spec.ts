@@ -66,6 +66,19 @@ test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
   expect(await triangles(page)).toBeGreaterThan(0)
 })
 
+test('keeps the 3D canvas out of the observed viewer layout', { tag: '@ci' }, async ({ page }) => {
+  const resizeErrors: string[] = []
+  page.on('pageerror', (error) => {
+    if (error.message.includes('ResizeObserver')) resizeErrors.push(error.message)
+  })
+  const canvas = page.locator('main canvas')
+  await expect(canvas).toHaveCSS('position', 'absolute')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(canvas).toHaveCSS('position', 'absolute')
+  await expect.poll(() => triangles(page)).toBeGreaterThan(0)
+  expect(resizeErrors).toEqual([])
+})
+
 test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
 })
@@ -215,6 +228,29 @@ test('shares the size label preference between bases and holders', async ({ page
   await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
 })
 
+test('builds a matching printable flying stem', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Stems' }).click()
+  await rebuilt(page, before)
+
+  await expect(across(page)).toHaveText('Ø4.8')
+  await expect(tall(page)).toHaveText('19')
+  await expect(footer(page)).toContainText('flying-stem-15mm')
+  await expect(footer(page)).toContainText('Ø1.8 × 4 mm')
+  await pickChoice(page, 'Stem height', '20 mm')
+  await expect(tall(page)).toHaveText('24')
+  await expect(footer(page)).toContainText('flying-stem-20mm')
+
+  const pegTriangles = await triangles(page)
+  await pickChoice(page, 'Connection', 'Ball joint')
+  await rebuilt(page, pegTriangles)
+  await expect(page.getByLabel('Ball diameter in mm')).toHaveValue('4.0')
+  await expect(tall(page)).toHaveText('23.95')
+  await expect(footer(page)).toContainText('flying-stem-20mm-ball')
+  await expect(footer(page)).toContainText('Ball joint')
+  await expect(footer(page)).toContainText('Ø4 mm')
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between miniatures in mm').fill('1.5')
@@ -225,6 +261,23 @@ test('aligns toggle and dimension reset columns', async ({ page }) => {
   const toggle = await page.getByRole('switch', { name: 'Split into modules' }).boundingBox()
   expect(toggleReset?.x).toBe(dimensionReset?.x)
   expect(toggle?.x).toBe(dimension?.x)
+})
+
+test('defaults holder-edge spacing to half the miniature spacing until customized', async ({ page }) => {
+  await page.getByRole('link', { name: 'Holders' }).click()
+  const between = page.getByLabel('Between miniatures in mm')
+  const edge = page.getByLabel('From holder edge in mm')
+  await expect(edge).toHaveValue('0.25')
+
+  await between.fill('2')
+  await expect(edge).toHaveValue('1.00')
+  await edge.fill('2')
+  await between.fill('3')
+  await expect(edge).toHaveValue('2.00')
+  await page.getByRole('button', { name: /Reset From holder edge/ }).click()
+  await expect(edge).toHaveValue('1.50')
+  await between.fill('4')
+  await expect(edge).toHaveValue('2.00')
 })
 
 test('keeps a long dimension label on one line when its reset appears', async ({ page }) => {
@@ -289,7 +342,7 @@ test('frames every slot in a tall holder', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: /^50\b/ }).click()
   await expect(page.getByText('4/4 fitted')).toBeVisible()
-  await expect(across(page)).toHaveText('83.5 × 167.5')
+  await expect(across(page)).toHaveText('83.5 × 209.5')
   await expect(across(page)).toBeInViewport()
 })
 

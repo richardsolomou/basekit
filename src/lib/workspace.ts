@@ -1,7 +1,8 @@
 import { defaultHolderConfig } from '../geometry/holder'
 import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
-import type { BaseConfig, HolderConfig } from '../geometry/types'
+import { defaultFlightStemConfig } from '../geometry/stem'
+import type { BaseConfig, FlightStemConfig, HolderConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
 const WORKSPACE_VERSION = 7
@@ -14,6 +15,7 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  stem: FlightStemConfig
   /** Values exposed by both generators have one canonical owner. */
   shared: SharedSettings
 }
@@ -121,7 +123,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
 
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
-  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), shared: sharedFromBase(base) })
+  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), stem: defaultFlightStemConfig(), shared: sharedFromBase(base) })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -131,9 +133,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV6(
-            migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))),
-          )
+        ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))))
         : parsed.version === 2
           ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace)))))
           : parsed.version === 3
@@ -158,15 +158,6 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
 function migrateWorkspaceV6(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value
   const workspace = value as Record<string, unknown>
-  const holder = workspace.holder as Record<string, unknown> | undefined
-  const universal = holder?.universal as Record<string, unknown> | undefined
-  if (!holder || !universal) return value
-  return { ...workspace, holder: { ...holder, universal: { ...defaultHolderConfig().universal, ...universal } } }
-}
-
-function migrateWorkspaceV5(value: unknown): unknown {
-  if (typeof value !== 'object' || value === null) return value
-  const workspace = value as Record<string, unknown>
   const shared = workspace.shared as Record<string, unknown> | undefined
   const base = workspace.base as Record<string, unknown> | undefined
   const holder = workspace.holder as Record<string, unknown> | undefined
@@ -179,30 +170,33 @@ function migrateWorkspaceV5(value: unknown): unknown {
     shared: { ...shared, magnets: { latticePitch: 30, ...sharedMagnets } },
     base: { ...base, magnets: { latticePitch: 30, ...baseMagnets } },
     holder: {
+      ...defaultHolderConfig(),
       ...holder,
-      universal: { ...defaultHolderConfig().universal, ...(holder.universal as Record<string, unknown>) },
+      universal: defaultHolderConfig().universal,
       magnets: { latticePitch: 30, ...holderMagnets },
     },
   }
 }
 
-function migrateWorkspaceV4(value: unknown): unknown {
+function migrateWorkspaceV5(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value
   const workspace = value as Record<string, unknown>
-  const holder = workspace.holder as Record<string, unknown> | undefined
-  const universal = holder?.universal as Record<string, unknown> | undefined
-  if (!holder || !universal) return value
-  const defaults = defaultHolderConfig().universal
-  return { ...workspace, holder: { ...holder, universal: { ...defaults, ...universal } } }
+  const stem = workspace.stem
+  if (typeof stem !== 'object' || stem === null) return value
+  return { ...workspace, stem: { ...defaultFlightStemConfig(), ...stem } }
+}
+
+function migrateWorkspaceV4(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), stem: defaultFlightStemConfig() }
 }
 
 function migrateWorkspaceV3(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value
   const workspace = value as Record<string, unknown>
-  const holder = workspace.holder
-  if (typeof holder !== 'object' || holder === null) return value
-  const defaults = defaultHolderConfig()
-  return { ...workspace, holder: { ...defaults, ...(holder as Record<string, unknown>), mode: 'fitted', universal: defaults.universal } }
+  const holder = workspace.holder as Record<string, unknown> | undefined
+  if (!holder || typeof holder.spacing !== 'number' || !Number.isFinite(holder.spacing)) return value
+  return { ...workspace, holder: { ...holder, edgeSpacing: holder.spacing / 2 } }
 }
 
 function migrateWorkspaceV2(value: unknown): unknown {
@@ -259,6 +253,8 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
     ['balanced', 'five-cross', 'lattice'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
+    workspace.stem.kind === 'stem' &&
+    ['peg', 'ball'].includes(workspace.stem.connection) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )

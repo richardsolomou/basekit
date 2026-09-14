@@ -91,8 +91,10 @@ export interface HolderConfig {
     enabled: boolean
     placement: 'slots' | 'module'
   }
-  /** Edge-to-edge distance between nominal miniature bases. */
+  /** Edge-to-edge distance between slot recesses. */
   spacing: number
+  /** Minimum distance from a slot recess to the holder edge. */
+  edgeSpacing: number
   /** Added to the diameter so bases lift out without binding. */
   slotClearance: number
   slotDepth: number
@@ -141,8 +143,20 @@ export interface HolderGroup {
   sides: number
 }
 
+export interface FlightStemConfig {
+  kind: 'stem'
+  /** Height of the tapered body, excluding the miniature connection. */
+  bodyHeight: number
+  bodyDiameter: number
+  connection: 'peg' | 'ball'
+  modelPegDiameter: number
+  modelPegLength: number
+  ballDiameter: number
+  segments: number
+}
+
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig
+export type PartConfig = BasePartConfig | HolderConfig | FlightStemConfig

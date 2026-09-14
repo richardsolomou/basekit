@@ -37,7 +37,15 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
+import {
+  CLASSIC_STEM_HEIGHTS,
+  defaultFlightStemConfig,
+  stemMaximumDiameter,
+  stemName,
+  stemNeckDiameter,
+  stemOverallHeight,
+} from '@/geometry/stem'
+import type { BaseConfig, EdgeProfile, FlightStemConfig, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -80,6 +88,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', href: '/holders' },
+  { value: 'stem' as const, label: 'Stems', href: '/stems' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -91,8 +100,17 @@ const HOLDER_MODES = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
+const STEM_DEFAULTS = defaultFlightStemConfig()
+const STEM_HEIGHTS = CLASSIC_STEM_HEIGHTS.map((value) => ({ value, label: `${value} mm` }))
+const STEM_CONNECTIONS = [
+  { value: 'peg' as const, label: 'Peg' },
+  { value: 'ball' as const, label: 'Ball joint' },
+]
+type Generator = (typeof MODELS)[number]['value']
 
-const modelForPath = (): 'base' | 'holder' => (window.location.pathname === '/holders' ? 'holder' : 'base')
+const modelForPath = (): Generator =>
+  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/stems' ? 'stem' : 'base'
+const modelLabel = (model: Generator) => (model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Stem')
 
 function RepositoryLink() {
   return (
@@ -114,21 +132,24 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const stem = workspace.stem
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setStem = (next: FlightStemConfig | ((current: FlightStemConfig) => FlightStemConfig)) =>
+    setWorkspace((current) => ({ ...current, stem: typeof next === 'function' ? next(current.stem) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
   const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
-  const [model, setModel] = useState<'base' | 'holder'>(modelForPath)
+  const [model, setModel] = useState<Generator>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : holder
+  const partConfig = model === 'base' ? config : model === 'holder' ? holder : stem
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -138,15 +159,15 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = model === 'holder' ? 'BaseKit — Holders' : 'BaseKit — Bases'
+    document.title = `BaseKit — ${model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : 'Flying Stems'}`
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
-  const changeModel = (next: 'base' | 'holder') => {
+  const changeModel = (next: Generator) => {
     if (next === model) return
     posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : '/')
+    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'stem' ? '/stems' : '/')
     setModel(next)
   }
 
@@ -204,10 +225,16 @@ export function App() {
       next.delete(id)
       return next
     })
-  const partWidth = model === 'base' ? width : holderSize.width
-  const partLength = model === 'base' ? length : holderSize.length
-  const partHeight = model === 'base' ? config.height : holder.height + (holder.mode === 'universal' ? holder.universal.rimHeight : 0)
-  const partName = model === 'base' ? baseName(config) : holderName(holder)
+  const stemDiameter = stemMaximumDiameter(stem)
+  const partWidth = model === 'base' ? width : model === 'holder' ? holderSize.width : stemDiameter
+  const partLength = model === 'base' ? length : model === 'holder' ? holderSize.length : stemDiameter
+  const partHeight =
+    model === 'base'
+      ? config.height
+      : model === 'holder'
+        ? holder.height + (holder.mode === 'universal' ? holder.universal.rimHeight : 0)
+        : stemOverallHeight(stem)
+  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : stemName(stem)
   const {
     exporting,
     error: exportError,
@@ -217,6 +244,7 @@ export function App() {
     model,
     base: config,
     holder,
+    stem,
     width: partWidth,
     length: partLength,
   })
@@ -243,8 +271,7 @@ export function App() {
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
-    const next = presetFor(size, config.magnets.maxCount, config.magnets.patternVersion)
-    setConfig(next)
+    setConfig(presetFor(size, config.magnets.maxCount, config.magnets.patternVersion))
   }
 
   const setSharedMagnets = (
@@ -870,7 +897,24 @@ export function App() {
               max={10}
               step={0.5}
               defaultValue={HOLDER_DEFAULTS.spacing}
-              onChange={(spacing) => setHolder({ ...holder, spacing })}
+              onChange={(spacing) =>
+                setHolder({
+                  ...holder,
+                  spacing,
+                  edgeSpacing: holder.edgeSpacing === holder.spacing / 2 ? spacing / 2 : holder.edgeSpacing,
+                })
+              }
+            />
+          )}
+          {holder.mode === 'fitted' && (
+            <Dimension
+              label="From holder edge"
+              value={holder.edgeSpacing}
+              min={0}
+              max={10}
+              step={0.05}
+              defaultValue={holder.spacing / 2}
+              onChange={(edgeSpacing) => setHolder({ ...holder, edgeSpacing })}
             />
           )}
           {holder.mode === 'fitted' && (
@@ -1110,7 +1154,94 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : holderPanel
+
+  const stemPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Stem settings" className="pb-4 [counter-reset:schedule]">
+        <Section
+          title="Stem"
+          aside={<span className="readout text-xs text-muted-foreground">{trimNumber(stemOverallHeight(stem))}mm overall</span>}
+        >
+          <Choice
+            label="Stem height"
+            value={stem.bodyHeight}
+            defaultValue={STEM_DEFAULTS.bodyHeight}
+            options={STEM_HEIGHTS}
+            onChange={(bodyHeight) => {
+              posthog.capture('flight_stem_height_selected', { body_height: bodyHeight })
+              setStem({ ...stem, bodyHeight })
+            }}
+          />
+          <Dimension
+            label="Body diameter"
+            value={stem.bodyDiameter}
+            min={stemNeckDiameter(stem)}
+            max={8}
+            step={0.1}
+            defaultValue={STEM_DEFAULTS.bodyDiameter}
+            onChange={(bodyDiameter) => setStem({ ...stem, bodyDiameter })}
+          />
+          <FieldDescription>Print upright from the flat foot, then glue it directly to the base.</FieldDescription>
+        </Section>
+
+        <Section
+          title="Miniature Connection"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              Ø{trimNumber(stem.connection === 'peg' ? stem.modelPegDiameter : stem.ballDiameter)}
+            </span>
+          }
+        >
+          <Choice
+            label="Connection"
+            value={stem.connection}
+            defaultValue={STEM_DEFAULTS.connection}
+            options={STEM_CONNECTIONS}
+            onChange={(connection) => {
+              posthog.capture('flight_stem_connection_selected', { connection })
+              const next = { ...stem, connection }
+              setStem({ ...next, bodyDiameter: Math.max(next.bodyDiameter, stemNeckDiameter(next)) })
+            }}
+          />
+          {stem.connection === 'peg' ? (
+            <>
+              <Dimension
+                label="Model peg diameter"
+                value={stem.modelPegDiameter}
+                min={1}
+                max={Math.min(4, stem.bodyDiameter)}
+                step={0.1}
+                defaultValue={STEM_DEFAULTS.modelPegDiameter}
+                onChange={(modelPegDiameter) => setStem({ ...stem, modelPegDiameter })}
+              />
+              <Dimension
+                label="Model peg length"
+                value={stem.modelPegLength}
+                min={1}
+                max={8}
+                step={0.1}
+                defaultValue={STEM_DEFAULTS.modelPegLength}
+                onChange={(modelPegLength) => setStem({ ...stem, modelPegLength })}
+              />
+            </>
+          ) : (
+            <Dimension
+              label="Ball diameter"
+              value={stem.ballDiameter}
+              min={2}
+              max={Math.min(8, stem.bodyDiameter * 2)}
+              step={0.1}
+              defaultValue={STEM_DEFAULTS.ballDiameter}
+              onChange={(ballDiameter) => setStem({ ...stem, ballDiameter })}
+            />
+          )}
+        </Section>
+
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : stemPanel
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -1120,16 +1251,14 @@ export function App() {
               instead of standing beside the sheet. */}
           {!docked && (
             <Sheet>
-              <SheetTrigger
-                render={<Button size="icon-sm" variant="outline" aria-label={`${model === 'base' ? 'Base' : 'Holder'} settings`} />}
-              >
+              <SheetTrigger render={<Button size="icon-sm" variant="outline" aria-label={`${modelLabel(model)} settings`} />}>
                 <PanelLeft />
               </SheetTrigger>
               <SheetContent side="left" className="max-w-[85vw] gap-0 p-0 data-[side=left]:w-81">
                 {/* A header row of its own, so the close button has somewhere to sit
                     that is not on top of the first section heading. */}
                 <SheetHeader className="shrink-0 border-b border-border px-5 py-3.5">
-                  <SheetTitle className="note">{model === 'base' ? 'Base' : 'Holder'} settings</SheetTitle>
+                  <SheetTitle className="note">{modelLabel(model)} settings</SheetTitle>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col">{panel}</div>
               </SheetContent>
@@ -1182,8 +1311,8 @@ export function App() {
             width={partWidth}
             length={partLength}
             height={partHeight}
-            round={model === 'base' && !elongated}
-            fitToPart={model === 'holder'}
+            round={model === 'stem' || (model === 'base' && !elongated)}
+            fitToPart={model !== 'base'}
           />
           {(error || exportError) && (
             <div

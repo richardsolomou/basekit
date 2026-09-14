@@ -1,5 +1,23 @@
 # basekit
 
+## 0.3.0
+
+### Minor Changes
+
+- 8ab0a9c: Add printable, configurable flying stems with flat feet and peg or ball-joint miniature connections.
+
+## 0.2.0
+
+### Minor Changes
+
+- 7370713: Add configurable holder-edge spacing with a default of half the miniature spacing.
+
+## 0.1.4
+
+### Patch Changes
+
+- 8227229: Keep the 3D viewer responsive without browser resize warnings.
+
 ## 0.1.3
 
 ### Patch Changes
