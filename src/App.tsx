@@ -331,7 +331,7 @@ export function App() {
   }
 
   const basePanel = (
-    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea key="base" className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       {/* Sections number themselves off this counter, in the order they appear. */}
       <aside aria-label="Base settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Size & Shape">
@@ -655,7 +655,7 @@ export function App() {
   )
 
   const holderPanel = (
-    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea key="holder" className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Holder settings" className="pb-4 [counter-reset:schedule]">
         <Section title="Holder type">
           <Choice
@@ -1156,7 +1156,7 @@ export function App() {
   )
 
   const stemPanel = (
-    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+    <ScrollArea key="stem" className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Stem settings" className="pb-4 [counter-reset:schedule]">
         <Section
           title="Stem"
