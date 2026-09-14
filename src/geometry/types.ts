@@ -4,7 +4,7 @@ export type ShapeKind = 'round' | 'oval' | 'pill' | 'rect' | 'polygon'
 /** Edge treatment applied where the wall meets the table-contact bottom. */
 export type EdgeProfile = 'taper' | 'straight' | 'bevel' | 'round'
 
-export type MagnetLayout = 'balanced' | 'five-cross' | 'lattice'
+export type MagnetLayout = 'balanced' | 'five-cross'
 export type MagnetPatternVersion = 1 | 2
 
 export interface MagnetSpec {
@@ -16,8 +16,6 @@ export interface MagnetSpec {
   patternVersion: MagnetPatternVersion
   /** Upper bound for counts chosen automatically from the footprint. */
   maxCount: number
-  /** Centre spacing shared with a universal tray when using the lattice layout. */
-  latticePitch: number
   diameter: number
   /** Added to the diameter so a nominal magnet actually drops in. */
   clearance: number
@@ -100,28 +98,24 @@ export interface HolderConfig {
   slotDepth: number
   height: number
   universal: {
-    /** Centre-to-centre spacing of tray magnet pockets. */
-    pitch: number
-    layout: 'square' | 'staggered'
+    /** Depth of the recess for adhesive-backed steel sheet. */
+    sheetThickness: number
+    /** Border between the sheet recess and each printed piece's edge. */
+    sheetInset: number
     /** Wall height above the magnetic deck. Zero disables the retaining rim. */
     rimHeight: number
     rimThickness: number
     split: boolean
     maxPieceColumns: number
     maxPieceRows: number
-    /** Smallest centred base that must fit wholly on the assembled deck. */
-    minimumBaseSize: number
     /** Derived per exported module so only the assembled tray perimeter is raised. */
     rimEdges: { left: boolean; right: boolean; front: boolean; back: boolean }
-    /** Derived module centre in the assembled tray's canonical lattice coordinates. */
-    latticeOffset: { x: number; y: number }
   }
   magnets: {
     enabled: boolean
     layout: MagnetLayout
     patternVersion: MagnetPatternVersion
     maxCount: number
-    latticePitch: number
     diameter: number
     clearance: number
     depthClearance: number

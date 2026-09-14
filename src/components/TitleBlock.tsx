@@ -48,12 +48,25 @@ export function TitleBlock({ config, status, name }: Props) {
     const slots = config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')
     return (
       <TitleFrame status={status} name={name}>
-        <Row label="Models" value={slots} />
+        {config.mode === 'fitted' ? (
+          <Row label="Models" value={slots} />
+        ) : (
+          <Row
+            label="Steel sheet"
+            value={
+              config.universal.split
+                ? `${plan.modules.length} pieces · ${trimNumber(config.universal.sheetThickness)} mm thick`
+                : `${trimNumber(layout.width - config.universal.sheetInset * 2)} × ${trimNumber(layout.length - config.universal.sheetInset * 2)} × ${trimNumber(config.universal.sheetThickness)} mm`
+            }
+          />
+        )}
         <Row label="Modules" value={`${plan.modules.length} in ${layout.unitsWide} × ${layout.unitsDeep}`} />
         {plan.omitted.length > 0 && (
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
-        <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
+        {config.mode === 'fitted' && (
+          <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
+        )}
       </TitleFrame>
     )
   }

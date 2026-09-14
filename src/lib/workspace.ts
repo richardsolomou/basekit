@@ -1,5 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
-import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '../geometry/base'
+import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
 import type { BaseConfig, FlightStemConfig, HolderConfig } from '../geometry/types'
@@ -25,10 +25,7 @@ export interface SharedSettings {
   wallThickness: number
   magnetBossWall: number
   magnetCounts: Record<string, number>
-  magnets: Pick<
-    BaseConfig['magnets'],
-    'layout' | 'patternVersion' | 'maxCount' | 'latticePitch' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'
-  >
+  magnets: Pick<BaseConfig['magnets'], 'layout' | 'patternVersion' | 'maxCount' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>
 }
 
 export function saveWorkspace(storage: SettingsStorage, workspace: WorkspaceState): void {
@@ -49,7 +46,6 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
       layout: base.magnets.layout,
       patternVersion: base.magnets.patternVersion,
       maxCount: base.magnets.maxCount,
-      latticePitch: base.magnets.latticePitch,
       diameter: base.magnets.diameter,
       thickness: base.magnets.thickness,
       clearance: base.magnets.clearance,
@@ -62,7 +58,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
   const fiveCross = shared.magnets.layout === 'five-cross' && (legacyPattern || supportsFivePocketCross(state.base.shape, state.base.width))
-  const layout = fiveCross ? 'five-cross' : shared.magnets.layout === 'lattice' ? 'lattice' : 'balanced'
+  const layout = fiveCross ? 'five-cross' : 'balanced'
   const key = footprintKey(state.base.shape, state.base.width, state.base.length)
   const requestedCount = fiveCross
     ? 5
@@ -76,15 +72,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
           shared.magnets.diameter,
           shared.magnets.thickness,
         ))
-  const compatibleCounts = trayCompatibleMagnetCounts({
-    ...state.base,
-    wallThickness: shared.wallThickness,
-    magnets: { ...state.base.magnets, ...shared.magnets, bossWall: shared.magnetBossWall },
-  })
-  const count =
-    layout === 'lattice' && shared.magnetCounts[key] === undefined
-      ? (compatibleCounts.findLast((candidate) => candidate <= (requestedCount ?? 1)) ?? 0)
-      : requestedCount
+  const count = requestedCount
   return {
     ...state,
     base: {
@@ -115,7 +103,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       magnetBossWall: shared.magnetBossWall,
       magnetCounts: shared.magnetCounts,
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
-      universal: { ...state.holder.universal, pitch: shared.magnets.latticePitch, layout: 'staggered' },
+      universal: state.holder.universal,
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
   }
@@ -163,19 +151,15 @@ function migrateWorkspaceV6(value: unknown): unknown {
   const shared = workspace.shared as Record<string, unknown> | undefined
   const base = workspace.base as Record<string, unknown> | undefined
   const holder = workspace.holder as Record<string, unknown> | undefined
-  const sharedMagnets = shared?.magnets as Record<string, unknown> | undefined
-  const baseMagnets = base?.magnets as Record<string, unknown> | undefined
-  const holderMagnets = holder?.magnets as Record<string, unknown> | undefined
-  if (!shared || !base || !holder || !sharedMagnets || !baseMagnets || !holderMagnets) return value
+  if (!shared || !base || !holder) return value
   return {
     ...workspace,
-    shared: { ...shared, magnets: { latticePitch: 30, ...sharedMagnets } },
-    base: { ...base, magnets: { latticePitch: 30, ...baseMagnets } },
+    shared,
+    base,
     holder: {
       ...defaultHolderConfig(),
       ...holder,
       universal: defaultHolderConfig().universal,
-      magnets: { latticePitch: 30, ...holderMagnets },
     },
   }
 }
@@ -253,7 +237,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   const workspace = value as WorkspaceState
   return (
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
-    ['balanced', 'five-cross', 'lattice'].includes(workspace.shared.magnets.layout) &&
+    ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&

@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
-import { supportsFivePocketCross, trayCompatibleMagnetCounts } from '@/geometry/base'
+import { supportsFivePocketCross } from '@/geometry/base'
 import {
   defaultHolderConfig,
   holderGroup,
@@ -20,7 +20,6 @@ import {
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
-  universalMagnetCenters,
 } from '@/geometry/holder'
 import { baseName, defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
@@ -78,7 +77,6 @@ const PROFILES: { value: EdgeProfile; label: string }[] = [
 
 const MAGNET_LAYOUTS: { value: MagnetLayout; label: string }[] = [
   { value: 'balanced', label: 'Balanced' },
-  { value: 'lattice', label: 'Tray-compatible' },
   { value: 'five-cross', label: 'Five-pocket cross' },
 ]
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
@@ -192,10 +190,6 @@ export function App() {
       : { slotDepth: Math.min(next.slotDepth, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5) }),
   })
   const plan = useMemo(() => holderPlan(holder), [holder])
-  const universalPocketCount = useMemo(
-    () => plan.modules.reduce((total, module) => total + universalMagnetCenters(module.config).length, 0),
-    [plan],
-  )
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
   const fittedByGroup = useMemo(() => {
     const fitted = new Map<string, number>()
@@ -258,7 +252,7 @@ export function App() {
   const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
   const magnetCountOptions: { value: MagnetCountChoice; label: string }[] = [
     { value: AUTOMATIC_MAGNET_COUNT, label: `Auto · ${config.magnets.count}` },
-    ...counts(config.magnets.layout === 'lattice' ? trayCompatibleMagnetCounts(config) : MAGNET_CHOICES),
+    ...counts(MAGNET_CHOICES),
   ]
   const magnetLayoutOptions = MAGNET_LAYOUTS.filter(
     ({ value }) => value !== 'five-cross' || config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width),
@@ -275,7 +269,7 @@ export function App() {
   }
 
   const setSharedMagnets = (
-    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'latticePitch' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
+    changes: Partial<Pick<BaseConfig['magnets'], 'layout' | 'diameter' | 'thickness' | 'clearance' | 'depthClearance'>>,
   ) => {
     setWorkspace((current) => ({
       ...current,
@@ -418,17 +412,6 @@ export function App() {
             options={magnetLayoutOptions}
             onChange={(layout) => setSharedMagnets({ layout })}
           />
-          {config.magnets.layout === 'lattice' && (
-            <Dimension
-              label="Tray grid pitch"
-              value={config.magnets.latticePitch}
-              min={Math.ceil(config.magnets.diameter + config.magnets.clearance + 1)}
-              max={30}
-              step={1}
-              defaultValue={BASE_DEFAULTS.magnets.latticePitch}
-              onChange={(latticePitch) => setSharedMagnets({ latticePitch })}
-            />
-          )}
           {config.magnets.layout !== 'five-cross' && (
             <Choice
               label="Magnets per base"
@@ -441,9 +424,7 @@ export function App() {
           <FieldDescription>
             {config.magnets.layout === 'five-cross'
               ? 'The cross always provides one centre and four outer pockets.'
-              : config.magnets.layout === 'lattice'
-                ? 'Every pocket lands on the same staggered lattice as a universal tray.'
-                : 'Automatic balances the footprint using the selected magnet dimensions.'}
+              : 'Automatic balances the footprint using the selected magnet dimensions.'}
           </FieldDescription>
         </Section>
 
@@ -665,17 +646,12 @@ export function App() {
             options={HOLDER_MODES}
             onChange={(mode) => {
               posthog.capture('holder_mode_changed', { mode })
-              setWorkspace((current) => ({
-                ...current,
-                holder: { ...current.holder, mode },
-                shared:
-                  mode === 'universal' ? { ...current.shared, magnets: { ...current.shared.magnets, layout: 'lattice' } } : current.shared,
-              }))
+              setHolder({ ...holder, mode })
             }}
           />
           <FieldDescription>
             {holder.mode === 'universal'
-              ? 'A continuous deck accepts mixed base sizes wherever their magnets meet the grid.'
+              ? 'A steel-lined deck accepts every magnetic base without changing its pocket layout.'
               : 'Recesses locate each configured miniature and match its base magnets.'}
           </FieldDescription>
         </Section>
@@ -992,28 +968,27 @@ export function App() {
             )}
           </Section>
         ) : (
-          <Section
-            title="Universal deck"
-            aside={<span className="readout text-xs text-muted-foreground">{universalPocketCount} pockets</span>}
-          >
-            <FieldDescription>The staggered grid is the canonical lattice used by tray-compatible bases.</FieldDescription>
+          <Section title="Universal deck" aside={<span className="readout text-xs text-muted-foreground">steel-lined</span>}>
+            <FieldDescription>
+              Cut adhesive-backed steel sheet to fit the recess. The base magnets attach anywhere on the deck.
+            </FieldDescription>
             <Dimension
-              label="Magnet pitch"
-              value={holder.universal.pitch}
-              min={Math.ceil(holder.magnets.diameter + holder.magnets.clearance + 1)}
-              max={40}
-              step={1}
-              defaultValue={HOLDER_DEFAULTS.universal.pitch}
-              onChange={(latticePitch) => setSharedMagnets({ latticePitch })}
+              label="Steel sheet thickness"
+              value={holder.universal.sheetThickness}
+              min={0.1}
+              max={Math.max(0.1, holder.height - 5.15)}
+              step={0.1}
+              defaultValue={HOLDER_DEFAULTS.universal.sheetThickness}
+              onChange={(sheetThickness) => setHolder({ ...holder, universal: { ...holder.universal, sheetThickness } })}
             />
             <Dimension
-              label="Smallest base"
-              value={holder.universal.minimumBaseSize}
-              min={20}
-              max={50}
-              step={1}
-              defaultValue={HOLDER_DEFAULTS.universal.minimumBaseSize}
-              onChange={(minimumBaseSize) => setHolder({ ...holder, universal: { ...holder.universal, minimumBaseSize } })}
+              label="Sheet edge inset"
+              value={holder.universal.sheetInset}
+              min={1}
+              max={10}
+              step={0.5}
+              defaultValue={HOLDER_DEFAULTS.universal.sheetInset}
+              onChange={(sheetInset) => setHolder({ ...holder, universal: { ...holder.universal, sheetInset } })}
             />
             <Dimension
               label="Retaining rim height"
@@ -1075,29 +1050,26 @@ export function App() {
                 </FieldDescription>
               </>
             )}
-            <FieldDescription>
-              Smaller pitch increases the chance of alignment, but also the number, weight, and cost of magnets.
-            </FieldDescription>
           </Section>
         )}
 
-        <Section
-          title="Magnets"
-          aside={
-            <span className="readout text-xs text-muted-foreground">
-              {holder.magnets.enabled ? `${trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole` : 'none'}
-            </span>
-          }
-        >
-          <ToggleSetting
-            label={holder.mode === 'universal' ? 'Tray magnets' : 'Slot magnets'}
-            checked={holder.magnets.enabled}
-            defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
-            onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
-          />
-          {holder.magnets.enabled && (
-            <>
-              {holder.mode === 'fitted' && (
+        {holder.mode === 'fitted' && (
+          <Section
+            title="Slot magnets"
+            aside={
+              <span className="readout text-xs text-muted-foreground">
+                {holder.magnets.enabled ? `${trimNumber(holder.magnets.diameter + holder.magnets.clearance)} mm hole` : 'none'}
+              </span>
+            }
+          >
+            <ToggleSetting
+              label="Slot magnets"
+              checked={holder.magnets.enabled}
+              defaultChecked={HOLDER_DEFAULTS.magnets.enabled}
+              onChange={(enabled) => setHolder(fitSlotDepth({ ...holder, magnets: { ...holder.magnets, enabled } }))}
+            />
+            {holder.magnets.enabled && (
+              <>
                 <Choice
                   label="Pocket layout"
                   value={holderMagnetLayout}
@@ -1105,51 +1077,47 @@ export function App() {
                   options={holderMagnetLayoutOptions}
                   onChange={(layout) => setSharedMagnets({ layout })}
                 />
-              )}
-              <Dimension
-                label="Magnet diameter"
-                value={holder.magnets.diameter}
-                min={2}
-                max={8}
-                step={0.5}
-                defaultValue={BASE_DEFAULTS.magnets.diameter}
-                onChange={(diameter) => setSharedMagnets({ diameter })}
-              />
-              <Dimension
-                label="Magnet thickness"
-                value={holder.magnets.thickness}
-                min={0.5}
-                max={maxSharedMagnetThickness}
-                step={0.1}
-                defaultValue={BASE_DEFAULTS.magnets.thickness}
-                onChange={(thickness) => setSharedMagnets({ thickness })}
-              />
-              <Dimension
-                label="Magnet diameter clearance"
-                value={holder.magnets.clearance}
-                min={0}
-                max={0.6}
-                step={0.05}
-                defaultValue={BASE_DEFAULTS.magnets.clearance}
-                onChange={(clearance) => setSharedMagnets({ clearance })}
-              />
-              <Dimension
-                label="Magnet depth clearance"
-                value={holder.magnets.depthClearance}
-                min={0}
-                max={0.5}
-                step={0.05}
-                defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
-                onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
-              />
-              <FieldDescription>
-                {holder.mode === 'universal'
-                  ? 'Install every tray magnet with the same pole facing up, opposite to the tray-facing pole on every base.'
-                  : 'Automatic base recommendations also apply to matching holder slots.'}
-              </FieldDescription>
-            </>
-          )}
-        </Section>
+                <Dimension
+                  label="Magnet diameter"
+                  value={holder.magnets.diameter}
+                  min={2}
+                  max={8}
+                  step={0.5}
+                  defaultValue={BASE_DEFAULTS.magnets.diameter}
+                  onChange={(diameter) => setSharedMagnets({ diameter })}
+                />
+                <Dimension
+                  label="Magnet thickness"
+                  value={holder.magnets.thickness}
+                  min={0.5}
+                  max={maxSharedMagnetThickness}
+                  step={0.1}
+                  defaultValue={BASE_DEFAULTS.magnets.thickness}
+                  onChange={(thickness) => setSharedMagnets({ thickness })}
+                />
+                <Dimension
+                  label="Magnet diameter clearance"
+                  value={holder.magnets.clearance}
+                  min={0}
+                  max={0.6}
+                  step={0.05}
+                  defaultValue={BASE_DEFAULTS.magnets.clearance}
+                  onChange={(clearance) => setSharedMagnets({ clearance })}
+                />
+                <Dimension
+                  label="Magnet depth clearance"
+                  value={holder.magnets.depthClearance}
+                  min={0}
+                  max={0.5}
+                  step={0.05}
+                  defaultValue={HOLDER_DEFAULTS.magnets.depthClearance}
+                  onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
+                />
+                <FieldDescription>Automatic base recommendations also apply to matching holder slots.</FieldDescription>
+              </>
+            )}
+          </Section>
+        )}
         <RepositoryLink />
       </aside>
     </ScrollArea>

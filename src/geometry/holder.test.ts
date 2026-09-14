@@ -13,7 +13,6 @@ import {
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
-  universalMagnetCenters,
 } from './holder'
 import { loadManifold } from './manifold'
 
@@ -337,18 +336,6 @@ describe('holderPlan', () => {
     expect(plan.modules[0].config.universal.rimEdges).toEqual({ left: true, right: false, front: true, back: false })
     expect(plan.modules[4].config.universal.rimEdges).toEqual({ left: false, right: false, front: false, back: true })
     expect(plan.modules[5].config.universal.rimEdges).toEqual({ left: false, right: true, front: false, back: true })
-    const pitch = config.universal.pitch
-    const rowPitch = (pitch * Math.sqrt(3)) / 2
-    for (const module of plan.modules) {
-      for (const point of universalMagnetCenters(module.config)) {
-        const globalX = point.x + module.config.universal.latticeOffset.x
-        const globalY = point.y + module.config.universal.latticeOffset.y
-        const latticeRow = globalY / rowPitch
-        const latticeColumn = globalX / pitch - latticeRow / 2
-        expect(latticeRow).toBeCloseTo(Math.round(latticeRow), 6)
-        expect(latticeColumn).toBeCloseTo(Math.round(latticeColumn), 6)
-      }
-    }
   })
 
   it('does not split a universal tray until piece splitting is enabled', () => {
@@ -359,72 +346,50 @@ describe('holderPlan', () => {
 })
 
 describe('buildHolder', () => {
-  it('builds a universal magnetic deck across the requested Gridfinity footprint', () => {
+  it('builds a steel-lined universal deck across the requested Gridfinity footprint', () => {
     const defaults = defaultHolderConfig()
     const config = { ...defaults, mode: 'universal' as const, maxColumns: 2, maxRows: 2 }
-    const centers = universalMagnetCenters(config)
     const result = buildHolder(wasm, config)
 
-    expect(centers).toHaveLength(5)
     expect(result.stats.solid).toBe(true)
     expect(bounds(result.mesh).size).toEqual([83.5, 83.5, 17])
     expect(holderPlan(config)).toMatchObject({ unitsWide: 2, unitsDeep: 2, omitted: [], modules: [{ layout: { slotCenters: [] } }] })
   })
 
-  it('keeps the default universal tray sparse', () => {
+  it('does not add tray-specific magnet pockets', () => {
     const defaults = defaultHolderConfig()
-    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(59)
+    expect(holderMagnetPocketCount({ ...defaults, mode: 'universal' })).toBe(0)
   })
 
-  it('keeps universal pockets within the retaining rim and rejects overlapping grids', () => {
+  it('rejects a sheet recess that removes the deck or leaves no sheet area', () => {
     const defaults = defaultHolderConfig()
     const config = { ...defaults, mode: 'universal' as const, maxColumns: 1, maxRows: 1 }
-    const edge = 41.5 / 2 - config.universal.minimumBaseSize / 2
-
-    expect(universalMagnetCenters(config).every(({ x, y }) => Math.abs(x) <= edge && Math.abs(y) <= edge)).toBe(true)
-    expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, pitch: 6 } })).toThrow(
-      'Magnet grid pitch leaves too little material between pockets',
+    expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, sheetThickness: 9 } })).toThrow(
+      'Steel sheet recess leaves too little material above the Gridfinity foot',
+    )
+    expect(() => buildHolder(wasm, { ...config, universal: { ...config.universal, sheetInset: 21 } })).toThrow(
+      'Steel sheet inset leaves no room for a sheet',
     )
   })
 
-  it('applies the base-fit margin only to the assembled perimeter, not split seams', () => {
-    const defaults = defaultHolderConfig()
-    const config = {
-      ...defaults,
-      mode: 'universal' as const,
-      maxColumns: 4,
-      maxRows: 5,
-      universal: { ...defaults.universal, split: true, maxPieceColumns: 2, maxPieceRows: 5, minimumBaseSize: 40 },
-    }
-    const leftModule = holderPlan(config).modules[0]
-    const centers = universalMagnetCenters(leftModule.config)
-    const distanceFromInternalEdge = Math.min(...centers.map(({ x }) => leftModule.layout.width / 2 - x))
-    expect(leftModule.config.universal.rimEdges.right).toBe(false)
-    expect(distanceFromInternalEdge).toBeLessThan(config.universal.minimumBaseSize / 2)
-  })
-
-  it('opens universal magnet pockets flush with the deck', () => {
+  it('cuts the steel sheet recess to the requested depth and inset', () => {
     const defaults = defaultHolderConfig()
     const config = {
       ...defaults,
       mode: 'universal' as const,
       maxColumns: 1,
       maxRows: 1,
-      universal: { ...defaults.universal, pitch: 40, rimHeight: 0 },
+      universal: { ...defaults.universal, sheetThickness: 0.8, sheetInset: 3, rimHeight: 0 },
     }
     const { mesh } = buildHolder(wasm, config)
     const { numProp, vertProperties } = mesh
-    const radius = (config.magnets.diameter + config.magnets.clearance) / 2
-    let minZ = Infinity
-    let maxZ = -Infinity
+    const floorVertices: { x: number; y: number }[] = []
     for (let i = 0; i < vertProperties.length; i += numProp) {
-      if (Math.hypot(vertProperties[i], vertProperties[i + 1]) <= radius + 0.05) {
-        minZ = Math.min(minZ, vertProperties[i + 2])
-        maxZ = Math.max(maxZ, vertProperties[i + 2])
-      }
+      if (Math.abs(vertProperties[i + 2] - (config.height - config.universal.sheetThickness)) < 1e-5)
+        floorVertices.push({ x: vertProperties[i], y: vertProperties[i + 1] })
     }
-    expect(minZ).toBeCloseTo(config.height - config.magnets.thickness - config.magnets.depthClearance, 2)
-    expect(maxZ).toBeCloseTo(config.height, 2)
+    expect(Math.max(...floorVertices.map(({ x }) => x)) - Math.min(...floorVertices.map(({ x }) => x))).toBeCloseTo(41.5 - 6, 2)
+    expect(Math.max(...floorVertices.map(({ y }) => y)) - Math.min(...floorVertices.map(({ y }) => y))).toBeCloseTo(41.5 - 6, 2)
   })
 
   it('builds a solid with the exact Gridfinity footprint and requested height', () => {

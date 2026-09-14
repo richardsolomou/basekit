@@ -172,10 +172,7 @@ test('keeps shape and size independent while sharing matching magnet settings in
 
 test('shares the selected pocket pattern between bases and holders', async ({ page }) => {
   const layout = page.getByRole('combobox', { name: 'Pocket layout' })
-  await layout.click()
-  await expect(page.getByRole('option', { name: 'Tray-compatible' })).toHaveCount(1)
-  await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expect(layout).toHaveCount(0)
   await pickSize(page, '60')
   await layout.click()
   await expect(page.getByRole('option', { name: 'Five-pocket cross' })).toHaveCount(1)
@@ -357,7 +354,7 @@ test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, asyn
   await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
 })
 
-test('builds a universal magnetic tray without miniature slots', { tag: '@ci' }, async ({ page }) => {
+test('builds a steel-lined universal tray without miniature slots', { tag: '@ci' }, async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await settled(page)
   const previous = await triangles(page)
@@ -366,10 +363,11 @@ test('builds a universal magnetic tray without miniature slots', { tag: '@ci' },
 
   await expect(page.getByText('Universal deck', { exact: true })).toBeVisible()
   await expect(page.getByText('Miniatures', { exact: true })).not.toBeVisible()
-  await expect(page.getByLabel('Magnet pitch in mm')).toHaveValue('30')
-  await expect(page.getByLabel('Smallest base in mm')).toHaveValue('25')
-  await expect(page.getByRole('switch', { name: 'Tray magnets' })).toBeChecked()
-  await expect(footer(page)).toContainText('universal-tray-7x5-30mm-grid')
+  await expect(page.getByLabel('Steel sheet thickness in mm')).toHaveValue('0.5')
+  await expect(page.getByLabel('Sheet edge inset in mm')).toHaveValue('2.0')
+  await expect(page.getByText('Slot magnets', { exact: true })).not.toBeVisible()
+  await expect(footer(page)).toContainText('universal-tray-7x5-0.5mm-sheet')
+  await expect(footer(page)).toContainText('289.5 × 205.5 × 0.5 mm')
 
   const unsplit = await triangles(page)
   await page.getByRole('switch', { name: 'Split tray into pieces' }).click()
@@ -379,13 +377,13 @@ test('builds a universal magnetic tray without miniature slots', { tag: '@ci' },
   await expect(page.getByText(/Exports 6 Gridfinity-aligned pieces/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Download STLs' })).toBeVisible()
 
-  await page.getByLabel('Magnet pitch in mm').fill('14')
-  await page.getByLabel('Magnet pitch in mm').blur()
-  await expect(footer(page)).toContainText('universal-tray-7x5-14mm-grid')
+  await page.getByLabel('Steel sheet thickness in mm').fill('0.8')
+  await page.getByLabel('Steel sheet thickness in mm').blur()
+  await expect(footer(page)).toContainText('universal-tray-7x5-0.8mm-sheet')
   await page.getByRole('link', { name: 'Bases' }).click()
   await settled(page)
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Tray-compatible')
-  await expect(page.getByLabel('Tray grid pitch in mm')).toHaveValue('14')
+  await pickSize(page, '60')
+  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toContainText('Balanced')
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
@@ -434,11 +432,9 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
   await settled(page)
   const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(1)
   await expect(depth).toHaveAttribute('max', '6.5')
   await magnets.click()
   await expect(depth).toHaveAttribute('max', '8')
-  await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveCount(0)
   await depth.fill('8')
   await depth.press('Enter')
