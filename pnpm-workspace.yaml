@@ -4,7 +4,8 @@
 # fresher release deliberately: pnpm add --config.minimumReleaseAge=0 <pkg>
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
-  - ras-stack@1.0.0
+  - ras-stack@2.0.0
 allowBuilds:
+  '@posthog/cli': true
   core-js: true
   esbuild: true

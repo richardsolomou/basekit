@@ -1,6 +1,6 @@
 # Deployment guide
 
-BaseKit is a static Vite app. It needs no backend, database, secrets, server functions, or cross-origin isolation headers. Geometry, fonts, the Manifold WASM module, and STL/3MF generation all run in the browser.
+BaseKit is a static Vite app. It needs no backend, database, runtime secrets, server functions, or cross-origin isolation headers. Geometry, fonts, the Manifold WASM module, and STL/3MF generation all run in the browser.
 
 ## Cloudflare Pages
 
@@ -15,7 +15,7 @@ Create a Pages project from the `richardsolomou/basekit` GitHub repository with 
 
 Set `NODE_VERSION=24` in the build environment. pnpm reads its version from the `packageManager` field in `package.json`.
 
-Pages creates a preview deployment for pull requests and a production deployment for `main`. No runtime environment variables are required.
+Pages creates a preview deployment for pull requests and a production deployment for `main`. No runtime environment variables are required. Configure `VITE_POSTHOG_PROJECT_TOKEN`, `VITE_POSTHOG_HOST`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST`, and the encrypted `POSTHOG_API_KEY` in the Pages build environment to enable telemetry and upload browser source maps; the personal API key is used only while building and is not included in `dist/`.
 
 ## Custom domain
 
