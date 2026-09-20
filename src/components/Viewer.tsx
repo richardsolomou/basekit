@@ -59,15 +59,25 @@ function themeColor(name: string, fallback: string): THREE.Color {
 }
 
 interface Props {
+  viewKey: string
   mesh?: MeshData
   width: number
   length: number
   height: number
+  minZ?: number
+  orbitTarget?: readonly [number, number, number]
   round: boolean
   fitToPart?: boolean
 }
 
-export function Viewer({ mesh, width, length, height, round, fitToPart = false }: Props) {
+interface CameraView {
+  held: boolean
+  position: THREE.Vector3
+  target: THREE.Vector3
+  zoom: number
+}
+
+export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTarget, round, fitToPart = false }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const overlay = useRef<SVGSVGElement>(null)
   const part = useRef<THREE.Group>(null)
@@ -76,8 +86,11 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
   const cameraRef = useRef<THREE.PerspectiveCamera>(null)
   const controlsRef = useRef<OrbitControls>(null)
   const held = useRef(false)
+  const activeViewKey = useRef(viewKey)
+  const cameraViews = useRef(new Map<string, CameraView>())
   const shouldFit = useRef(fitToPart)
   const framingFootprint = useRef(REFERENCE_FOOTPRINT)
+  const [targetX, targetY, targetZ] = orbitTarget ?? [0, 0, minZ + height / 2]
   shouldFit.current = fitToPart
   framingFootprint.current = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
 
@@ -162,9 +175,18 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     // Until the viewer touches the camera it stays framed on the reference
     // footprint, which is what makes a window resize or a phone rotating do the
     // sensible thing. After that the view is theirs and nothing moves it.
-    controls.addEventListener('start', () => {
+    const holdCamera = () => {
       held.current = true
-    })
+    }
+    const publishCamera = () => {
+      container.dataset.cameraView = [...camera.position.toArray(), ...controls.target.toArray(), camera.zoom]
+        .map((value) => value.toFixed(2))
+        .join(',')
+    }
+    controls.addEventListener('start', holdCamera)
+    controls.addEventListener('change', publishCamera)
+    renderer.domElement.addEventListener('wheel', holdCamera, { passive: true })
+    publishCamera()
 
     let lastWidth = -1
     let lastHeight = -1
@@ -205,7 +227,8 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
       const svg = overlay.current
       const halfW = group.userData.halfWidth ?? 0
       const halfL = group.userData.halfLength ?? 0
-      const h = group.userData.height ?? 0
+      const lower = group.userData.minZ ?? 0
+      const upper = group.userData.maxZ ?? 0
       if (svg && halfW > 0) {
         // Dimensions hang off the projected silhouette, so they stay outside the part
         // and stay horizontal or vertical at any orbit, the way a drawing does it.
@@ -216,7 +239,7 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
         let top = Infinity
         let rightAngle = rim[0]
         for (const point of rim) {
-          const [x, y] = project(halfW * point.cos, halfL * point.sin, h)
+          const [x, y] = project(halfW * point.cos, halfL * point.sin, upper)
           if (x < left) left = x
           if (x > right) {
             right = x
@@ -225,8 +248,8 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
           if (y < top) top = y
         }
         const rail = top - LIFT
-        const [, bottomY] = project(halfW * rightAngle.cos, halfL * rightAngle.sin, 0)
-        const [, topY] = project(halfW * rightAngle.cos, halfL * rightAngle.sin, h)
+        const [, bottomY] = project(halfW * rightAngle.cos, halfL * rightAngle.sin, lower)
+        const [, topY] = project(halfW * rightAngle.cos, halfL * rightAngle.sin, upper)
         const column = right + OUT
 
         const set = (id: string, d: string) => svg.querySelector(`#${id}`)?.setAttribute('d', d)
@@ -250,6 +273,9 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     return () => {
       cancelAnimationFrame(raf)
       observer.disconnect()
+      renderer.domElement.removeEventListener('wheel', holdCamera)
+      controls.removeEventListener('start', holdCamera)
+      controls.removeEventListener('change', publishCamera)
       controls.dispose()
       renderer.dispose()
       renderer.domElement.remove()
@@ -300,12 +326,12 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     )
     group.add(edges)
 
-    group.userData = { halfWidth: width / 2, halfLength: length / 2, height }
+    group.userData = { halfWidth: width / 2, halfLength: length / 2, minZ, maxZ: minZ + height }
 
     const camera = cameraRef.current
     const controls = controlsRef.current
     if (camera && controls && !held.current) {
-      controls.target.set(0, 0, height / 2)
+      controls.target.set(targetX, targetY, targetZ)
       const footprint = shouldFit.current ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
       camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, footprint))
       controls.update()
@@ -315,7 +341,38 @@ export function Viewer({ mesh, width, length, height, round, fitToPart = false }
     // honest signal that a rebuild has landed — the status word reads "ready"
     // from the build before the one being waited on. The e2e suite polls it.
     if (host.current) host.current.dataset.triangles = String(mesh.indices.length / 3)
-  }, [mesh, width, length, height])
+  }, [mesh, width, length, height, minZ, targetX, targetY, targetZ])
+
+  useEffect(() => {
+    const camera = cameraRef.current
+    const controls = controlsRef.current
+    if (!camera || !controls || activeViewKey.current === viewKey) return
+
+    cameraViews.current.set(activeViewKey.current, {
+      held: held.current,
+      position: camera.position.clone(),
+      target: controls.target.clone(),
+      zoom: camera.zoom,
+    })
+    activeViewKey.current = viewKey
+
+    const saved = cameraViews.current.get(viewKey)
+    if (saved?.held) {
+      held.current = true
+      camera.position.copy(saved.position)
+      controls.target.copy(saved.target)
+      camera.zoom = saved.zoom
+      camera.updateProjectionMatrix()
+    } else {
+      held.current = false
+      camera.zoom = 1
+      camera.updateProjectionMatrix()
+      controls.target.set(targetX, targetY, targetZ)
+      const footprint = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
+      camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, footprint))
+    }
+    controls.update()
+  }, [viewKey, width, length, height, fitToPart, targetX, targetY, targetZ])
 
   const across = round ? `Ø${trimNumber(width)}` : `${trimNumber(width)} × ${trimNumber(length)}`
 

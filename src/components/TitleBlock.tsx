@@ -69,7 +69,7 @@ export function TitleBlock({ config, status, name }: Props) {
         />
         <Row label="Tray" value={`${trimNumber(layout.width)} × ${trimNumber(layout.length)} × ${trimNumber(config.height)} mm`} />
         <Row label="Magnets" value={`${paintingTrayMagnetPocketCount(config)} × ${pocket} mm hole`} />
-        <Row label="Handle" value={paintingHandleDescription()} />
+        <Row label="Handle" value={paintingHandleDescription(config)} />
       </TitleFrame>
     )
   }

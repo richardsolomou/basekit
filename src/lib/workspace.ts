@@ -257,6 +257,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
     workspace.paintingTray.kind === 'painting-tray' &&
+    ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))

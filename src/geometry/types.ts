@@ -122,6 +122,17 @@ export interface HolderGroup {
   sides: number
 }
 
+export type PaintingHandleShape = 'round' | 'oval' | 'flared' | 'pistol'
+
+export interface PaintingHandleSettings {
+  shape: PaintingHandleShape
+  length: number
+  width: number
+  angle: number
+  roundedEnd: boolean
+  ribs: boolean
+}
+
 export interface PaintingTrayConfig {
   kind: 'painting-tray'
   columns: number
@@ -132,6 +143,7 @@ export interface PaintingTrayConfig {
   edgeMargin: number
   height: number
   magnets: HolderConfig['magnets']
+  handle: PaintingHandleSettings
   segments: number
   /** Export-only: omit the detachable handle from the assembled preview mesh. */
   assembly?: boolean
@@ -139,6 +151,7 @@ export interface PaintingTrayConfig {
 
 export interface PaintingHandleConfig {
   kind: 'painting-handle'
+  handle: PaintingHandleSettings
   segments: number
 }
 

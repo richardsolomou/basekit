@@ -2,4 +2,4 @@
 'basekit': minor
 ---
 
-Add low-profile magnetic painting trays with interleaved pocket grids and glue-on arch handles for batch priming mixed miniature sizes.
+Add low-profile magnetic spray trays with interleaved pocket grids, configurable glue-on handles, and engraved centre marks for batch priming mixed miniature sizes.

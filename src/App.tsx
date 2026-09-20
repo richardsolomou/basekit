@@ -41,8 +41,10 @@ import {
   minimumPaintingTrayEdgeMargin,
   minimumPaintingTrayHeight,
   minimumPaintingTraySpacing,
+  paintingHandleAxisCenter,
   paintingHandleDescription,
   paintingTrayAssemblyHeight,
+  paintingTrayAssemblyMinZ,
   paintingTrayLayout,
   paintingTrayMagnetPocketCount,
   paintingTrayName,
@@ -62,6 +64,7 @@ import type {
   HolderConfig,
   HolderGroup,
   MagnetLayout,
+  PaintingHandleShape,
   PaintingTrayConfig,
   ShapeKind,
 } from '@/geometry/types'
@@ -99,7 +102,7 @@ const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
   { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
-  { value: 'painting' as const, label: 'Painting', mobileLabel: 'Paint', href: '/painting' },
+  { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
   { value: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
 ]
 const ENGRAVING_PLACEMENTS = [
@@ -109,6 +112,12 @@ const ENGRAVING_PLACEMENTS = [
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
 const PAINTING_DEFAULTS = defaultPaintingTrayConfig()
+const PAINTING_HANDLE_SHAPES: { value: PaintingHandleShape; label: string }[] = [
+  { value: 'round', label: 'Round' },
+  { value: 'oval', label: 'Oval barrel' },
+  { value: 'flared', label: 'Flared base' },
+  { value: 'pistol', label: 'Pistol grip' },
+]
 const STEM_DEFAULTS = defaultFlightStemConfig()
 const STEM_HEIGHTS = CLASSIC_STEM_HEIGHTS.map((value) => ({ value, label: `${value} mm` }))
 const STEM_CONNECTIONS = [
@@ -120,13 +129,13 @@ type Generator = (typeof MODELS)[number]['value']
 const modelForPath = (): Generator =>
   window.location.pathname === '/holders'
     ? 'holder'
-    : window.location.pathname === '/painting'
+    : window.location.pathname === '/spray-tray'
       ? 'painting'
       : window.location.pathname === '/stems'
         ? 'stem'
         : 'base'
 const modelLabel = (model: Generator) =>
-  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Painting tray' : 'Stem'
+  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : 'Stem'
 
 function fittedCounts(modules: { config: { groups: HolderGroup[] } }[]) {
   const fitted = new Map<string, number>()
@@ -189,7 +198,7 @@ export function App() {
 
   useEffect(() => {
     document.title = `BaseKit — ${
-      model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : model === 'painting' ? 'Painting Trays' : 'Flying Stems'
+      model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : model === 'painting' ? 'Spray Trays' : 'Flying Stems'
     }`
   }, [model])
 
@@ -201,7 +210,7 @@ export function App() {
     window.history.pushState(
       null,
       '',
-      next === 'holder' ? '/holders' : next === 'painting' ? '/painting' : next === 'stem' ? '/stems' : '/',
+      next === 'holder' ? '/holders' : next === 'painting' ? '/spray-tray' : next === 'stem' ? '/stems' : '/',
     )
     setModel(next)
   }
@@ -864,7 +873,7 @@ export function App() {
 
   const paintingPanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
-      <aside aria-label="Painting tray settings" className="pb-4 [counter-reset:schedule]">
+      <aside aria-label="Spray tray settings" className="pb-4 [counter-reset:schedule]">
         <Section
           title="Magnet grid"
           aside={<span className="readout text-xs text-muted-foreground">{paintingTrayMagnetPocketCount(paintingTray)} holes</span>}
@@ -976,10 +985,57 @@ export function App() {
           />
           <FieldDescription>Pockets open at the top so installed magnets sit flush in an interleaved grid.</FieldDescription>
         </Section>
-        <Section title="Handle" aside={<span className="readout text-xs text-muted-foreground">glue-on</span>}>
+        <Section title="Handle" aside={<span className="readout text-xs text-muted-foreground">{paintingTray.handle.length} mm</span>}>
+          <Choice
+            label="Grip shape"
+            value={paintingTray.handle.shape}
+            defaultValue={PAINTING_DEFAULTS.handle.shape}
+            options={PAINTING_HANDLE_SHAPES}
+            onChange={(shape) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, shape } })}
+          />
+          <Dimension
+            label="Grip length"
+            value={paintingTray.handle.length}
+            min={60}
+            max={120}
+            step={5}
+            defaultValue={PAINTING_DEFAULTS.handle.length}
+            onChange={(handleLength) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, length: handleLength } })}
+          />
+          <Dimension
+            label="Grip width"
+            value={paintingTray.handle.width}
+            min={20}
+            max={40}
+            step={1}
+            defaultValue={PAINTING_DEFAULTS.handle.width}
+            onChange={(handleWidth) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, width: handleWidth } })}
+          />
+          <Dimension
+            label="Lean angle"
+            value={paintingTray.handle.angle}
+            min={0}
+            max={30}
+            step={1}
+            unit="°"
+            defaultValue={PAINTING_DEFAULTS.handle.angle}
+            onChange={(angle) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, angle } })}
+          />
+          <ToggleSetting
+            label="Rounded end"
+            checked={paintingTray.handle.roundedEnd}
+            defaultChecked={PAINTING_DEFAULTS.handle.roundedEnd}
+            onChange={(roundedEnd) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, roundedEnd } })}
+          />
+          <ToggleSetting
+            label="Grip ribs"
+            checked={paintingTray.handle.ribs}
+            defaultChecked={PAINTING_DEFAULTS.handle.ribs}
+            onChange={(ribs) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, ribs } })}
+          />
           <FieldDescription>
-            The arch has a {paintingHandleDescription()}; its flat top bar superglues directly beneath the tray and exports as a separate
-            support-free part.
+            {paintingHandleDescription(paintingTray)}. An engraved + extends past the grip for alignment. The flat end superglues beneath
+            the tray and exports as a separate upright, support-free part.
           </FieldDescription>
         </Section>
         <RepositoryLink />
@@ -1142,10 +1198,13 @@ export function App() {
 
         <main className="relative min-w-0 flex-1">
           <Viewer
+            viewKey={model}
             mesh={preview}
             width={partWidth}
             length={partLength}
             height={partHeight}
+            minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
+            orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
             round={model === 'stem' || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />

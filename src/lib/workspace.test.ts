@@ -20,9 +20,17 @@ describe('workspace state', () => {
         kind: 'painting-tray',
         columns: 4,
         rows: 4,
-        spacing: 45,
+        spacing: 50,
         edgeMargin: 12,
         magnets: { patternVersion: 2 },
+        handle: {
+          shape: 'round',
+          length: 100,
+          width: 28,
+          angle: 0,
+          roundedEnd: false,
+          ribs: false,
+        },
       },
       stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
     })
@@ -77,7 +85,7 @@ describe('workspace state', () => {
     state.shared.magnets.thickness = 3
     state.shared.magnets.depthClearance = 0.2
 
-    expect(synchronizeWorkspace(state).paintingTray).toMatchObject({ height: 3.8, spacing: 13.3, edgeMargin: 5.1 })
+    expect(synchronizeWorkspace(state).paintingTray).toMatchObject({ height: 4.1, spacing: 13.3, edgeMargin: 5.1 })
   })
 
   it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
@@ -162,9 +170,10 @@ describe('workspace state', () => {
       kind: 'painting-tray',
       columns: 4,
       rows: 4,
-      spacing: 45,
+      spacing: 50,
       edgeMargin: 12,
       height: 3,
+      handle: { shape: 'round', length: 100 },
     })
   })
 
