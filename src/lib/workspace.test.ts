@@ -12,10 +12,26 @@ function memoryStorage() {
 }
 
 describe('workspace state', () => {
-  it('starts both generators at their defaults', () => {
+  it('starts every generator at its defaults', () => {
     expect(defaultWorkspace()).toMatchObject({
       base: { width: 32, magnets: { patternVersion: 2 } },
       holder: { kind: 'holder', groups: [{ width: 32 }], magnets: { patternVersion: 2 } },
+      paintingTray: {
+        kind: 'painting-tray',
+        columns: 4,
+        rows: 4,
+        spacing: 50,
+        edgeMargin: 12,
+        magnets: { patternVersion: 2 },
+        handle: {
+          shape: 'round',
+          length: 100,
+          width: 28,
+          angle: 0,
+          roundedEnd: false,
+          ribs: false,
+        },
+      },
       stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
     })
   })
@@ -44,6 +60,7 @@ describe('workspace state', () => {
     })
     expect(synchronized.base.magnets).toMatchObject(synchronized.shared.magnets)
     expect(synchronized.holder.magnets).toMatchObject(synchronized.shared.magnets)
+    expect(synchronized.paintingTray.magnets).toMatchObject(synchronized.shared.magnets)
     expect({ base: synchronized.base.magnets.count, ribs: synchronized.base.ribs.count, holder: synchronized.holder.magnetCounts }).toEqual(
       {
         base: 5,
@@ -57,6 +74,18 @@ describe('workspace state', () => {
       holderWall: synchronized.holder.baseWallThickness,
       holderBoss: synchronized.holder.magnetBossWall,
     }).toEqual({ baseWall: 2.5, baseBoss: 1.1, holderWall: 2.5, holderBoss: 1.1 })
+  })
+
+  it('grows the painting tray around larger shared magnet pockets', () => {
+    const state = defaultWorkspace()
+    state.paintingTray.spacing = 5
+    state.paintingTray.edgeMargin = 1
+    state.shared.magnets.diameter = 8
+    state.shared.magnets.clearance = 0.6
+    state.shared.magnets.thickness = 3
+    state.shared.magnets.depthClearance = 0.2
+
+    expect(synchronizeWorkspace(state).paintingTray).toMatchObject({ height: 4.1, spacing: 13.3, edgeMargin: 5.1 })
   })
 
   it('limits new five-pocket crosses to round bases at least 50mm wide', () => {
@@ -129,6 +158,23 @@ describe('workspace state', () => {
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 5, workspace: legacy }))
 
     expect(loadWorkspace(storage).stem).toMatchObject({ bodyHeight: 20, connection: 'peg', ballDiameter: 4 })
+  })
+
+  it('adds the painting-tray generator to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.paintingTray
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 6, workspace: legacy }))
+
+    expect(loadWorkspace(storage).paintingTray).toMatchObject({
+      kind: 'painting-tray',
+      columns: 4,
+      rows: 4,
+      spacing: 50,
+      edgeMargin: 12,
+      height: 3,
+      handle: { shape: 'round', length: 100 },
+    })
   })
 
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {

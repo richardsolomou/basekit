@@ -1,6 +1,7 @@
-import { Box, ChevronDown, ChevronUp, Code2, Download, PanelLeft, Plus, Trash2 } from 'lucide-react'
+import { Box, Code2, Download, PanelLeft } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Choice, CompactChoice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { MiniatureGroupsEditor } from '@/components/MiniatureGroupsEditor'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -12,7 +13,6 @@ import { Viewer } from '@/components/Viewer'
 import { supportsFivePocketCross } from '@/geometry/base'
 import {
   defaultHolderConfig,
-  holderGroup,
   holderGroupLabel,
   holderLayout,
   holderName,
@@ -37,6 +37,19 @@ import {
 } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
 import {
+  defaultPaintingTrayConfig,
+  minimumPaintingTrayEdgeMargin,
+  minimumPaintingTrayHeight,
+  minimumPaintingTraySpacing,
+  paintingHandleAxisCenter,
+  paintingHandleDescription,
+  paintingTrayAssemblyHeight,
+  paintingTrayAssemblyMinZ,
+  paintingTrayLayout,
+  paintingTrayMagnetPocketCount,
+  paintingTrayName,
+} from '@/geometry/paintingTray'
+import {
   CLASSIC_STEM_HEIGHTS,
   defaultFlightStemConfig,
   stemMaximumDiameter,
@@ -44,7 +57,17 @@ import {
   stemNeckDiameter,
   stemOverallHeight,
 } from '@/geometry/stem'
-import type { BaseConfig, EdgeProfile, FlightStemConfig, HolderConfig, MagnetLayout, ShapeKind } from '@/geometry/types'
+import type {
+  BaseConfig,
+  EdgeProfile,
+  FlightStemConfig,
+  HolderConfig,
+  HolderGroup,
+  MagnetLayout,
+  PaintingHandleShape,
+  PaintingTrayConfig,
+  ShapeKind,
+} from '@/geometry/types'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -59,14 +82,7 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'polygon', label: 'Hex' },
 ]
 
-const HOLDER_SIZE_PRESETS = Object.values(SIZES_BY_SHAPE).flat()
 const CUSTOM_HOLDER_SIZE = 'custom'
-
-function holderSizePreset(group: { shape: ShapeKind; width: number; length: number }) {
-  return HOLDER_SIZE_PRESETS.find(
-    (size) => size.shape === group.shape && size.width === group.width && (size.length ?? size.width) === group.length,
-  )
-}
 
 const PROFILES: { value: EdgeProfile; label: string }[] = [
   { value: 'taper', label: 'Taper' },
@@ -84,9 +100,10 @@ const AUTOMATIC_MAGNET_COUNT = 'auto'
 type MagnetCountChoice = number | typeof AUTOMATIC_MAGNET_COUNT
 const RIB_COUNTS = counts(RIB_CHOICES)
 const MODELS = [
-  { value: 'base' as const, label: 'Bases', href: '/' },
-  { value: 'holder' as const, label: 'Holders', href: '/holders' },
-  { value: 'stem' as const, label: 'Stems', href: '/stems' },
+  { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
+  { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
+  { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
+  { value: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -94,6 +111,13 @@ const ENGRAVING_PLACEMENTS = [
 ]
 const BASE_DEFAULTS = presetFor(DEFAULT_PRESET)
 const HOLDER_DEFAULTS = defaultHolderConfig()
+const PAINTING_DEFAULTS = defaultPaintingTrayConfig()
+const PAINTING_HANDLE_SHAPES: { value: PaintingHandleShape; label: string }[] = [
+  { value: 'round', label: 'Round' },
+  { value: 'oval', label: 'Oval barrel' },
+  { value: 'flared', label: 'Flared base' },
+  { value: 'pistol', label: 'Pistol grip' },
+]
 const STEM_DEFAULTS = defaultFlightStemConfig()
 const STEM_HEIGHTS = CLASSIC_STEM_HEIGHTS.map((value) => ({ value, label: `${value} mm` }))
 const STEM_CONNECTIONS = [
@@ -103,8 +127,23 @@ const STEM_CONNECTIONS = [
 type Generator = (typeof MODELS)[number]['value']
 
 const modelForPath = (): Generator =>
-  window.location.pathname === '/holders' ? 'holder' : window.location.pathname === '/stems' ? 'stem' : 'base'
-const modelLabel = (model: Generator) => (model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : 'Stem')
+  window.location.pathname === '/holders'
+    ? 'holder'
+    : window.location.pathname === '/spray-tray'
+      ? 'painting'
+      : window.location.pathname === '/stems'
+        ? 'stem'
+        : 'base'
+const modelLabel = (model: Generator) =>
+  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : 'Stem'
+
+function fittedCounts(modules: { config: { groups: HolderGroup[] } }[]) {
+  const fitted = new Map<string, number>()
+  for (const module of modules) {
+    for (const group of module.config.groups) fitted.set(group.id, (fitted.get(group.id) ?? 0) + group.quantity)
+  }
+  return fitted
+}
 
 function RepositoryLink() {
   return (
@@ -126,6 +165,7 @@ export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const paintingTray = workspace.paintingTray
   const stem = workspace.stem
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
@@ -133,17 +173,21 @@ export function App() {
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setPaintingTray = (next: PaintingTrayConfig | ((current: PaintingTrayConfig) => PaintingTrayConfig)) =>
+    setWorkspace((current) => ({
+      ...current,
+      paintingTray: typeof next === 'function' ? next(current.paintingTray) : next,
+    }))
   const setStem = (next: FlightStemConfig | ((current: FlightStemConfig) => FlightStemConfig)) =>
     setWorkspace((current) => ({ ...current, stem: typeof next === 'function' ? next(current.stem) : next }))
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
-  const [customHolderGroups, setCustomHolderGroups] = useState<Set<string>>(() => new Set())
   const [model, setModel] = useState<Generator>(modelForPath)
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : model === 'holder' ? holder : stem
+  const partConfig = model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : stem
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -153,7 +197,9 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    document.title = `BaseKit — ${model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : 'Flying Stems'}`
+    document.title = `BaseKit — ${
+      model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : model === 'painting' ? 'Spray Trays' : 'Flying Stems'
+    }`
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
@@ -161,7 +207,11 @@ export function App() {
   const changeModel = (next: Generator) => {
     if (next === model) return
     posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(null, '', next === 'holder' ? '/holders' : next === 'stem' ? '/stems' : '/')
+    window.history.pushState(
+      null,
+      '',
+      next === 'holder' ? '/holders' : next === 'painting' ? '/spray-tray' : next === 'stem' ? '/stems' : '/',
+    )
     setModel(next)
   }
 
@@ -173,6 +223,7 @@ export function App() {
     })
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
+  const paintingSize = useMemo(() => paintingTrayLayout(paintingTray), [paintingTray])
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
@@ -187,39 +238,28 @@ export function App() {
   })
   const plan = useMemo(() => holderPlan(holder), [holder])
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
-  const fittedByGroup = useMemo(() => {
-    const fitted = new Map<string, number>()
-    for (const module of plan.modules) {
-      for (const group of module.config.groups) fitted.set(group.id, (fitted.get(group.id) ?? 0) + group.quantity)
-    }
-    return fitted
-  }, [plan])
-  const moveGroup = (index: number, direction: -1 | 1) => {
-    const target = index + direction
-    if (target < 0 || target >= holder.groups.length) return
-    const groups = [...holder.groups]
-    const current = groups[index]
-    groups[index] = groups[target]
-    groups[target] = current
-    setHolder({ ...holder, groups })
-  }
-  const showCustomHolderGroup = (id: string) =>
-    setCustomHolderGroups((current) => {
-      const next = new Set(current)
-      next.add(id)
-      return next
-    })
-  const hideCustomHolderGroup = (id: string) =>
-    setCustomHolderGroups((current) => {
-      const next = new Set(current)
-      next.delete(id)
-      return next
-    })
+  const fittedByGroup = useMemo(() => fittedCounts(plan.modules), [plan])
   const stemDiameter = stemMaximumDiameter(stem)
-  const partWidth = model === 'base' ? width : model === 'holder' ? holderSize.width : stemDiameter
-  const partLength = model === 'base' ? length : model === 'holder' ? holderSize.length : stemDiameter
-  const partHeight = model === 'base' ? config.height : model === 'holder' ? holder.height : stemOverallHeight(stem)
-  const partName = model === 'base' ? baseName(config) : model === 'holder' ? holderName(holder) : stemName(stem)
+  const partWidth =
+    model === 'base' ? width : model === 'holder' ? holderSize.width : model === 'painting' ? paintingSize.width : stemDiameter
+  const partLength =
+    model === 'base' ? length : model === 'holder' ? holderSize.length : model === 'painting' ? paintingSize.length : stemDiameter
+  const partHeight =
+    model === 'base'
+      ? config.height
+      : model === 'holder'
+        ? holder.height
+        : model === 'painting'
+          ? paintingTrayAssemblyHeight(paintingTray)
+          : stemOverallHeight(stem)
+  const partName =
+    model === 'base'
+      ? baseName(config)
+      : model === 'holder'
+        ? holderName(holder)
+        : model === 'painting'
+          ? paintingTrayName(paintingTray)
+          : stemName(stem)
   const {
     exporting,
     error: exportError,
@@ -229,6 +269,7 @@ export function App() {
     model,
     base: config,
     holder,
+    paintingTray,
     stem,
     width: partWidth,
     length: partLength,
@@ -636,177 +677,11 @@ export function App() {
             </span>
           }
         >
-          <p className="text-[0.625rem] text-muted-foreground">Priority runs from top to bottom.</p>
-          <div className="grid grid-cols-[3rem_5.5rem_minmax(0,1fr)] gap-2 px-1 text-[0.625rem] tracking-wider text-muted-foreground uppercase">
-            <span>Qty</span>
-            <span>Shape</span>
-            <span>Size</span>
-          </div>
-          {holder.groups.map((group, index) => {
-            const groupStandard = holderSizePreset(group)
-            const customOpen = customHolderGroups.has(group.id) || !groupStandard
-            const fitted = fittedByGroup.get(group.id) ?? 0
-            const missing = group.quantity - fitted
-            return (
-              <div
-                key={group.id}
-                className={`grid grid-cols-[3rem_5.5rem_minmax(0,1fr)] items-center gap-2 border-b pb-2 last:border-0 ${
-                  missing > 0 ? 'border-destructive/50' : 'border-border'
-                }`}
-              >
-                <Dimension
-                  label={`Quantity ${index + 1}`}
-                  value={group.quantity}
-                  min={1}
-                  max={100}
-                  step={1}
-                  unit=""
-                  compact
-                  onChange={(quantity) => {
-                    const groups = holder.groups.map((entry, groupIndex) =>
-                      groupIndex === index ? { ...group, quantity: Math.round(quantity) } : entry,
-                    )
-                    setHolder({ ...holder, groups })
-                  }}
-                />
-                <CompactChoice
-                  label={`Shape ${index + 1}`}
-                  value={group.shape}
-                  options={SHAPES}
-                  onChange={(shape) => {
-                    hideCustomHolderGroup(group.id)
-                    setHolder({
-                      ...holder,
-                      groups: holder.groups.map((entry, groupIndex) =>
-                        groupIndex === index ? holderGroup(group.id, group.quantity, { shape }) : entry,
-                      ),
-                    })
-                  }}
-                />
-                <SizeSelect
-                  compact
-                  label={`Standard base size ${index + 1}`}
-                  value={customOpen ? CUSTOM_HOLDER_SIZE : (groupStandard?.label ?? CUSTOM_HOLDER_SIZE)}
-                  options={[
-                    ...SIZES_BY_SHAPE[group.shape].map((size) => ({ value: size.label, use: size.use })),
-                    { value: CUSTOM_HOLDER_SIZE, label: 'Custom', use: 'exact dimensions' },
-                  ]}
-                  onChange={(value) => {
-                    if (value === CUSTOM_HOLDER_SIZE) {
-                      showCustomHolderGroup(group.id)
-                      return
-                    }
-                    const size = SIZES_BY_SHAPE[group.shape].find((candidate) => candidate.label === value)
-                    if (!size) return
-                    hideCustomHolderGroup(group.id)
-                    setHolder({
-                      ...holder,
-                      groups: holder.groups.map((entry, groupIndex) =>
-                        groupIndex === index
-                          ? holderGroup(group.id, group.quantity, {
-                              shape: size.shape,
-                              width: size.width,
-                              length: size.length ?? size.width,
-                            })
-                          : entry,
-                      ),
-                    })
-                  }}
-                />
-                {customOpen && (
-                  <div className="col-span-3 grid grid-cols-[minmax(4.5rem,1fr)_minmax(5.5rem,1fr)] gap-2 pl-[calc(3rem+0.5rem)]">
-                    <Dimension
-                      label={`${isElongated(group.shape) ? 'Base width' : group.shape === 'round' ? 'Base diameter' : 'Overall width'} ${index + 1}`}
-                      compactLabel={isElongated(group.shape) ? 'Width' : group.shape === 'round' ? 'Diameter' : 'Overall width'}
-                      value={group.width}
-                      min={15}
-                      max={180}
-                      step={0.5}
-                      compact
-                      onChange={(baseWidth) =>
-                        setHolder({
-                          ...holder,
-                          groups: holder.groups.map((entry, groupIndex) =>
-                            groupIndex === index
-                              ? { ...group, width: baseWidth, length: isElongated(group.shape) ? group.length : baseWidth }
-                              : entry,
-                          ),
-                        })
-                      }
-                    />
-                    {isElongated(group.shape) && (
-                      <Dimension
-                        label={`Base depth ${index + 1}`}
-                        compactLabel="Depth"
-                        value={group.length}
-                        min={15}
-                        max={180}
-                        step={0.5}
-                        compact
-                        onChange={(baseLength) =>
-                          setHolder({
-                            ...holder,
-                            groups: holder.groups.map((entry, groupIndex) =>
-                              groupIndex === index ? { ...group, length: baseLength } : entry,
-                            ),
-                          })
-                        }
-                      />
-                    )}
-                  </div>
-                )}
-                <div className="col-span-3 flex min-w-0 items-center justify-between gap-2 pl-[calc(3rem+0.5rem)]">
-                  {missing > 0 && (
-                    <p className="min-w-0 truncate text-xs text-destructive">
-                      {fitted === 0 ? `None of ${group.quantity} fit` : `Only ${fitted} of ${group.quantity} fit`}
-                    </p>
-                  )}
-                  <div className="ms-auto flex shrink-0">
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`Increase priority of miniature group ${index + 1}`}
-                      disabled={index === 0}
-                      onClick={() => moveGroup(index, -1)}
-                    >
-                      <ChevronUp />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`Decrease priority of miniature group ${index + 1}`}
-                      disabled={index === holder.groups.length - 1}
-                      onClick={() => moveGroup(index, 1)}
-                    >
-                      <ChevronDown />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`Remove miniature group ${index + 1}`}
-                      disabled={holder.groups.length === 1}
-                      onClick={() => {
-                        posthog.capture('holder_group_removed', { group_count: holder.groups.length })
-                        setHolder({ ...holder, groups: holder.groups.filter((_, groupIndex) => groupIndex !== index) })
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              posthog.capture('holder_group_added', { group_count: holder.groups.length + 1 })
-              setHolder({ ...holder, groups: [...holder.groups, holderGroup(crypto.randomUUID(), 1, { width: 40 })] })
-            }}
-          >
-            <Plus /> Add size
-          </Button>
+          <MiniatureGroupsEditor
+            groups={holder.groups}
+            fittedByGroup={fittedByGroup}
+            onChange={(groups) => setHolder({ ...holder, groups })}
+          />
         </Section>
 
         <Section
@@ -996,6 +871,178 @@ export function App() {
     </ScrollArea>
   )
 
+  const paintingPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Spray tray settings" className="pb-4 [counter-reset:schedule]">
+        <Section
+          title="Magnet grid"
+          aside={<span className="readout text-xs text-muted-foreground">{paintingTrayMagnetPocketCount(paintingTray)} holes</span>}
+        >
+          <Dimension
+            label="Columns"
+            value={paintingTray.columns}
+            min={1}
+            max={12}
+            step={1}
+            unit=""
+            defaultValue={PAINTING_DEFAULTS.columns}
+            onChange={(columns) => setPaintingTray({ ...paintingTray, columns: Math.round(columns) })}
+          />
+          <Dimension
+            label="Rows"
+            value={paintingTray.rows}
+            min={1}
+            max={12}
+            step={1}
+            unit=""
+            defaultValue={PAINTING_DEFAULTS.rows}
+            onChange={(rows) => setPaintingTray({ ...paintingTray, rows: Math.round(rows) })}
+          />
+          <Dimension
+            label="Centre spacing"
+            value={paintingTray.spacing}
+            min={minimumPaintingTraySpacing(paintingTray)}
+            max={80}
+            step={0.5}
+            defaultValue={PAINTING_DEFAULTS.spacing}
+            onChange={(spacing) => setPaintingTray({ ...paintingTray, spacing })}
+          />
+          <Dimension
+            label="Edge margin"
+            value={paintingTray.edgeMargin}
+            min={minimumPaintingTrayEdgeMargin(paintingTray)}
+            max={40}
+            step={0.5}
+            defaultValue={PAINTING_DEFAULTS.edgeMargin}
+            onChange={(edgeMargin) => setPaintingTray({ ...paintingTray, edgeMargin })}
+          />
+          <FieldDescription>Offset holes between rows give smaller and mixed-size bases more placement options.</FieldDescription>
+        </Section>
+
+        <Section
+          title="Construction"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {trimNumber(paintingSize.width)} × {trimNumber(paintingSize.length)}mm
+            </span>
+          }
+        >
+          <Dimension
+            label="Tray thickness"
+            value={paintingTray.height}
+            min={minimumPaintingTrayHeight(paintingTray)}
+            max={8}
+            step={0.1}
+            defaultValue={PAINTING_DEFAULTS.height}
+            onChange={(height) => setPaintingTray({ ...paintingTray, height })}
+          />
+          <FieldDescription>The flat tray has no rim or recess to block spray from the sides.</FieldDescription>
+        </Section>
+
+        <Section
+          title="Magnets"
+          aside={
+            <span className="readout text-xs text-muted-foreground">
+              {trimNumber(paintingTray.magnets.diameter + paintingTray.magnets.clearance)} mm hole
+            </span>
+          }
+        >
+          <Dimension
+            label="Magnet diameter"
+            value={paintingTray.magnets.diameter}
+            min={2}
+            max={8}
+            step={0.5}
+            defaultValue={BASE_DEFAULTS.magnets.diameter}
+            onChange={(diameter) => setSharedMagnets({ diameter })}
+          />
+          <Dimension
+            label="Magnet thickness"
+            value={paintingTray.magnets.thickness}
+            min={0.5}
+            max={maxSharedMagnetThickness}
+            step={0.1}
+            defaultValue={BASE_DEFAULTS.magnets.thickness}
+            onChange={(thickness) => setSharedMagnets({ thickness })}
+          />
+          <Dimension
+            label="Magnet diameter clearance"
+            value={paintingTray.magnets.clearance}
+            min={0}
+            max={0.6}
+            step={0.05}
+            defaultValue={BASE_DEFAULTS.magnets.clearance}
+            onChange={(clearance) => setSharedMagnets({ clearance })}
+          />
+          <Dimension
+            label="Magnet depth clearance"
+            value={paintingTray.magnets.depthClearance}
+            min={0}
+            max={maxSharedDepthClearance}
+            step={0.05}
+            defaultValue={PAINTING_DEFAULTS.magnets.depthClearance}
+            onChange={(depthClearance) => setSharedMagnets({ depthClearance })}
+          />
+          <FieldDescription>Pockets open at the top so installed magnets sit flush in an interleaved grid.</FieldDescription>
+        </Section>
+        <Section title="Handle" aside={<span className="readout text-xs text-muted-foreground">{paintingTray.handle.length} mm</span>}>
+          <Choice
+            label="Grip shape"
+            value={paintingTray.handle.shape}
+            defaultValue={PAINTING_DEFAULTS.handle.shape}
+            options={PAINTING_HANDLE_SHAPES}
+            onChange={(shape) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, shape } })}
+          />
+          <Dimension
+            label="Grip length"
+            value={paintingTray.handle.length}
+            min={60}
+            max={120}
+            step={5}
+            defaultValue={PAINTING_DEFAULTS.handle.length}
+            onChange={(handleLength) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, length: handleLength } })}
+          />
+          <Dimension
+            label="Grip width"
+            value={paintingTray.handle.width}
+            min={20}
+            max={40}
+            step={1}
+            defaultValue={PAINTING_DEFAULTS.handle.width}
+            onChange={(handleWidth) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, width: handleWidth } })}
+          />
+          <Dimension
+            label="Lean angle"
+            value={paintingTray.handle.angle}
+            min={0}
+            max={30}
+            step={1}
+            unit="°"
+            defaultValue={PAINTING_DEFAULTS.handle.angle}
+            onChange={(angle) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, angle } })}
+          />
+          <ToggleSetting
+            label="Rounded end"
+            checked={paintingTray.handle.roundedEnd}
+            defaultChecked={PAINTING_DEFAULTS.handle.roundedEnd}
+            onChange={(roundedEnd) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, roundedEnd } })}
+          />
+          <ToggleSetting
+            label="Grip ribs"
+            checked={paintingTray.handle.ribs}
+            defaultChecked={PAINTING_DEFAULTS.handle.ribs}
+            onChange={(ribs) => setPaintingTray({ ...paintingTray, handle: { ...paintingTray.handle, ribs } })}
+          />
+          <FieldDescription>
+            {paintingHandleDescription(paintingTray)}. An engraved + extends past the grip for alignment. The flat end superglues beneath
+            the tray and exports as a separate upright, support-free part.
+          </FieldDescription>
+        </Section>
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+
   const stemPanel = (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Stem settings" className="pb-4 [counter-reset:schedule]">
@@ -1082,12 +1129,12 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : stemPanel
+  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : model === 'painting' ? paintingPanel : stemPanel
 
   return (
     <div className="flex h-full flex-col bg-background">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
-        <div className="flex min-w-0 items-center gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           {/* Same panel, same order; on a narrow screen it slides in from the left
               instead of standing beside the sheet. */}
           {!docked && (
@@ -1105,25 +1152,28 @@ export function App() {
               </SheetContent>
             </Sheet>
           )}
-          <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase">
-            <span className="sm:hidden">BK</span>
-            <span className="max-sm:hidden">
-              Base<span className="text-measure">Kit</span>
-            </span>
+          <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase max-sm:hidden">
+            Base<span className="text-measure">Kit</span>
           </h1>
           <nav aria-label="Generators" className="flex self-stretch">
             {MODELS.map((item) => (
               <a
                 key={item.value}
                 href={item.href}
+                aria-label={item.label}
                 aria-current={model === item.value ? 'page' : undefined}
                 onClick={(event) => {
                   event.preventDefault()
                   changeModel(item.value)
                 }}
-                className="note relative flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100"
+                className="note relative flex items-center px-1.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100 sm:px-3 sm:after:inset-x-3"
               >
-                {item.label}
+                <span aria-hidden="true" className="sm:hidden">
+                  {item.mobileLabel}
+                </span>
+                <span aria-hidden="true" className="max-sm:hidden">
+                  {item.label}
+                </span>
               </a>
             ))}
           </nav>
@@ -1148,10 +1198,13 @@ export function App() {
 
         <main className="relative min-w-0 flex-1">
           <Viewer
+            viewKey={model}
             mesh={preview}
             width={partWidth}
             length={partLength}
             height={partHeight}
+            minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
+            orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
             round={model === 'stem' || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />

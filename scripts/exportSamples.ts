@@ -1,6 +1,6 @@
 /**
  * Writes a sample STL per preset size so the geometry can be inspected outside the
- * browser. Usage: pnpm samples [outDir] [round|oval]
+ * browser. Usage: pnpm samples [outDir] [round|oval|painting]
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -10,6 +10,14 @@ import { buildBase } from '../src/geometry/base'
 import { toStl } from '../src/geometry/exporters'
 import { loadManifold } from '../src/geometry/manifold'
 import { baseName } from '../src/geometry/outline'
+import {
+  buildPaintingHandle,
+  buildPaintingTray,
+  defaultPaintingTrayConfig,
+  paintingHandleConfig,
+  paintingHandleName,
+  paintingTrayName,
+} from '../src/geometry/paintingTray'
 import { OVAL_SIZES, presetFor, ROUND_SIZES } from '../src/geometry/presets'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
@@ -21,10 +29,25 @@ const [outDir = 'samples', family = 'round'] = process.argv.slice(2)
 const sizes = family === 'oval' ? OVAL_SIZES : ROUND_SIZES
 
 const wasm = await loadManifold()
+mkdirSync(outDir, { recursive: true })
+
+if (family === 'painting') {
+  const config = defaultPaintingTrayConfig()
+  const parts = [
+    { ...buildPaintingTray(wasm, { ...config, assembly: false }), name: paintingTrayName(config) },
+    { ...buildPaintingHandle(wasm, paintingHandleConfig(config)), name: paintingHandleName(config) },
+  ]
+  for (const { mesh, stats, name } of parts) {
+    const filename = `${name}.stl`
+    writeFileSync(join(outDir, filename), toStl(mesh, filename))
+    console.log(`${filename}  ${stats.triangles} tris  ${stats.volume.toFixed(0)}mm3  ${stats.grams.toFixed(2)}g`)
+  }
+  process.exit(0)
+}
+
 const bytes = readFileSync(FONT_PATH)
 const font = parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
 
-mkdirSync(outDir, { recursive: true })
 for (const size of sizes) {
   const config = presetFor(size)
   const { mesh, stats } = buildBase(wasm, config, font)

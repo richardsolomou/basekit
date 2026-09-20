@@ -79,6 +79,69 @@ test('keeps the 3D canvas out of the observed viewer layout', { tag: '@ci' }, as
   expect(resizeErrors).toEqual([])
 })
 
+test('keeps a separate camera view for each generator', async ({ page }) => {
+  const canvas = page.locator('main canvas')
+  const dimensionPath = page.locator('#dim-across')
+  const cameraView = () => drawn(page).getAttribute('data-camera-view')
+  const cameraDifference = async (expected: string | null) => {
+    const actual = await cameraView()
+    if (!expected || !actual) return Infinity
+    const expectedValues = expected.split(',').map(Number)
+    return Math.max(...actual.split(',').map((value, index) => Math.abs(Number(value) - expectedValues[index])))
+  }
+  const settledCamera = async () => {
+    let previous: string | null = null
+    let stableSamples = 0
+    await expect
+      .poll(
+        async () => {
+          const current = await cameraView()
+          stableSamples = current === previous ? stableSamples + 1 : 0
+          previous = current
+          return stableSamples
+        },
+        { timeout: 15_000, intervals: [100] },
+      )
+      .toBeGreaterThanOrEqual(3)
+    return cameraView()
+  }
+  await expect(dimensionPath).toHaveAttribute('d', /^M /)
+  await expect(drawn(page)).toHaveAttribute('data-camera-view', /,/)
+
+  const baseDefault = await cameraView()
+  const canvasBounds = await canvas.boundingBox()
+  if (!canvasBounds) throw new Error('3D canvas has no bounds')
+  const cameraX = canvasBounds.x + canvasBounds.width / 2
+  const cameraY = canvasBounds.y + canvasBounds.height / 2
+  await page.mouse.move(cameraX, cameraY)
+  await page.mouse.down()
+  await page.mouse.move(cameraX + 120, cameraY + 80, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(cameraView).not.toBe(baseDefault)
+  const baseView = await settledCamera()
+
+  const baseTriangles = await triangles(page)
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await rebuilt(page, baseTriangles)
+  const holderDefault = await cameraView()
+  await page.mouse.move(cameraX, cameraY)
+  await page.mouse.down()
+  await page.mouse.move(cameraX - 90, cameraY - 60, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(cameraView).not.toBe(holderDefault)
+  const holderView = await settledCamera()
+
+  const holderTriangles = await triangles(page)
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await rebuilt(page, holderTriangles)
+  await expect.poll(() => cameraDifference(baseView)).toBeLessThan(0.02)
+
+  const restoredBaseTriangles = await triangles(page)
+  await page.getByRole('link', { name: 'Holders' }).click()
+  await rebuilt(page, restoredBaseTriangles)
+  await expect.poll(() => cameraDifference(holderView)).toBeLessThan(0.02)
+})
+
 test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
 })
@@ -249,6 +312,48 @@ test('builds a matching printable flying stem', async ({ page }) => {
   await expect(footer(page)).toContainText('flying-stem-20mm-ball')
   await expect(footer(page)).toContainText('Ball joint')
   await expect(footer(page)).toContainText('Ø4 mm')
+})
+
+test('builds a low-profile spray tray with an interleaved magnet grid', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Spray tray' }).click()
+  await rebuilt(page, before)
+
+  await expect(page).toHaveURL(/\/spray-tray$/)
+  await expect(page.getByRole('complementary', { name: 'Spray tray settings' })).toBeVisible()
+  await expect.poll(async () => Number((await drawn(page).getAttribute('data-camera-view'))?.split(',')[5])).toBeCloseTo(-49.9, 1)
+  await expect(tall(page)).toHaveText('102.9')
+  await expect(footer(page)).toContainText('painting-tray-4x4-174x174mm')
+  await expect(footer(page)).toContainText('4×4 + 3×3 · 50 mm pitch')
+  await expect(footer(page)).toContainText('25 × 5.2 mm hole')
+  await expect(footer(page)).toContainText('Round · Straight · 28 × 100 mm')
+  await expect(page.getByText('Slots', { exact: true })).toHaveCount(0)
+
+  const roundTriangles = await triangles(page)
+  await pickChoice(page, 'Grip shape', 'Oval barrel')
+  await rebuilt(page, roundTriangles)
+  await page.getByLabel('Grip length in mm').fill('110')
+  await page.getByLabel('Grip length in mm').press('Enter')
+  await expect(tall(page)).toHaveText('112.9')
+  await expect(footer(page)).toContainText('Oval barrel · Straight · 28 × 110 mm')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  const saved = await pending
+  expect(saved.suggestedFilename()).toBe('painting-tray-4x4-174x174mm.zip')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect(Object.keys(unzipSync(await readFile(path))).sort()).toEqual([
+    'painting-tray-4x4-174x174mm-handle-oval-28x110mm-0deg.stl',
+    'painting-tray-4x4-174x174mm.stl',
+  ])
+
+  const gridTriangles = await triangles(page)
+  await page.getByLabel('Columns in ', { exact: true }).fill('5')
+  await page.getByLabel('Columns in ', { exact: true }).press('Enter')
+  await rebuilt(page, gridTriangles)
+  await expect(footer(page)).toContainText('5×4 + 4×3 · 50 mm pitch')
+  await expect(footer(page)).toContainText('32 × 5.2 mm hole')
 })
 
 test('aligns toggle and dimension reset columns', async ({ page }) => {

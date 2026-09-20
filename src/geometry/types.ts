@@ -122,6 +122,39 @@ export interface HolderGroup {
   sides: number
 }
 
+export type PaintingHandleShape = 'round' | 'oval' | 'flared' | 'pistol'
+
+export interface PaintingHandleSettings {
+  shape: PaintingHandleShape
+  length: number
+  width: number
+  angle: number
+  roundedEnd: boolean
+  ribs: boolean
+}
+
+export interface PaintingTrayConfig {
+  kind: 'painting-tray'
+  columns: number
+  rows: number
+  /** Centre-to-centre distance between magnet pockets. */
+  spacing: number
+  /** Distance from an outer magnet centre to the tray edge. */
+  edgeMargin: number
+  height: number
+  magnets: HolderConfig['magnets']
+  handle: PaintingHandleSettings
+  segments: number
+  /** Export-only: omit the detachable handle from the assembled preview mesh. */
+  assembly?: boolean
+}
+
+export interface PaintingHandleConfig {
+  kind: 'painting-handle'
+  handle: PaintingHandleSettings
+  segments: number
+}
+
 export interface FlightStemConfig {
   kind: 'stem'
   /** Height of the tapered body, excluding the miniature connection. */
@@ -138,4 +171,5 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | FlightStemConfig
+export type PartConfig = BasePartConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig
+export type BuildConfig = PartConfig | PaintingHandleConfig
