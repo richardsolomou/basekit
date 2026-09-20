@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, and Gridfinity holders for storing them. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, and low-profile painting trays. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -34,16 +34,23 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
+## Painting trays 🎨
+
+Build a low-profile magnetic platform for batch priming and spray painting. Its top-opening pockets form an interleaved grid, with a second offset pocket between every four primary positions. Adjust the rows, columns, centre spacing, and edge margin; the extra diagonal positions suit mixed base sizes while the flat, rimless surface keeps every base edge exposed to spray.
+
+A glue-on arch fits beneath the centre of the tray, leaving a 78 × 28mm opening for four fingers. Its flat top bar glues directly to the tray underside without an extra mounting plate. STL downloads contain separate tray and handle files, while 3MF downloads put each support-free part on its own build plate.
+
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
-- Balanced or five-pocket cross magnet arrangements shared by bases and holders.
+- Shared magnet dimensions across bases, holders, and painting trays.
+- Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences.
 
-BaseKit generates bases and holders for them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
+BaseKit generates bases and accessories for using them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
 ## Private by design 🔒
 

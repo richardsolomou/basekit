@@ -1,11 +1,17 @@
 import { defaultHolderConfig } from '../geometry/holder'
+import {
+  defaultPaintingTrayConfig,
+  minimumPaintingTrayEdgeMargin,
+  minimumPaintingTrayHeight,
+  minimumPaintingTraySpacing,
+} from '../geometry/paintingTray'
 import { supportsFivePocketCross } from '../geometry/base'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig } from '../geometry/types'
+import type { BaseConfig, FlightStemConfig, HolderConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 6
+const WORKSPACE_VERSION = 7
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -15,8 +21,9 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
-  /** Values exposed by both generators have one canonical owner. */
+  /** Values exposed by multiple generators have one canonical owner. */
   shared: SharedSettings
 }
 
@@ -104,12 +111,28 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
+    paintingTray: {
+      ...state.paintingTray,
+      height: Math.max(state.paintingTray.height, Math.ceil((minimumPaintingTrayHeight({ magnets: shared.magnets }) - 1e-6) * 10) / 10),
+      spacing: Math.max(state.paintingTray.spacing, Math.ceil((minimumPaintingTraySpacing({ magnets: shared.magnets }) - 1e-6) * 10) / 10),
+      edgeMargin: Math.max(
+        state.paintingTray.edgeMargin,
+        Math.ceil((minimumPaintingTrayEdgeMargin({ magnets: shared.magnets }) - 1e-6) * 10) / 10,
+      ),
+      magnets: { ...state.paintingTray.magnets, ...shared.magnets, enabled: true },
+    },
   }
 }
 
 export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
-  return synchronizeWorkspace({ base, holder: defaultHolderConfig(), stem: defaultFlightStemConfig(), shared: sharedFromBase(base) })
+  return synchronizeWorkspace({
+    base,
+    holder: defaultHolderConfig(),
+    paintingTray: defaultPaintingTrayConfig(),
+    stem: defaultFlightStemConfig(),
+    shared: sharedFromBase(base),
+  })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -119,23 +142,28 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
     const workspace =
       parsed.version === 1
-        ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace)))))
+        ? migrateWorkspaceV6(
+            migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))),
+          )
         : parsed.version === 2
-          ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace))))
+          ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace)))))
           : parsed.version === 3
-            ? migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace)))
+            ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace))))
             : parsed.version === 4
-              ? migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace))
+              ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace)))
               : parsed.version === 5
-                ? migrateWorkspaceV5(parsed.workspace)
-                : parsed.workspace
+                ? migrateWorkspaceV6(migrateWorkspaceV5(parsed.workspace))
+                : parsed.version === 6
+                  ? migrateWorkspaceV6(parsed.workspace)
+                  : parsed.workspace
     if (
       parsed.version !== WORKSPACE_VERSION &&
       parsed.version !== 1 &&
       parsed.version !== 2 &&
       parsed.version !== 3 &&
       parsed.version !== 4 &&
-      parsed.version !== 5
+      parsed.version !== 5 &&
+      parsed.version !== 6
     )
       return defaultWorkspace()
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
@@ -145,6 +173,11 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV6(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), paintingTray: defaultPaintingTrayConfig() }
 }
 
 function migrateWorkspaceV5(value: unknown): unknown {
@@ -223,6 +256,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
+    workspace.paintingTray.kind === 'painting-tray' &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
     workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))

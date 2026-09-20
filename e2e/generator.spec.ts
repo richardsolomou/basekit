@@ -251,6 +251,38 @@ test('builds a matching printable flying stem', async ({ page }) => {
   await expect(footer(page)).toContainText('Ø4 mm')
 })
 
+test('builds a low-profile painting tray with an interleaved magnet grid', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Painting' }).click()
+  await rebuilt(page, before)
+
+  await expect(page.getByRole('complementary', { name: 'Painting tray settings' })).toBeVisible()
+  await expect(tall(page)).toHaveText('44.9')
+  await expect(footer(page)).toContainText('painting-tray-4x4-159x159mm')
+  await expect(footer(page)).toContainText('4×4 + 3×3 · 45 mm pitch')
+  await expect(footer(page)).toContainText('25 × 5.2 mm hole')
+  await expect(footer(page)).toContainText('78 × 28 mm opening')
+  await expect(page.getByText('Slots', { exact: true })).toHaveCount(0)
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  const saved = await pending
+  expect(saved.suggestedFilename()).toBe('painting-tray-4x4-159x159mm.zip')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect(Object.keys(unzipSync(await readFile(path))).sort()).toEqual([
+    'painting-tray-4x4-159x159mm-handle.stl',
+    'painting-tray-4x4-159x159mm.stl',
+  ])
+
+  const gridTriangles = await triangles(page)
+  await page.getByLabel('Columns in ', { exact: true }).fill('5')
+  await page.getByLabel('Columns in ', { exact: true }).press('Enter')
+  await rebuilt(page, gridTriangles)
+  await expect(footer(page)).toContainText('5×4 + 4×3 · 45 mm pitch')
+  await expect(footer(page)).toContainText('32 × 5.2 mm hole')
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between miniatures in mm').fill('1.5')

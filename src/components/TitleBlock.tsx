@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
+import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
 import { stemOverallHeight } from '@/geometry/stem'
 import type { PartConfig } from '@/geometry/types'
@@ -54,6 +55,21 @@ export function TitleBlock({ config, status, name }: Props) {
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
         <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
+      </TitleFrame>
+    )
+  }
+  if (config.kind === 'painting-tray') {
+    const layout = paintingTrayLayout(config)
+    const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row
+          label="Grid"
+          value={`${layout.columns}×${layout.rows} + ${Math.max(0, layout.columns - 1)}×${Math.max(0, layout.rows - 1)} · ${trimNumber(config.spacing)} mm pitch`}
+        />
+        <Row label="Tray" value={`${trimNumber(layout.width)} × ${trimNumber(layout.length)} × ${trimNumber(config.height)} mm`} />
+        <Row label="Magnets" value={`${paintingTrayMagnetPocketCount(config)} × ${pocket} mm hole`} />
+        <Row label="Handle" value={paintingHandleDescription()} />
       </TitleFrame>
     )
   }
