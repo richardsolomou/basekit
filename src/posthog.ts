@@ -6,6 +6,8 @@ export const postHogCoverage = definePostHogCoverage({
     errorTracking: true,
     featureFlags: true,
     identity: { disabled: 'BaseKit has no accounts' },
+    logs: true,
+    metrics: true,
     sessionReplay: true,
   },
   server: {
@@ -13,5 +15,5 @@ export const postHogCoverage = definePostHogCoverage({
     errorTracking: { disabled: 'BaseKit is a static browser application' },
     logs: { disabled: 'BaseKit is a static browser application' },
   },
-  sourceMaps: { disabled: 'source-map upload requires a Cloudflare deployment personal API key' },
+  sourceMaps: true,
 })
