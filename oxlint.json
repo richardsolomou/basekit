@@ -1,3 +1,0 @@
-{
-  "extends": ["ras-stack/config/oxlint/application"]
-}
