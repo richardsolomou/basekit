@@ -1,5 +1,11 @@
 # basekit
 
+## 0.4.0
+
+### Minor Changes
+
+- ccc6720: Add low-profile magnetic spray trays with interleaved pocket grids, configurable glue-on handles, and engraved centre marks for batch priming mixed miniature sizes.
+
 ## 0.3.0
 
 ### Minor Changes
