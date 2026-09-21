@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import { posthog } from 'posthog-js'
 import { postHogEnvironment } from 'ras-stack/posthog'
 
 export const posthogEnvironment = postHogEnvironment({

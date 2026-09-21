@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, it, vi } from 'vitest'
+import packageJson from '../../package.json' with { type: 'json' }
 
 const { provider, render } = vi.hoisted(() => ({ provider: vi.fn(), render: vi.fn() }))
 vi.mock('react-dom/client', () => ({ createRoot: () => ({ render }) }))
@@ -32,7 +33,7 @@ it('wires the application entrypoint to the configured PostHog provider', async 
   expect(provider).toHaveBeenCalledWith(
     expect.objectContaining({
       environment: expect.objectContaining({ projectToken: 'phc_test', host: 'https://eu.i.posthog.com' }),
-      service: { name: 'basekit', version: '0.3.0', environment: 'test' },
+      service: { name: 'basekit', version: packageJson.version, environment: 'test' },
       options: expect.objectContaining({
         api_host: 'https://eu.i.posthog.com',
         capture_exceptions: { capture_unhandled_errors: true, capture_unhandled_rejections: true, capture_console_errors: false },
