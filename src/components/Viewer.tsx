@@ -88,11 +88,12 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
   const held = useRef(false)
   const activeViewKey = useRef(viewKey)
   const cameraViews = useRef(new Map<string, CameraView>())
-  const shouldFit = useRef(fitToPart)
-  const framingFootprint = useRef(REFERENCE_FOOTPRINT)
+  const framingFootprint = useRef(fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT)
   const [targetX, targetY, targetZ] = orbitTarget ?? [0, 0, minZ + height / 2]
-  shouldFit.current = fitToPart
-  framingFootprint.current = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
+
+  useEffect(() => {
+    framingFootprint.current = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
+  }, [fitToPart, width, length, height])
 
   useEffect(() => {
     const container = host.current
@@ -332,7 +333,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     const controls = controlsRef.current
     if (camera && controls && !held.current) {
       controls.target.set(targetX, targetY, targetZ)
-      const footprint = shouldFit.current ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
+      const footprint = fitToPart ? Math.max(width, length, height) : REFERENCE_FOOTPRINT
       camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, footprint))
       controls.update()
     }
@@ -341,7 +342,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     // honest signal that a rebuild has landed — the status word reads "ready"
     // from the build before the one being waited on. The e2e suite polls it.
     if (host.current) host.current.dataset.triangles = String(mesh.indices.length / 3)
-  }, [mesh, width, length, height, minZ, targetX, targetY, targetZ])
+  }, [mesh, width, length, height, minZ, fitToPart, targetX, targetY, targetZ])
 
   useEffect(() => {
     const camera = cameraRef.current
