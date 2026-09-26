@@ -314,6 +314,52 @@ test('builds a matching printable flying stem', async ({ page }) => {
   await expect(footer(page)).toContainText('Ø4 mm')
 })
 
+const SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120">
+  <path d="M50 4 L94 20 L90 70 Q80 104 50 116 Q20 104 10 70 L6 20 Z" fill="#000"/>
+</svg>`
+
+test('builds a token from text and an uploaded image', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Tokens' }).click()
+  await rebuilt(page, before)
+
+  await expect(across(page)).toHaveText('Ø40')
+  await expect(tall(page)).toHaveText('4')
+  await expect(footer(page)).toContainText('token-40mm-1')
+
+  const numbered = await triangles(page)
+  await page.getByLabel('Token text').fill('Oath of Moment')
+  await rebuilt(page, numbered)
+  await expect(footer(page)).toContainText('token-40mm-oath-of-moment')
+
+  const textOnly = await triangles(page)
+  await page.getByLabel('Token image').setInputFiles({ name: 'shield.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SHIELD_SVG) })
+  await rebuilt(page, textOnly)
+  await expect(footer(page)).toContainText('shield.svg')
+
+  const withImage = await triangles(page)
+  await page.getByLabel('Token text').fill('')
+  await rebuilt(page, withImage)
+  await expect(footer(page)).toContainText('token-40mm-shield')
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  expect((await download).suggestedFilename()).toBe('token-40mm-shield.stl')
+})
+
+test('keeps a long image name from widening the token panel', async ({ page }) => {
+  const before = await triangles(page)
+  await page.getByRole('link', { name: 'Tokens' }).click()
+  await rebuilt(page, before)
+
+  const named = await triangles(page)
+  const name = `${'a-very-long-image-file-name-'.repeat(4)}shield.svg`
+  await page.getByLabel('Token image').setInputFiles({ name, mimeType: 'image/svg+xml', buffer: Buffer.from(SHIELD_SVG) })
+  await rebuilt(page, named)
+
+  await expect(page.getByRole('button', { name: 'Remove' })).toBeInViewport({ ratio: 1 })
+})
+
 test('builds a low-profile spray tray with an interleaved magnet grid', async ({ page }) => {
   const before = await triangles(page)
   await page.getByRole('link', { name: 'Spray tray' }).click()

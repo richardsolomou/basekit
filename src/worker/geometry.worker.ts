@@ -4,6 +4,7 @@ import fontUrl from '@/assets/fonts/oswald-700.woff?url'
 import { buildBase, type BuildResult } from '@/geometry/base'
 import { buildHolder } from '@/geometry/holder'
 import { loadManifold } from '@/geometry/manifold'
+import { buildToken } from '@/geometry/token'
 import { buildPaintingHandle, buildPaintingTray } from '@/geometry/paintingTray'
 import { buildFlightStem } from '@/geometry/stem'
 import type { MeshData, WorkerReply, WorkerRequest } from './protocol'
@@ -36,7 +37,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             ? buildPaintingTray(wasm, config)
             : config.kind === 'stem'
               ? buildFlightStem(wasm, config)
-              : buildBase(wasm, config, font)
+              : config.kind === 'token'
+                ? buildToken(wasm, config, font)
+                : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {

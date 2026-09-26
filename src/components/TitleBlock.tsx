@@ -16,11 +16,12 @@ interface Props {
   name: string
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+/** `truncate` keeps free-form values such as filenames to one line. */
+function Row({ label, value, truncate = false }: { label: string; value: string; truncate?: boolean }) {
   return (
     <>
       <dt className="note">{label}</dt>
-      <dd className="readout pr-3 text-right">{value}</dd>
+      <dd className={`readout pr-3 text-right ${truncate ? 'min-w-0 truncate' : ''}`}>{value}</dd>
     </>
   )
 }
@@ -30,6 +31,15 @@ function Row({ label, value }: { label: string; value: string }) {
  * replaces a status bar rather than adding to one.
  */
 export function TitleBlock({ config, status, name }: Props) {
+  if (config.kind === 'token') {
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row truncate label="Text" value={config.text.trim() ? `“${config.text.trim()}”` : 'none'} />
+        <Row truncate label="Image" value={config.image?.name ?? 'none'} />
+        <Row label="Top edge" value={config.profile === 'straight' ? 'square' : `${trimNumber(config.profileSize)}mm ${config.profile}`} />
+      </TitleFrame>
+    )
+  }
   if (config.kind === 'stem') {
     return (
       <TitleFrame status={status} name={name}>

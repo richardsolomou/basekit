@@ -33,6 +33,7 @@ describe('workspace state', () => {
         },
       },
       stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
+      token: { kind: 'token', diameter: 40, thickness: 3, text: '1' },
     })
   })
 
@@ -158,6 +159,42 @@ describe('workspace state', () => {
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 5, workspace: legacy }))
 
     expect(loadWorkspace(storage).stem).toMatchObject({ bodyHeight: 20, connection: 'peg', ballDiameter: 4 })
+  })
+
+  it('adds the objective-token generator to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.stem.bodyHeight = 20
+    delete legacy.token
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 7, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({ stem: { bodyHeight: 20 }, token: { kind: 'token', diameter: 40, text: '1' } })
+  })
+
+  it('keeps a saved objective token', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    saveWorkspace(storage, { ...workspace, token: { ...workspace.token, text: '6' } })
+
+    expect(loadWorkspace(storage).token.text).toBe('6')
+  })
+
+  it('keeps an uploaded token image', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    const image = { name: 'skull.png', width: 2, height: 2, luminance: btoa('\0\xff\xff\0') }
+    saveWorkspace(storage, { ...workspace, token: { ...workspace.token, image } })
+
+    expect(loadWorkspace(storage).token.image).toEqual(image)
+  })
+
+  it('discards a workspace whose token image does not match its size', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    const image = { name: 'skull.png', width: 20, height: 20, luminance: btoa('\0\xff\xff\0') }
+    saveWorkspace(storage, { ...workspace, token: { ...workspace.token, text: 'kept?', image } })
+
+    expect(loadWorkspace(storage).token.text).toBe('1')
   })
 
   it('adds the painting-tray generator to saved workspaces', () => {

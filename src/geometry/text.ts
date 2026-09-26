@@ -10,20 +10,20 @@ const cubic = (p0: number, p1: number, p2: number, p3: number, t: number) =>
   (1 - t) ** 3 * p0 + 3 * (1 - t) ** 2 * t * p1 + 3 * (1 - t) * t ** 2 * p2 + t ** 3 * p3
 
 /**
- * Flattens glyph outlines into closed polygons in mm, centred on the origin and
- * scaled so the tallest glyph matches `capHeight`. Y is flipped from font space
- * so the text reads correctly looking down at the well floor.
+ * Flattens glyph outlines into closed polygons at `fontSize` units per em, with
+ * the baseline on y = 0 and y flipped from font space so the text reads the
+ * right way round looking down at the face it is raised from.
  *
  * Glyphs are converted one at a time rather than through `font.getPath`, whose
  * shaper throws on fonts using substitution formats it does not implement.
  */
-export function textPolygons(font: Font, text: string, capHeight: number): Polygon[] {
+export function glyphOutlines(font: Font, text: string, fontSize: number): Polygon[] {
   const commands: PathCommand[] = []
   let pen = 0
   for (const ch of text) {
     const glyph = font.charToGlyph(ch)
-    commands.push(...glyph.getPath(pen, 0, font.unitsPerEm).commands)
-    pen += glyph.advanceWidth ?? 0
+    commands.push(...glyph.getPath(pen, 0, fontSize).commands)
+    pen += ((glyph.advanceWidth ?? 0) * fontSize) / font.unitsPerEm
   }
 
   const contours: Polygon[] = []
@@ -67,7 +67,15 @@ export function textPolygons(font: Font, text: string, capHeight: number): Polyg
     }
   }
   close()
+  return contours
+}
 
+/**
+ * Glyph outlines in mm, centred on the origin and scaled so the tallest glyph
+ * matches `capHeight`.
+ */
+export function textPolygons(font: Font, text: string, capHeight: number): Polygon[] {
+  const contours = glyphOutlines(font, text, font.unitsPerEm)
   if (contours.length === 0) return []
 
   const xs = contours.flatMap((p) => p.map(([x]) => x))
