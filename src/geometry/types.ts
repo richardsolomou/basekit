@@ -167,9 +167,38 @@ export interface FlightStemConfig {
   segments: number
 }
 
+export interface TokenImage {
+  /** The uploaded file's name, used for the export name when the token has no text. */
+  name: string
+  width: number
+  height: number
+  /** Base64, one byte per pixel from the top row down, composited over white. */
+  luminance: string
+}
+
+export interface TokenConfig {
+  kind: 'token'
+  diameter: number
+  /** Disc thickness, excluding the raised artwork. */
+  thickness: number
+  /** Treatment on the top edge; the table face stays full size. */
+  profile: EdgeProfile
+  profileSize: number
+  text: string
+  /** Requested cap height, shrunk to fit the flat top face. */
+  textHeight: number
+  image: TokenImage | null
+  /** Luminance, from 0 to 1, below which the image is raised. */
+  threshold: number
+  /** Raise the light parts of the image instead of the dark ones. */
+  invert: boolean
+  emboss: number
+  segments: number
+}
+
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig
+export type PartConfig = BasePartConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
 export type BuildConfig = PartConfig | PaintingHandleConfig

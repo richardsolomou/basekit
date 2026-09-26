@@ -1,5 +1,5 @@
-import { Box, Code2, Download, PanelLeft } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Box, Code2, Download, ImagePlus, PanelLeft, X } from 'lucide-react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { MiniatureGroupsEditor } from '@/components/MiniatureGroupsEditor'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -35,6 +35,7 @@ import {
   SIZES_BY_SHAPE,
   type SizePreset,
 } from '@/geometry/presets'
+import { defaultTokenConfig, maxTokenEdgeSize, MIN_TOKEN_TEXT_HEIGHT, tokenHeight, tokenName } from '@/geometry/token'
 import { maxProfileSize } from '@/geometry/profile'
 import {
   defaultPaintingTrayConfig,
@@ -61,6 +62,7 @@ import type {
   BaseConfig,
   EdgeProfile,
   FlightStemConfig,
+  TokenConfig,
   HolderConfig,
   HolderGroup,
   MagnetLayout,
@@ -68,6 +70,7 @@ import type {
   PaintingTrayConfig,
   ShapeKind,
 } from '@/geometry/types'
+import { loadTokenImage } from '@/lib/tokenImage'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -104,6 +107,7 @@ const MODELS = [
   { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
   { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
   { value: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
+  { value: 'token' as const, label: 'Tokens', mobileLabel: 'Tokens', href: '/tokens' },
 ]
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
@@ -124,18 +128,12 @@ const STEM_CONNECTIONS = [
   { value: 'peg' as const, label: 'Peg' },
   { value: 'ball' as const, label: 'Ball joint' },
 ]
+const TOKEN_DEFAULTS = defaultTokenConfig()
 type Generator = (typeof MODELS)[number]['value']
 
-const modelForPath = (): Generator =>
-  window.location.pathname === '/holders'
-    ? 'holder'
-    : window.location.pathname === '/spray-tray'
-      ? 'painting'
-      : window.location.pathname === '/stems'
-        ? 'stem'
-        : 'base'
+const modelForPath = (): Generator => MODELS.find((item) => item.href === window.location.pathname)?.value ?? 'base'
 const modelLabel = (model: Generator) =>
-  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : 'Stem'
+  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : model === 'stem' ? 'Stem' : 'Token'
 
 function fittedCounts(modules: { config: { groups: HolderGroup[] } }[]) {
   const fitted = new Map<string, number>()
@@ -167,6 +165,7 @@ export function App() {
   const holder = workspace.holder
   const paintingTray = workspace.paintingTray
   const stem = workspace.stem
+  const token = workspace.token
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
@@ -180,14 +179,48 @@ export function App() {
     }))
   const setStem = (next: FlightStemConfig | ((current: FlightStemConfig) => FlightStemConfig)) =>
     setWorkspace((current) => ({ ...current, stem: typeof next === 'function' ? next(current.stem) : next }))
+  const patchToken = (changes: Partial<TokenConfig>) =>
+    setWorkspace((current) => {
+      const next = { ...current.token, ...changes }
+      return { ...current, token: { ...next, profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)) } }
+    })
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
   const [model, setModel] = useState<Generator>(modelForPath)
+  const tokenImageInput = useRef<HTMLInputElement>(null)
+  const [tokenImageError, setTokenImageError] = useState<string>()
+  const addTokenImage = async (file: File) => {
+    setTokenImageError(undefined)
+    try {
+      const image = await loadTokenImage(file)
+      posthog.capture('token_image_added', { width: image.width, height: image.height, type: file.type })
+      patchToken({ image })
+    } catch (failure) {
+      setTokenImageError(failure instanceof Error ? failure.message : String(failure))
+    }
+  }
+  const dropTokenImage = useEffectEvent((file: File) => void addTokenImage(file))
+  useEffect(() => {
+    if (model !== 'token') return
+    const accept = (event: DragEvent) => event.preventDefault()
+    const drop = (event: DragEvent) => {
+      event.preventDefault()
+      const file = event.dataTransfer?.files[0]
+      if (file) dropTokenImage(file)
+    }
+    window.addEventListener('dragover', accept)
+    window.addEventListener('drop', drop)
+    return () => {
+      window.removeEventListener('dragover', accept)
+      window.removeEventListener('drop', drop)
+    }
+  }, [model])
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
-  const partConfig = model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : stem
+  const partConfig =
+    model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
   const { preview, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -198,20 +231,30 @@ export function App() {
 
   useEffect(() => {
     document.title = `BaseKit — ${
-      model === 'base' ? 'Bases' : model === 'holder' ? 'Holders' : model === 'painting' ? 'Spray Trays' : 'Flying Stems'
+      model === 'base'
+        ? 'Bases'
+        : model === 'holder'
+          ? 'Holders'
+          : model === 'painting'
+            ? 'Spray Trays'
+            : model === 'stem'
+              ? 'Flying Stems'
+              : 'Tokens'
     }`
   }, [model])
 
   useEffect(() => saveWorkspace(window.localStorage, workspace), [workspace])
 
+  const generators = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const href = MODELS.find((item) => item.value === model)!.href
+    generators.current?.querySelector(`[href="${href}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [model])
+
   const changeModel = (next: Generator) => {
     if (next === model) return
     posthog.capture('generator_selected', { generator: next })
-    window.history.pushState(
-      null,
-      '',
-      next === 'holder' ? '/holders' : next === 'painting' ? '/spray-tray' : next === 'stem' ? '/stems' : '/',
-    )
+    window.history.pushState(null, '', MODELS.find((item) => item.value === next)!.href)
     setModel(next)
   }
 
@@ -241,9 +284,25 @@ export function App() {
   const fittedByGroup = useMemo(() => fittedCounts(plan.modules), [plan])
   const stemDiameter = stemMaximumDiameter(stem)
   const partWidth =
-    model === 'base' ? width : model === 'holder' ? holderSize.width : model === 'painting' ? paintingSize.width : stemDiameter
+    model === 'base'
+      ? width
+      : model === 'holder'
+        ? holderSize.width
+        : model === 'painting'
+          ? paintingSize.width
+          : model === 'stem'
+            ? stemDiameter
+            : token.diameter
   const partLength =
-    model === 'base' ? length : model === 'holder' ? holderSize.length : model === 'painting' ? paintingSize.length : stemDiameter
+    model === 'base'
+      ? length
+      : model === 'holder'
+        ? holderSize.length
+        : model === 'painting'
+          ? paintingSize.length
+          : model === 'stem'
+            ? stemDiameter
+            : token.diameter
   const partHeight =
     model === 'base'
       ? config.height
@@ -251,7 +310,9 @@ export function App() {
         ? holder.height
         : model === 'painting'
           ? paintingTrayAssemblyHeight(paintingTray)
-          : stemOverallHeight(stem)
+          : model === 'stem'
+            ? stemOverallHeight(stem)
+            : tokenHeight(token)
   const partName =
     model === 'base'
       ? baseName(config)
@@ -259,7 +320,9 @@ export function App() {
         ? holderName(holder)
         : model === 'painting'
           ? paintingTrayName(paintingTray)
-          : stemName(stem)
+          : model === 'stem'
+            ? stemName(stem)
+            : tokenName(token)
   const {
     exporting,
     error: exportError,
@@ -271,6 +334,7 @@ export function App() {
     holder,
     paintingTray,
     stem,
+    token,
     width: partWidth,
     length: partLength,
   })
@@ -1129,7 +1193,161 @@ export function App() {
       </aside>
     </ScrollArea>
   )
-  const panel = model === 'base' ? basePanel : model === 'holder' ? holderPanel : model === 'painting' ? paintingPanel : stemPanel
+  const tokenPanel = (
+    <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
+      <aside aria-label="Token settings" className="pb-4 [counter-reset:schedule]">
+        <Section title="Text">
+          <Field>
+            <FieldLabel htmlFor="token-text" className="sr-only">
+              Token text
+            </FieldLabel>
+            <Input
+              id="token-text"
+              value={token.text}
+              maxLength={40}
+              placeholder="Oath of Moment"
+              onChange={(e) => patchToken({ text: e.currentTarget.value })}
+              className="readout"
+            />
+          </Field>
+          <Dimension
+            label="Text height"
+            value={token.textHeight}
+            min={MIN_TOKEN_TEXT_HEIGHT}
+            max={60}
+            step={0.5}
+            defaultValue={TOKEN_DEFAULTS.textHeight}
+            onChange={(textHeight) => patchToken({ textHeight })}
+          />
+          <FieldDescription>Long text wraps and shrinks to fit inside the edge.</FieldDescription>
+        </Section>
+
+        <Section
+          title="Image"
+          aside={
+            token.image && (
+              <span className="readout min-w-0 truncate text-xs text-muted-foreground" title={token.image.name}>
+                {token.image.name}
+              </span>
+            )
+          }
+        >
+          <input
+            ref={tokenImageInput}
+            type="file"
+            accept="image/*"
+            aria-label="Token image"
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0]
+              e.currentTarget.value = ''
+              if (file) void addTokenImage(file)
+            }}
+          />
+          <ButtonGroup className="w-full">
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => tokenImageInput.current?.click()}>
+              <ImagePlus />
+              {token.image ? 'Replace image' : 'Add image'}
+            </Button>
+            {token.image && (
+              <Button variant="outline" size="sm" onClick={() => patchToken({ image: null })}>
+                <X />
+                Remove
+              </Button>
+            )}
+          </ButtonGroup>
+          {tokenImageError && <FieldDescription className="text-destructive">{tokenImageError}</FieldDescription>}
+          {token.image ? (
+            <>
+              <Dimension
+                label="Threshold"
+                value={Math.round(token.threshold * 100)}
+                min={1}
+                max={99}
+                step={1}
+                unit="%"
+                defaultValue={Math.round(TOKEN_DEFAULTS.threshold * 100)}
+                onChange={(threshold) => patchToken({ threshold: threshold / 100 })}
+              />
+              <ToggleSetting
+                label="Raise light areas"
+                checked={token.invert}
+                defaultChecked={TOKEN_DEFAULTS.invert}
+                onChange={(invert) => patchToken({ invert })}
+              />
+            </>
+          ) : (
+            <FieldDescription>Or drop one anywhere on the page. Dark areas are raised; high-contrast icons work best.</FieldDescription>
+          )}
+        </Section>
+
+        <Section title="Relief" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(token.emboss)}mm</span>}>
+          <Dimension
+            label="Raised by"
+            value={token.emboss}
+            min={0.2}
+            max={3}
+            step={0.1}
+            defaultValue={TOKEN_DEFAULTS.emboss}
+            onChange={(emboss) => patchToken({ emboss })}
+          />
+        </Section>
+
+        <Section title="Disc" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(token.diameter)}mm</span>}>
+          <Dimension
+            label="Diameter"
+            value={token.diameter}
+            min={15}
+            max={120}
+            step={0.5}
+            defaultValue={TOKEN_DEFAULTS.diameter}
+            onChange={(diameter) => patchToken({ diameter })}
+          />
+          <Dimension
+            label="Thickness"
+            value={token.thickness}
+            min={1}
+            max={10}
+            step={0.1}
+            defaultValue={TOKEN_DEFAULTS.thickness}
+            onChange={(thickness) => patchToken({ thickness })}
+          />
+          <Choice
+            label="Top edge"
+            value={token.profile}
+            defaultValue={TOKEN_DEFAULTS.profile}
+            options={PROFILES}
+            onChange={(profile) => patchToken({ profile })}
+          />
+          {token.profile !== 'straight' && (
+            <Dimension
+              label="Edge size"
+              value={token.profileSize}
+              min={0}
+              max={maxTokenEdgeSize(token)}
+              step={0.1}
+              defaultValue={TOKEN_DEFAULTS.profileSize}
+              onChange={(profileSize) => patchToken({ profileSize })}
+            />
+          )}
+          <FieldDescription>Print flat on the table face; the artwork stands up from the top.</FieldDescription>
+        </Section>
+
+        <RepositoryLink />
+      </aside>
+    </ScrollArea>
+  )
+  const panel =
+    model === 'base'
+      ? basePanel
+      : model === 'holder'
+        ? holderPanel
+        : model === 'painting'
+          ? paintingPanel
+          : model === 'stem'
+            ? stemPanel
+            : tokenPanel
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -1155,7 +1373,8 @@ export function App() {
           <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase max-sm:hidden">
             Base<span className="text-measure">Kit</span>
           </h1>
-          <nav aria-label="Generators" className="flex self-stretch">
+          {/* Scrolls sideways on a phone rather than running under the export buttons. */}
+          <nav ref={generators} aria-label="Generators" className="flex min-w-0 self-stretch overflow-x-auto [scrollbar-width:none]">
             {MODELS.map((item) => (
               <a
                 key={item.value}
@@ -1166,7 +1385,7 @@ export function App() {
                   event.preventDefault()
                   changeModel(item.value)
                 }}
-                className="note relative flex items-center px-1.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100 sm:px-3 sm:after:inset-x-3"
+                className="note relative flex shrink-0 items-center px-1.5 text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:text-measure after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-measure after:transition-transform aria-[current=page]:after:scale-x-100 sm:px-3 sm:after:inset-x-3"
               >
                 <span aria-hidden="true" className="sm:hidden">
                   {item.mobileLabel}
@@ -1205,7 +1424,7 @@ export function App() {
             height={partHeight}
             minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
             orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
-            round={model === 'stem' || (model === 'base' && !elongated)}
+            round={model === 'stem' || model === 'token' || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />
           {(error || exportError) && (

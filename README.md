@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, and low-profile spray trays. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -40,11 +40,16 @@ Build a low-profile magnetic platform for batch priming and spray painting. Its 
 
 Choose a round, oval-barrel, flared, or pistol grip, then adjust its width, length, and lean angle. The default grip is 100mm long, and optional end softening and shallow ribs further tune the feel without adding supports. A shallow engraved `+` extends beyond the configured grip footprint on the tray underside, keeping the centre visible while the flat end is positioned for glue. STL downloads contain separate tray and handle files, while 3MF downloads put each support-free part on its own build plate.
 
+## Tokens 🪙
+
+Make a round token for objectives, Oath of Moment, or anything else a game tracks. Type a word, a phrase, or a number and it wraps and scales to fill the face; drop in an image and its dark areas are traced into a raised silhouette, above the text when the token has both. Adjust the threshold or raise the light areas instead to suit the artwork, then set the diameter, thickness, relief height, and top edge. Tokens print flat on the table face with the artwork facing up, so nothing needs supports.
+
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
+- Round tokens with wrapped text and traced image silhouettes.
 - Shared magnet dimensions across bases, holders, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.

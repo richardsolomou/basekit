@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { zipSync } from 'fflate'
 import { to3mf, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
+import { tokenHeight, tokenName } from '@/geometry/token'
 import { baseName } from '@/geometry/outline'
 import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/geometry/paintingTray'
 import { exportSegmentsFor } from '@/geometry/quality'
 import { stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, PaintingTrayConfig, PartConfig } from '@/geometry/types'
+import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig, PartConfig } from '@/geometry/types'
 import posthog from '@/lib/posthog'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
@@ -14,19 +15,21 @@ import { asMeshLike, download } from './download'
 type ExportFormat = 'stl' | '3mf'
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'painting' | 'stem'
+  model: 'base' | 'holder' | 'painting' | 'stem' | 'token'
   base: BaseConfig
   holder: HolderConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
+  token: TokenConfig
   width: number
   length: number
 }
 
-export function useExport({ model, base, holder, paintingTray, stem, width, length }: ExportOptions) {
+export function useExport({ model, base, holder, paintingTray, stem, token, width, length }: ExportOptions) {
   const [exporting, setExporting] = useState<ExportFormat>()
   const [error, setError] = useState<string>()
-  const config: PartConfig = model === 'base' ? base : model === 'holder' ? holder : model === 'painting' ? paintingTray : stem
+  const config: PartConfig =
+    model === 'base' ? base : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
   const name =
     model === 'base'
       ? baseName(base)
@@ -34,7 +37,9 @@ export function useExport({ model, base, holder, paintingTray, stem, width, leng
         ? holderName(holder)
         : model === 'painting'
           ? paintingTrayName(paintingTray)
-          : stemName(stem)
+          : model === 'stem'
+            ? stemName(stem)
+            : tokenName(token)
 
   const run = async <T>(format: ExportFormat, operation: () => Promise<T>): Promise<T | undefined> => {
     setExporting(format)
@@ -45,7 +50,7 @@ export function useExport({ model, base, holder, paintingTray, stem, width, leng
         format,
         width,
         length,
-        height: config.kind === 'stem' ? stemOverallHeight(config) : config.height,
+        height: config.kind === 'stem' ? stemOverallHeight(config) : config.kind === 'token' ? tokenHeight(config) : config.height,
       })
       return result
     } catch (failure) {

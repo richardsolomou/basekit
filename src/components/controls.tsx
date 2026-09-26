@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch'
 /** A group of always-visible controls, with an optional figure in the header. */
 export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <FieldSet className="gap-3 border-t border-border px-5 py-4">
+    <FieldSet className="min-w-0 gap-3 border-t border-border px-5 py-4">
       <div className="flex items-baseline justify-between gap-2">
         <FieldLegend variant="label" className="note schedule-index mb-0">
           {title}

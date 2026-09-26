@@ -6,12 +6,13 @@ import {
   minimumPaintingTraySpacing,
 } from '../geometry/paintingTray'
 import { supportsFivePocketCross } from '../geometry/base'
+import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, PaintingTrayConfig } from '../geometry/types'
+import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 7
+const WORKSPACE_VERSION = 8
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -23,6 +24,7 @@ export interface WorkspaceState {
   holder: HolderConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
+  token: TokenConfig
   /** Values exposed by multiple generators have one canonical owner. */
   shared: SharedSettings
 }
@@ -131,6 +133,7 @@ export function defaultWorkspace(): WorkspaceState {
     holder: defaultHolderConfig(),
     paintingTray: defaultPaintingTrayConfig(),
     stem: defaultFlightStemConfig(),
+    token: defaultTokenConfig(),
     shared: sharedFromBase(base),
   })
 }
@@ -140,32 +143,18 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     const saved = storage.getItem(WORKSPACE_KEY)
     if (saved === null) return defaultWorkspace()
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
-    const workspace =
-      parsed.version === 1
-        ? migrateWorkspaceV6(
-            migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(migrateWorkspaceV1(parsed.workspace))))),
-          )
-        : parsed.version === 2
-          ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(migrateWorkspaceV2(parsed.workspace)))))
-          : parsed.version === 3
-            ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(migrateWorkspaceV3(parsed.workspace))))
-            : parsed.version === 4
-              ? migrateWorkspaceV6(migrateWorkspaceV5(migrateWorkspaceV4(parsed.workspace)))
-              : parsed.version === 5
-                ? migrateWorkspaceV6(migrateWorkspaceV5(parsed.workspace))
-                : parsed.version === 6
-                  ? migrateWorkspaceV6(parsed.workspace)
-                  : parsed.workspace
-    if (
-      parsed.version !== WORKSPACE_VERSION &&
-      parsed.version !== 1 &&
-      parsed.version !== 2 &&
-      parsed.version !== 3 &&
-      parsed.version !== 4 &&
-      parsed.version !== 5 &&
-      parsed.version !== 6
-    )
-      return defaultWorkspace()
+    const migrations = [
+      migrateWorkspaceV1,
+      migrateWorkspaceV2,
+      migrateWorkspaceV3,
+      migrateWorkspaceV4,
+      migrateWorkspaceV5,
+      migrateWorkspaceV6,
+      migrateWorkspaceV7,
+    ]
+    const version = parsed.version
+    if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
+    const workspace = migrations.slice(version - 1).reduce((value, migrate) => migrate(value), parsed.workspace)
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
@@ -173,6 +162,11 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV7(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), token: defaultTokenConfig() }
 }
 
 function migrateWorkspaceV6(value: unknown): unknown {
@@ -248,6 +242,18 @@ function hasShape(value: unknown, template: unknown): boolean {
   return Object.entries(template).every(([key, child]) => hasShape((value as Record<string, unknown>)[key], child))
 }
 
+function isTokenImage(image: unknown): boolean {
+  if (image === null) return true
+  const { name, width, height, luminance } = image as Record<string, unknown>
+  return (
+    typeof name === 'string' &&
+    Number.isInteger(width) &&
+    Number.isInteger(height) &&
+    typeof luminance === 'string' &&
+    Math.ceil(((width as number) * (height as number)) / 3) * 4 === luminance.length
+  )
+}
+
 function isWorkspaceState(value: unknown, template: WorkspaceState): value is WorkspaceState {
   if (!hasShape(value, template)) return false
   const workspace = value as WorkspaceState
@@ -256,6 +262,9 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
+    workspace.token.kind === 'token' &&
+    ['taper', 'straight', 'bevel', 'round'].includes(workspace.token.profile) &&
+    isTokenImage(workspace.token.image) &&
     workspace.paintingTray.kind === 'painting-tray' &&
     ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
