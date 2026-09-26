@@ -1,5 +1,11 @@
 # basekit
 
+## 0.5.0
+
+### Minor Changes
+
+- 730f0f5: Add round gaming tokens with wrapped text and uploaded images traced into raised, support-free silhouettes.
+
 ## 0.4.0
 
 ### Minor Changes
