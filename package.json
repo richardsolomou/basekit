@@ -25,12 +25,11 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset tag",
-    "policy:sync": "ras policy sync",
-    "policy:check": "ras policy check",
-    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm changesets:check && pnpm typecheck && pnpm test && pnpm build",
     "test:e2e": "pnpm build && playwright test",
     "test:e2e:run": "playwright test",
-    "test:e2e:install": "playwright install --with-deps chromium"
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "changesets:check": "ras changesets check"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -44,7 +43,7 @@
     "manifold-3d": "^3.5.3",
     "opentype.js": "^2.0.0",
     "posthog-js": "^1.430.3",
-    "ras-stack": "^2.0.0",
+    "ras-stack": "^3.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwind-merge": "^3.7.0",
@@ -63,6 +62,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.82.0",
+    "ras-stack-config": "^1.0.0",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",

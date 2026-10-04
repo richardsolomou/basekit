@@ -74,4 +74,4 @@ Production setup and verification live in the [Cloudflare deployment guide](docs
 
 ## Shared infrastructure checks
 
-The shared Oxlint domain preset restricts Node and framework imports in `src/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras policy check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
+The shared Oxlint domain preset restricts Node and framework imports in `src/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.

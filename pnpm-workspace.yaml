@@ -3,9 +3,11 @@
 # something new — an install against this lockfile is unaffected. To take a
 # fresher release deliberately: pnpm add --config.minimumReleaseAge=0 <pkg>
 minimumReleaseAge: 10080
-minimumReleaseAgeExclude:
-  - ras-stack@2.0.0
 allowBuilds:
   '@posthog/cli': true
   core-js: true
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - ras-stack-config@1.0.0
+  - ras-stack@3.0.0
