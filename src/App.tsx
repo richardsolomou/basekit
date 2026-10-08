@@ -112,7 +112,7 @@ export function App() {
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig =
     model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
-  const { preview, error } = useGenerator(partConfig)
+  const { preview, grams, error } = useGenerator(partConfig)
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -395,7 +395,7 @@ export function App() {
               {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
             </div>
           )}
-          <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} />
+          <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} grams={grams} />
         </main>
       </div>
     </div>
