@@ -5,7 +5,7 @@ import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle 
 import { isElongated, trimNumber } from './outline'
 import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
-import { polygonsWidth, textPolygons, type Polygon } from './text'
+import { GLYPH_FILL, polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
 
 const GRID = 42
@@ -822,7 +822,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
         const width = polygonsWidth(polygons)
         const scale = width > maxWidth ? maxWidth / width : 1
         const scaled: Polygon[] = polygons.map((polygon) => polygon.map(([px, py]): [number, number] => [px * scale + x, py * scale + y]))
-        return section(CrossSection.ofPolygons(scaled, 'EvenOdd'))
+        return section(CrossSection.ofPolygons(scaled, GLYPH_FILL))
       }
 
       if (config.engraving.placement === 'slots') {
@@ -858,7 +858,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
           const placed: Polygon[] = polygons.map((polygon) =>
             polygon.map(([px, py]): [number, number] => [slot.x + px * fit.scale + fit.x, slot.y + py * fit.scale + fit.y]),
           )
-          labels.push(section(CrossSection.ofPolygons(placed, 'EvenOdd')))
+          labels.push(section(CrossSection.ofPolygons(placed, GLYPH_FILL)))
         }
         if (labels.length > 0) {
           const outlines = section(CrossSection.union(labels))
