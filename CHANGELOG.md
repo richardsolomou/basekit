@@ -1,5 +1,11 @@
 # basekit
 
+## 0.12.0
+
+### Minor Changes
+
+- c8e031c: Add rank-and-file movement trays with base slots and magnet pockets that match magnetised bases.
+
 ## 0.11.0
 
 ### Minor Changes
