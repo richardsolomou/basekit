@@ -506,6 +506,20 @@ test('caps oversized holder quantities before rendering', async ({ page }) => {
   await expect(page.getByText(/Only \d+ of 100 fit/)).toBeVisible()
 })
 
+test('reports spare holder room for one and several more models', async ({ page }) => {
+  await visit(page, 'Holders')
+  const quantity = page.getByLabel(/^Quantity 1 in/)
+  for (const [models, room] of [
+    ['4', 'Room for 1 more'],
+    ['13', 'Room for 2 more'],
+  ]) {
+    const before = await triangles(page)
+    await quantity.fill(models)
+    await rebuilt(page, before)
+    await expect(page.getByText(room)).toBeVisible()
+  }
+})
+
 test('switches between subtractive holder engraving locations', async ({ page }) => {
   await visit(page, 'Holders')
   await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
