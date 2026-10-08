@@ -22,7 +22,7 @@ import { Viewer } from '@/components/Viewer'
 import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '@/geometry/holder'
 import { baseName, footprint, isElongated } from '@/geometry/outline'
 import { footprintKey, SIZES_BY_SHAPE } from '@/geometry/presets'
-import { maxTokenEdgeSize, tokenHeight, tokenName } from '@/geometry/token'
+import { maxTokenEdgeSize, tokenFootprint, tokenHeight, tokenName } from '@/geometry/token'
 import {
   paintingHandleAxisCenter,
   paintingTrayAssemblyHeight,
@@ -84,7 +84,14 @@ export function App() {
   const patchToken = (changes: Partial<TokenConfig>) =>
     setWorkspace((current) => {
       const next = { ...current.token, ...changes }
-      return { ...current, token: { ...next, profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)) } }
+      return {
+        ...current,
+        token: {
+          ...next,
+          cornerRadius: Math.min(next.cornerRadius, next.size / 2),
+          profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)),
+        },
+      }
     })
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
@@ -183,7 +190,7 @@ export function App() {
           ? paintingSize.width
           : model === 'stem'
             ? stemDiameter
-            : token.diameter
+            : tokenFootprint(token).width
   const partLength =
     model === 'base'
       ? length
@@ -193,7 +200,7 @@ export function App() {
           ? paintingSize.length
           : model === 'stem'
             ? stemDiameter
-            : token.diameter
+            : tokenFootprint(token).length
   const partHeight =
     model === 'base'
       ? config.height
@@ -436,7 +443,7 @@ export function App() {
             height={partHeight}
             minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
             orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
-            round={model === 'stem' || model === 'token' || (model === 'base' && !elongated)}
+            round={model === 'stem' || (model === 'token' && token.shape === 'round') || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />
           {(error || exportError) && (

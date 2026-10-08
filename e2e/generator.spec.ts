@@ -369,12 +369,12 @@ test('builds a token from text and an uploaded image', async ({ page }) => {
 
   await expect(across(page)).toHaveText('Ø40')
   await expect(tall(page)).toHaveText('4')
-  await expect(footer(page)).toContainText('token-40mm-1')
+  await expect(footer(page)).toContainText('token-round-40mm-1')
 
   const numbered = await triangles(page)
   await page.getByLabel('Token text').fill('Oath of Moment')
   await rebuilt(page, numbered)
-  await expect(footer(page)).toContainText('token-40mm-oath-of-moment')
+  await expect(footer(page)).toContainText('token-round-40mm-oath-of-moment')
 
   const textOnly = await triangles(page)
   await page.getByLabel('Token image').setInputFiles({ name: 'shield.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SHIELD_SVG) })
@@ -384,11 +384,32 @@ test('builds a token from text and an uploaded image', async ({ page }) => {
   const withImage = await triangles(page)
   await page.getByLabel('Token text').fill('')
   await rebuilt(page, withImage)
-  await expect(footer(page)).toContainText('token-40mm-shield')
+  await expect(footer(page)).toContainText('token-round-40mm-shield')
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
-  expect((await download).suggestedFilename()).toBe('token-40mm-shield.stl')
+  expect((await download).suggestedFilename()).toBe('token-round-40mm-shield.stl')
+})
+
+test('reshapes a token into a hex measured across its flats', async ({ page }) => {
+  await visit(page, 'Tokens')
+
+  const round = await triangles(page)
+  await pickChoice(page, 'Shape', 'Hex')
+  await rebuilt(page, round)
+  await expect(across(page)).toHaveText('46.19 × 40')
+  await expect(footer(page)).toContainText('token-hex-40mm-1')
+
+  // Resizing keeps the hex's topology, so the triangle count cannot signal the rebuild.
+  const acrossFlats = page.getByLabel('Across flats in mm')
+  await acrossFlats.fill('25.4')
+  await acrossFlats.press('Enter')
+  await expect(across(page)).toHaveText('29.33 × 25.4', { timeout: 15_000 })
+  await expect(footer(page)).toContainText('token-hex-25.4mm-1')
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  expect((await download).suggestedFilename()).toBe('token-hex-25.4mm-1.stl')
 })
 
 test('keeps a long image name from widening the token panel', async ({ page }) => {
