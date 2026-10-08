@@ -207,7 +207,7 @@ export function BasePanel({
 
         <Section title="Label">
           <ToggleSetting
-            label="Size labels"
+            label="Labels"
             checked={config.label.enabled}
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
