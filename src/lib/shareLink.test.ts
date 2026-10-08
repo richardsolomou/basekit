@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { footprintKey } from '../geometry/presets'
 import type { TokenImage } from '../geometry/types'
 import { MAX_SHARE_URL_LENGTH, readShareHash, shareLink } from './shareLink'
-import { applyWorkspaceSetup, defaultWorkspace, type WorkspacePart, type WorkspaceState } from './workspace'
+import { applyWorkspaceSetup, defaultWorkspace, type GeneratorSettings, type WorkspaceState } from './workspace'
 
 const PAGE = 'https://basekit.example/tokens'
 
 const hashOf = (url: string) => url.slice(url.indexOf('#'))
-const opened = (from: WorkspaceState, part: WorkspacePart, into = defaultWorkspace()) =>
+const opened = (from: WorkspaceState, part: GeneratorSettings, into = defaultWorkspace()) =>
   applyWorkspaceSetup(into, readShareHash(hashOf(shareLink(PAGE, from, part).url)))
 const hashFor = (payload: unknown) =>
   `#setup=${btoa(String.fromCharCode(...deflateSync(strToU8(JSON.stringify(payload)))))
@@ -88,6 +88,60 @@ describe('share links', () => {
     const setup = readShareHash(hashFor({ v: 1, version: 3, part: 'holder', config: legacy, shared: defaultWorkspace().shared }))
 
     expect(applyWorkspaceSetup(defaultWorkspace(), setup)?.workspace.holder.edgeSpacing).toBe(1.5)
+  })
+
+  it.each(Object.keys(defaultWorkspace()).filter((key) => key !== 'shared' && key !== 'batch') as GeneratorSettings[])(
+    'opens a %s link on its own generator',
+    (part) => {
+      expect(opened(defaultWorkspace(), part)?.part).toBe(part)
+    },
+  )
+
+  it.each(['adapter', 'movementTray'] as const)('carries the shared magnets a %s uses', (part) => {
+    const sender = defaultWorkspace()
+    sender.shared.magnets.diameter = 6
+
+    expect(opened(sender, part)?.workspace[part].magnets.diameter).toBe(6)
+  })
+
+  it('replaces only the count override for a movement tray footprint', () => {
+    const recipient = defaultWorkspace()
+    const { shape, width, length } = recipient.movementTray
+    recipient.shared.magnetCounts = { [footprintKey(shape, width, length)]: 4, 'round:60x60': 6 }
+
+    expect(opened(defaultWorkspace(), 'movementTray', recipient)?.workspace.shared.magnetCounts).toEqual({ 'round:60x60': 6 })
+  })
+
+  it('leaves the base batch out of a base link', () => {
+    const sender = defaultWorkspace()
+    sender.batch = [{ shape: 'round', width: 28.5, length: 28.5, quantity: 10 }]
+
+    expect(opened(sender, 'base')?.workspace.batch).toEqual([])
+  })
+
+  it('keeps the recipient batch when opening a base link', () => {
+    const recipient = defaultWorkspace()
+    recipient.batch = [{ shape: 'oval', width: 60, length: 35, quantity: 3 }]
+
+    expect(opened(defaultWorkspace(), 'base', recipient)?.workspace.batch).toEqual(recipient.batch)
+  })
+
+  it('upgrades a token link made at workspace version 8', () => {
+    const legacy: Record<string, unknown> = { ...defaultWorkspace().token, diameter: 32.5 }
+    for (const key of ['shape', 'size', 'cornerRadius']) delete legacy[key]
+    const setup = readShareHash(hashFor({ v: 1, version: 8, part: 'token', config: legacy }))
+
+    expect(applyWorkspaceSetup(defaultWorkspace(), setup)?.workspace.token).toMatchObject({ shape: 'round', size: 32.5 })
+  })
+
+  it('keeps the recipient movement tray when opening a base link made at workspace version 8', () => {
+    const recipient = defaultWorkspace()
+    recipient.movementTray = { ...recipient.movementTray, columns: 7 }
+    const setup = readShareHash(
+      hashFor({ v: 1, version: 8, part: 'base', config: { ...defaultWorkspace().base, height: 5 }, shared: defaultWorkspace().shared }),
+    )
+
+    expect(applyWorkspaceSetup(recipient, setup)?.workspace).toMatchObject({ base: { height: 5 }, movementTray: { columns: 7 } })
   })
 
   it('ignores a hash that is not a share link', () => {

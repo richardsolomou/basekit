@@ -1,5 +1,5 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate'
-import { workspaceSetup, type WorkspacePart, type WorkspaceState } from './workspace'
+import { workspaceSetup, type GeneratorSettings, type WorkspaceState } from './workspace'
 
 const HASH_PREFIX = '#setup='
 const SHARE_VERSION = 1
@@ -16,13 +16,13 @@ function fromBase64Url(text: string): Uint8Array {
   return Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), (character) => character.charCodeAt(0))
 }
 
-function linkFor(page: string, workspace: WorkspaceState, part: WorkspacePart): string {
+function linkFor(page: string, workspace: WorkspaceState, part: GeneratorSettings): string {
   const payload = { v: SHARE_VERSION, ...workspaceSetup(workspace, part) }
   return `${page}${HASH_PREFIX}${toBase64Url(deflateSync(strToU8(JSON.stringify(payload)), { level: 9 }))}`
 }
 
 /** `page` is the generator's address without a hash; the setup travels in the hash so no server ever sees it. */
-export function shareLink(page: string, workspace: WorkspaceState, part: WorkspacePart): { url: string; imageOmitted: boolean } {
+export function shareLink(page: string, workspace: WorkspaceState, part: GeneratorSettings): { url: string; imageOmitted: boolean } {
   const url = linkFor(page, workspace, part)
   if (url.length <= MAX_SHARE_URL_LENGTH || part !== 'token' || workspace.token.image === null) return { url, imageOmitted: false }
   return { url: linkFor(page, { ...workspace, token: { ...workspace.token, image: null } }, part), imageOmitted: true }

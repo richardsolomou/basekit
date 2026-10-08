@@ -73,22 +73,94 @@ function meshXml(mesh: MeshLike): string {
   return `<mesh><vertices>${vertices.join('')}</vertices><triangles>${triangles.join('')}</triangles></mesh>`
 }
 
-function placement(mesh: MeshLike, index: number, count: number): string {
-  const { numProp, vertProperties: vertices } = mesh
+/** One copy of an object, its lower-left corner placed at `x`, `y` on its plate. */
+export interface PlateItem {
+  object: number
+  x: number
+  y: number
+}
+
+export interface Plate {
+  name: string
+  items: PlateItem[]
+}
+
+interface PlacedItem {
+  object: number
+  instance: number
+  plate: number
+  transform: string
+}
+
+function footprintBounds({ numProp, vertProperties: vertices }: MeshLike) {
   let minX = Infinity
   let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
   for (let i = 0; i < vertices.length; i += numProp) {
     minX = Math.min(minX, vertices[i])
     minY = Math.min(minY, vertices[i + 1])
+    maxX = Math.max(maxX, vertices[i])
+    maxY = Math.max(maxY, vertices[i + 1])
   }
-  const columns = Math.ceil(Math.sqrt(count))
-  const column = index % columns
-  const row = Math.floor(index / columns)
-  return `1 0 0 0 1 0 0 0 1 ${PLATE_MARGIN - minX + column * PLATE_STRIDE} ${PLATE_MARGIN - minY - row * PLATE_STRIDE} 0`
+  return { minX, minY, width: maxX - minX, length: maxY - minY }
 }
 
-function modelXml(meshes: { mesh: MeshLike; name: string }[], separateBuildPlates: boolean): string {
-  if (!separateBuildPlates) {
+function placeItems(meshes: { mesh: MeshLike }[], plates: Plate[]): PlacedItem[] {
+  const bounds = meshes.map(({ mesh }) => footprintBounds(mesh))
+  const instances = meshes.map(() => 0)
+  const columns = Math.ceil(Math.sqrt(plates.length))
+  return plates.flatMap(({ items }, plate) => {
+    const offsetX = (plate % columns) * PLATE_STRIDE
+    const offsetY = -Math.floor(plate / columns) * PLATE_STRIDE
+    return items.map(({ object, x, y }) => ({
+      object,
+      instance: instances[object]++,
+      plate,
+      transform: `1 0 0 0 1 0 0 0 1 ${x - bounds[object].minX + offsetX} ${y - bounds[object].minY + offsetY} 0`,
+    }))
+  })
+}
+
+const PACK_MARGIN = 10
+const PACK_GAP = 5
+
+/**
+ * Shelf-packs every copy onto as many build plates as it takes, deepest parts
+ * first, leaving a gap between neighbours so no two copies touch.
+ */
+export function packPlates(meshes: MeshLike[], copies: number[]): PlateItem[][] {
+  const bounds = meshes.map(footprintBounds)
+  const limit = PLATE_SIZE - PACK_MARGIN
+  const order = meshes.map((_, index) => index).sort((a, b) => bounds[b].length - bounds[a].length || bounds[b].width - bounds[a].width)
+  const plates: PlateItem[][] = [[]]
+  let x = PACK_MARGIN
+  let y = PACK_MARGIN
+  let shelf = 0
+  for (const object of order) {
+    const { width, length } = bounds[object]
+    for (let copy = 0; copy < copies[object]; copy++) {
+      if (x > PACK_MARGIN && x + width > limit) {
+        x = PACK_MARGIN
+        y += shelf + PACK_GAP
+        shelf = 0
+      }
+      if (y > PACK_MARGIN && y + length > limit) {
+        plates.push([])
+        x = PACK_MARGIN
+        y = PACK_MARGIN
+        shelf = 0
+      }
+      plates[plates.length - 1].push({ object, x, y })
+      x += width + PACK_GAP
+      shelf = Math.max(shelf, length)
+    }
+  }
+  return plates.filter((items) => items.length > 0)
+}
+
+function modelXml(meshes: { mesh: MeshLike; name: string }[], plates?: Plate[]): string {
+  if (!plates) {
     const objects = meshes.map(({ mesh, name }, index) => `<object id="${index + 1}" type="model" name="${name}">${meshXml(mesh)}</object>`)
     const items = meshes.map((_, index) => `<item objectid="${index + 1}"/>`)
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -106,10 +178,9 @@ function modelXml(meshes: { mesh: MeshLike; name: string }[], separateBuildPlate
     const partUuid = `${(index + 1).toString(16).padStart(4, '0')}0000`
     return `<object id="${objectId}" p:UUID="${uuid}-61cb-4c03-9d28-80fed5dfa1dc" type="model" name="${name}"><components><component p:path="/3D/Objects/object_${index + 1}.model" objectid="${partId}" p:UUID="${partUuid}-b206-40ff-9872-83e8017abed1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></components></object>`
   })
-  const items = meshes.map(({ mesh }, index) => {
-    const objectId = (index + 1) * 2
-    const uuid = objectId.toString(16).padStart(8, '0')
-    return `<item objectid="${objectId}" p:UUID="${uuid}-b1ec-4553-aec9-835e5b724bb4" transform="${placement(mesh, index, meshes.length)}" printable="1"/>`
+  const items = placeItems(meshes, plates).map(({ object, transform }, index) => {
+    const uuid = ((index + 1) * 2).toString(16).padStart(8, '0')
+    return `<item objectid="${(object + 1) * 2}" p:UUID="${uuid}-b1ec-4553-aec9-835e5b724bb4" transform="${transform}" printable="1"/>`
   })
   return `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:BambuStudio="http://schemas.bambulab.com/package/2021" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p">
@@ -142,38 +213,56 @@ function modelRelationshipsXml(count: number): string {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationships.join('')}</Relationships>`
 }
 
-function plateSettingsXml(meshes: { mesh: MeshLike; name: string }[]): string {
+function plateSettingsXml(meshes: { mesh: MeshLike; name: string }[], plates: Plate[]): string {
   const objects = meshes.map(({ mesh, name }, index) => {
     const objectId = (index + 1) * 2
     const partId = objectId - 1
     return `<object id="${objectId}"><metadata key="name" value="${name}"/><metadata key="extruder" value="1"/><part id="${partId}" subtype="normal_part"><metadata key="name" value="${name}"/><metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/><mesh_stat face_count="${mesh.triVerts.length / 3}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/></part></object>`
   })
-  const plates = meshes.map(
-    ({ name }, index) => `<plate>
-<metadata key="plater_id" value="${index + 1}"/>
+  const placed = placeItems(meshes, plates)
+  const instances = placed.map(
+    ({ object, instance }, index) => `<model_instance>
+<metadata key="object_id" value="${(object + 1) * 2}"/>
+<metadata key="instance_id" value="${instance}"/>
+<metadata key="identify_id" value="${index + 1}"/>
+</model_instance>`,
+  )
+  const plateXml = plates.map(
+    ({ name }, plate) => `<plate>
+<metadata key="plater_id" value="${plate + 1}"/>
 <metadata key="plater_name" value="${name}"/>
 <metadata key="locked" value="false"/>
-<model_instance>
-<metadata key="object_id" value="${(index + 1) * 2}"/>
-<metadata key="instance_id" value="0"/>
-<metadata key="identify_id" value="${index + 1}"/>
-</model_instance>
+${instances.filter((_, index) => placed[index].plate === plate).join('\n')}
 </plate>`,
   )
-  const assembly = meshes.map(
-    ({ mesh }, index) =>
-      `<assemble_item object_id="${(index + 1) * 2}" instance_id="0" transform="${placement(mesh, index, meshes.length)}" offset="0 0 0"/>`,
+  const assembly = placed.map(
+    ({ object, instance, transform }) =>
+      `<assemble_item object_id="${(object + 1) * 2}" instance_id="${instance}" transform="${transform}" offset="0 0 0"/>`,
   )
   return `<?xml version="1.0" encoding="UTF-8"?>
 <config>
 ${objects.join('\n')}
-${plates.join('\n')}
+${plateXml.join('\n')}
 <assemble>${assembly.join('')}</assemble>
 </config>`
 }
 
 /** 3MF keeps the mesh topology intact and carries millimetre units explicitly. */
 export function to3mf(meshes: { mesh: MeshLike; name: string }[], separateBuildPlates = false): Uint8Array {
+  return separateBuildPlates
+    ? to3mfPlates(
+        meshes,
+        meshes.map(({ name }, object) => ({ name, items: [{ object, x: PLATE_MARGIN, y: PLATE_MARGIN }] })),
+      )
+    : package3mf(meshes)
+}
+
+/** A Bambu Studio project with each plate holding its own copies of the objects. */
+export function to3mfPlates(meshes: { mesh: MeshLike; name: string }[], plates: Plate[]): Uint8Array {
+  return package3mf(meshes, plates)
+}
+
+function package3mf(meshes: { mesh: MeshLike; name: string }[], plates?: Plate[]): Uint8Array {
   const enc = new TextEncoder()
   const objectModels = Object.fromEntries(
     meshes.map(({ mesh }, index) => [`object_${index + 1}.model`, enc.encode(objectModelXml(mesh, index))]),
@@ -182,15 +271,13 @@ export function to3mf(meshes: { mesh: MeshLike; name: string }[], separateBuildP
     '[Content_Types].xml': enc.encode(CONTENT_TYPES),
     _rels: { '.rels': enc.encode(RELS) },
     '3D': {
-      '3dmodel.model': enc.encode(modelXml(meshes, separateBuildPlates)),
-      ...(separateBuildPlates
-        ? { Objects: objectModels, _rels: { '3dmodel.model.rels': enc.encode(modelRelationshipsXml(meshes.length)) } }
-        : {}),
+      '3dmodel.model': enc.encode(modelXml(meshes, plates)),
+      ...(plates ? { Objects: objectModels, _rels: { '3dmodel.model.rels': enc.encode(modelRelationshipsXml(meshes.length)) } } : {}),
     },
-    ...(separateBuildPlates
+    ...(plates
       ? {
           Metadata: {
-            'model_settings.config': enc.encode(plateSettingsXml(meshes)),
+            'model_settings.config': enc.encode(plateSettingsXml(meshes, plates)),
             'project_settings.config': enc.encode(PROJECT_SETTINGS),
           },
         }

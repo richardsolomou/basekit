@@ -1,4 +1,6 @@
+import { defaultAdapterConfig, minAdapterHeight } from '../geometry/adapter'
 import { defaultHolderConfig } from '../geometry/holder'
+import { defaultMovementTrayConfig, minimumMovementTrayFloor } from '../geometry/movementTray'
 import {
   defaultPaintingTrayConfig,
   minimumPaintingTrayEdgeMargin,
@@ -9,10 +11,21 @@ import { supportsFivePocketCross } from '../geometry/base'
 import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
+import type {
+  AdapterConfig,
+  BaseConfig,
+  FlightStemConfig,
+  HolderConfig,
+  MovementTrayConfig,
+  ShapeKind,
+  TokenConfig,
+  PaintingTrayConfig,
+} from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 8
+const WORKSPACE_VERSION = 11
+
+const SHAPES = new Set<string>(['round', 'oval', 'pill', 'rect', 'polygon'])
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -21,12 +34,23 @@ interface SettingsStorage {
 
 export interface WorkspaceState {
   base: BaseConfig
+  adapter: AdapterConfig
   holder: HolderConfig
+  movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
   token: TokenConfig
   /** Values exposed by multiple generators have one canonical owner. */
   shared: SharedSettings
+  /** Base footprints exported together, each built with the current base settings. */
+  batch: BatchEntry[]
+}
+
+export interface BatchEntry {
+  shape: ShapeKind
+  width: number
+  length: number
+  quantity: number
 }
 
 export interface SharedSettings {
@@ -63,6 +87,27 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
   }
 }
 
+/** Adapters follow the same per-footprint count as a base of their target footprint, without the legacy pattern. */
+function synchronizeAdapter(adapter: AdapterConfig, shared: SharedSettings): AdapterConfig {
+  const { shape, width, length } = adapter.target
+  const fiveCross = shared.magnets.layout === 'five-cross' && supportsFivePocketCross(shape, width)
+  const count = fiveCross
+    ? 5
+    : (shared.magnetCounts[footprintKey(shape, width, length)] ??
+      automaticMagnetCount(width, length, shared.magnets.maxCount, shared.magnets.diameter, shared.magnets.thickness))
+  const next = {
+    ...adapter,
+    magnets: {
+      ...adapter.magnets,
+      ...shared.magnets,
+      layout: fiveCross ? ('five-cross' as const) : ('balanced' as const),
+      count,
+      bossWall: shared.magnetBossWall,
+    },
+  }
+  return { ...next, height: Math.max(next.height, Math.ceil((minAdapterHeight(next) - 1e-6) * 10) / 10) }
+}
+
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
@@ -81,6 +126,13 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
           shared.magnets.diameter,
           shared.magnets.thickness,
         ))
+  const movementTray = {
+    ...state.movementTray,
+    baseWallThickness: shared.wallThickness,
+    magnetBossWall: shared.magnetBossWall,
+    magnetCounts: shared.magnetCounts,
+    magnets: { ...state.movementTray.magnets, ...shared.magnets },
+  }
   return {
     ...state,
     base: {
@@ -105,6 +157,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
               : state.base.ribs.count,
       },
     },
+    adapter: synchronizeAdapter(state.adapter, shared),
     holder: {
       ...state.holder,
       baseWallThickness: shared.wallThickness,
@@ -112,6 +165,10 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       magnetCounts: shared.magnetCounts,
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
       magnets: { ...state.holder.magnets, ...shared.magnets },
+    },
+    movementTray: {
+      ...movementTray,
+      floorThickness: Math.max(movementTray.floorThickness, Math.ceil((minimumMovementTrayFloor(movementTray) - 1e-6) * 10) / 10),
     },
     paintingTray: {
       ...state.paintingTray,
@@ -130,12 +187,26 @@ export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
   return synchronizeWorkspace({
     base,
+    adapter: defaultAdapterConfig(),
     holder: defaultHolderConfig(),
+    movementTray: defaultMovementTrayConfig(),
     paintingTray: defaultPaintingTrayConfig(),
     stem: defaultFlightStemConfig(),
     token: defaultTokenConfig(),
     shared: sharedFromBase(base),
+    batch: [],
   })
+}
+
+export type GeneratorSettings = Exclude<keyof WorkspaceState, 'shared' | 'batch'>
+
+/** The batch is a list of base footprints, so it belongs to the base generator and resets with it. */
+export function resetGenerator(state: WorkspaceState, part: GeneratorSettings): WorkspaceState {
+  return synchronizeWorkspace({ ...state, [part]: defaultWorkspace()[part], ...(part === 'base' ? { batch: [] } : {}) })
+}
+
+export function resetShared(state: WorkspaceState): WorkspaceState {
+  return synchronizeWorkspace({ ...state, shared: defaultWorkspace().shared })
 }
 
 const MIGRATIONS = [
@@ -146,6 +217,9 @@ const MIGRATIONS = [
   migrateWorkspaceV5,
   migrateWorkspaceV6,
   migrateWorkspaceV7,
+  migrateWorkspaceV8,
+  migrateWorkspaceV9,
+  migrateWorkspaceV10,
 ]
 
 function migrateWorkspace(version: unknown, value: unknown): unknown {
@@ -154,10 +228,11 @@ function migrateWorkspace(version: unknown, value: unknown): unknown {
 }
 
 function validWorkspace(value: unknown): WorkspaceState | undefined {
-  if (!isWorkspaceState(value, defaultWorkspace())) return undefined
-  const base = { ...value.base } as BaseConfig & { underside?: unknown }
+  const workspace = withValidBatch(value)
+  if (!isWorkspaceState(workspace, defaultWorkspace())) return undefined
+  const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
   delete base.underside
-  return synchronizeWorkspace({ ...value, base })
+  return synchronizeWorkspace({ ...workspace, base })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -171,26 +246,31 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   }
 }
 
-export type WorkspacePart = 'base' | 'holder' | 'paintingTray' | 'stem' | 'token'
+const PARTS: readonly GeneratorSettings[] = ['base', 'adapter', 'holder', 'movementTray', 'paintingTray', 'stem', 'token']
+const PARTS_USING_SHARED = new Set<GeneratorSettings>(['base', 'adapter', 'holder', 'movementTray', 'paintingTray'])
 
-const PARTS: readonly WorkspacePart[] = ['base', 'holder', 'paintingTray', 'stem', 'token']
-const PARTS_USING_SHARED = new Set<WorkspacePart>(['base', 'holder', 'paintingTray'])
-
-/** One generator's settings and the shared settings that shape it, as a share link carries them. */
+/**
+ * One generator's settings and the shared settings that shape it, as a share link carries them.
+ * The base batch stays behind: it is the sender's own export queue, not part of the base's design.
+ */
 export interface WorkspaceSetup {
   version: number
-  part: WorkspacePart
-  config: WorkspaceState[WorkspacePart]
+  part: GeneratorSettings
+  config: WorkspaceState[GeneratorSettings]
   shared?: SharedSettings
 }
 
-function magnetCountKeys(workspace: WorkspaceState, part: WorkspacePart): string[] {
+function magnetCountKeys(workspace: WorkspaceState, part: GeneratorSettings): string[] {
   if (part === 'base') return [footprintKey(workspace.base.shape, workspace.base.width, workspace.base.length)]
   if (part === 'holder') return workspace.holder.groups.map((group) => footprintKey(group.shape, group.width, group.length))
+  if (part === 'movementTray')
+    return [footprintKey(workspace.movementTray.shape, workspace.movementTray.width, workspace.movementTray.length)]
+  if (part === 'adapter')
+    return [footprintKey(workspace.adapter.target.shape, workspace.adapter.target.width, workspace.adapter.target.length)]
   return []
 }
 
-export function workspaceSetup(workspace: WorkspaceState, part: WorkspacePart): WorkspaceSetup {
+export function workspaceSetup(workspace: WorkspaceState, part: GeneratorSettings): WorkspaceSetup {
   const setup: WorkspaceSetup = { version: WORKSPACE_VERSION, part, config: workspace[part] }
   if (!PARTS_USING_SHARED.has(part)) return setup
   const keys = magnetCountKeys(workspace, part)
@@ -206,7 +286,7 @@ export function workspaceSetup(workspace: WorkspaceState, part: WorkspacePart): 
 export function applyWorkspaceSetup(
   workspace: WorkspaceState,
   setup: unknown,
-): { workspace: WorkspaceState; part: WorkspacePart } | undefined {
+): { workspace: WorkspaceState; part: GeneratorSettings } | undefined {
   if (typeof setup !== 'object' || setup === null) return undefined
   const { version, part, config, shared } = setup as Record<string, unknown>
   const key = PARTS.find((candidate) => candidate === part)
@@ -222,6 +302,41 @@ export function applyWorkspaceSetup(
   const kept = Object.entries(workspace.shared.magnetCounts).filter(([footprint]) => !replaced.includes(footprint))
   const magnetCounts = { ...Object.fromEntries(kept), ...candidate.shared.magnetCounts }
   return { workspace: synchronizeWorkspace({ ...candidate, shared: { ...candidate.shared, magnetCounts } }), part: key }
+}
+
+function migrateWorkspaceV10(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), adapter: defaultAdapterConfig() }
+}
+
+function migrateWorkspaceV9(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), movementTray: defaultMovementTrayConfig() }
+}
+
+function isBatchEntry(entry: unknown): entry is BatchEntry {
+  if (typeof entry !== 'object' || entry === null) return false
+  const { shape, width, length, quantity } = entry as Record<string, unknown>
+  const size = (value: unknown) => typeof value === 'number' && value >= 15 && value <= 180
+  return (
+    typeof shape === 'string' && SHAPES.has(shape) && size(width) && size(length) && Number.isInteger(quantity) && (quantity as number) >= 1
+  )
+}
+
+/** Workspaces saved before batches existed load with an empty one, and a damaged entry costs only itself. */
+function withValidBatch(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const { batch } = value as Record<string, unknown>
+  return { ...value, batch: Array.isArray(batch) ? batch.filter(isBatchEntry) : [] }
+}
+
+function migrateWorkspaceV8(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const saved = workspace.token as Record<string, unknown> | undefined
+  if (!saved || !('diameter' in saved)) return value
+  const { diameter, ...token } = saved
+  return { ...workspace, token: { ...token, shape: 'round', size: diameter, cornerRadius: defaultTokenConfig().cornerRadius } }
 }
 
 function migrateWorkspaceV7(value: unknown): unknown {
@@ -318,17 +433,24 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   if (!hasShape(value, template)) return false
   const workspace = value as WorkspaceState
   return (
-    ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
+    SHAPES.has(workspace.base.shape) &&
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
+    workspace.adapter.kind === 'adapter' &&
+    SHAPES.has(workspace.adapter.target.shape) &&
+    SHAPES.has(workspace.adapter.source.shape) &&
+    ['taper', 'straight', 'bevel', 'round'].includes(workspace.adapter.profile) &&
     workspace.stem.kind === 'stem' &&
     workspace.token.kind === 'token' &&
+    ['round', 'square', 'hex'].includes(workspace.token.shape) &&
     ['taper', 'straight', 'bevel', 'round'].includes(workspace.token.profile) &&
     isTokenImage(workspace.token.image) &&
+    workspace.movementTray.kind === 'movement-tray' &&
+    ['round', 'rect'].includes(workspace.movementTray.shape) &&
     workspace.paintingTray.kind === 'painting-tray' &&
     ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
-    workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
+    workspace.holder.groups.every((group) => SHAPES.has(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )
 }
