@@ -1,6 +1,6 @@
 import type { CrossSection, Manifold, ManifoldToplevel, Mesh, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
-import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle } from './label'
+import { fitLabel, LABEL_MARGIN, labelAngles, LABEL_MAX_LENGTH, labelText, pointInContours, type LabelCircle } from './label'
 import { baseOutline, defaultLabel } from './outline'
 import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { curveTolerance } from './quality'
@@ -228,7 +228,11 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
     }
 
     if (config.label.enabled && font) {
-      const text = config.label.text?.trim() || defaultLabel(config)
+      const custom = config.label.text?.trim()
+      if (custom && labelText(custom) !== custom) {
+        throw new Error(`Label text must be at most ${LABEL_MAX_LENGTH} characters the font can draw`)
+      }
+      const text = custom || defaultLabel(config)
       const polys = textPolygons(font, text, config.label.height)
       if (polys.length > 0) {
         const room = section(wellOutline.offset(-LABEL_MARGIN, 'Miter', 2, config.segments))
@@ -251,6 +255,8 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
           const placed = section(glyphs.translate([fit.x, fit.y]))
           const raised = solidOf(placed.extrude(Math.min(config.label.emboss, wellDepth)))
           solid = solidOf(solid.add(solidOf(raised.translate([0, 0, config.floorThickness]))))
+        } else if (custom) {
+          throw new Error('Label text does not fit this base — shorten it or reduce the label size')
         }
       }
     }

@@ -4,7 +4,7 @@ import { parse, type Font } from 'opentype.js'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildBase, magnetPositions, ribAngles } from './base'
 import { toStl } from './exporters'
-import { LABEL_MARGIN, pointInContours } from './label'
+import { LABEL_CHARACTERS, LABEL_MARGIN, LABEL_MAX_LENGTH, labelText, pointInContours } from './label'
 import { loadManifold } from './manifold'
 import { baseOutline, defaultLabel, trimNumber } from './outline'
 import { maxProfileSize, profileSteps } from './profile'
@@ -75,6 +75,17 @@ function bottomReach(mesh: Mesh) {
     if (Math.abs(v[i + 2]) < 1e-6) widest = Math.max(widest, Math.hypot(v[i], v[i + 1]))
   }
   return widest
+}
+
+function duplicateVertices(mesh: Mesh) {
+  const seen = new Set<string>()
+  let duplicates = 0
+  for (let i = 0; i < mesh.vertProperties.length; i += mesh.numProp) {
+    const key = `${mesh.vertProperties[i]},${mesh.vertProperties[i + 1]},${mesh.vertProperties[i + 2]}`
+    if (seen.has(key)) duplicates++
+    seen.add(key)
+  }
+  return duplicates
 }
 
 const build = (config: BaseConfig) => buildBase(wasm, config, font)
@@ -307,15 +318,7 @@ describe('buildBase', () => {
   it.for([ROUND_SIZES[1], ROUND_SIZES[4], ROUND_SIZES[9], OVAL_SIZES[0], OVAL_SIZES[2]])('welds cleanly on a $label base', (size) => {
     // Two vertices at one position mean surfaces meet tangentially, which pinches
     // into a non-manifold edge in any tool that merges vertices by position.
-    const { mesh } = build(preset(size))
-    const seen = new Set<string>()
-    let duplicates = 0
-    for (let i = 0; i < mesh.vertProperties.length; i += mesh.numProp) {
-      const key = `${mesh.vertProperties[i]},${mesh.vertProperties[i + 1]},${mesh.vertProperties[i + 2]}`
-      if (seen.has(key)) duplicates++
-      seen.add(key)
-    }
-    expect(duplicates).toBe(0)
+    expect(duplicateVertices(build(preset(size)).mesh)).toBe(0)
   })
 
   it('rejects walls that leave no room inside', () => {
@@ -370,6 +373,58 @@ describe('labels', () => {
     const config = presetFor(ROUND_SIZES[1])
     const plain = { ...config, label: { ...config.label, enabled: false } }
     expect(build(config).stats.volume).toBeGreaterThan(build(plain).stats.volume)
+  })
+
+  it('embosses custom text in place of the size', () => {
+    const config = presetFor(ROUND_32)
+    const custom = { ...config, label: { ...config.label, text: 'SQUAD 3' } }
+    expect(build(custom).stats.volume).not.toBeCloseTo(build(config).stats.volume, 3)
+  })
+
+  it('fills where neighbouring glyphs overlap', () => {
+    // Oswald's accents overhang their neighbours; an even-odd fill punches the overlap out.
+    const config = presetFor(ROUND_SIZES[4])
+    const raised = (text: string) =>
+      build({ ...config, label: { ...config.label, text } }).stats.volume -
+      build({ ...config, label: { ...config.label, enabled: false } }).stats.volume
+    expect(raised('ÏÏ') / (2 * raised('Ï'))).toBeGreaterThan(0.97)
+  })
+
+  it('welds an exported custom label cleanly', () => {
+    const config = presetFor(ROUND_32)
+    const custom = { ...config, segments: exportSegmentsFor(32), label: { ...config.label, text: 'Squad Ïï-3' } }
+    expect(duplicateVertices(build(custom).mesh)).toBe(0)
+  })
+
+  it('still fits custom text on a cramped base', () => {
+    const config = presetFor(RECT_SIZES[0])
+    const plain = { ...config, label: { ...config.label, enabled: false } }
+    const custom = { ...config, label: { ...config.label, text: 'HQ' } }
+    expect(build(custom).stats.volume).toBeGreaterThan(build(plain).stats.volume)
+  })
+
+  it('reports custom text too long to fit rather than dropping it', () => {
+    const config = presetFor(ROUND_SIZES[0])
+    const custom = { ...config, label: { ...config.label, text: 'W'.repeat(LABEL_MAX_LENGTH) } }
+    expect(() => build(custom)).toThrow(/does not fit/)
+  })
+
+  it('rejects custom text the font cannot draw', () => {
+    const config = presetFor(ROUND_32)
+    expect(() => build({ ...config, label: { ...config.label, text: 'Ω' } })).toThrow(/characters the font can draw/)
+  })
+
+  it('draws every character a label accepts', () => {
+    const missing = [...LABEL_CHARACTERS].filter((ch) => font.charToGlyphIndex(ch) === 0)
+    expect(missing).toEqual([])
+  })
+
+  it('strips characters the font cannot draw', () => {
+    expect(labelText('Ω SQUAD ☠')).toBe(' SQUAD ')
+  })
+
+  it('caps label text at the maximum length', () => {
+    expect(labelText('X'.repeat(LABEL_MAX_LENGTH + 5))).toHaveLength(LABEL_MAX_LENGTH)
   })
 })
 
