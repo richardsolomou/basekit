@@ -475,7 +475,7 @@ export function BasePanel({
                 value={config.label.height}
                 min={2}
                 max={16}
-                step={0.5}
+                step={0.1}
                 defaultValue={BASE_DEFAULTS.label.height}
                 onChange={(height) => patch({ label: { ...config.label, height } })}
               />

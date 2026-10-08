@@ -134,6 +134,19 @@ test('links to the source repository', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
 })
 
+test('starts every dimension on a value its own input accepts', async ({ page }) => {
+  const invalid = () =>
+    page
+      .locator('input[type=number]')
+      .evaluateAll((inputs) =>
+        inputs.filter((input) => !(input as HTMLInputElement).checkValidity()).map((input) => input.getAttribute('aria-label')),
+      )
+  for (const name of ['Adapters', 'Holders', 'Movement trays', 'Spray tray', 'Stems', 'Tokens', 'Bases']) {
+    await visit(page, name)
+    expect(await invalid(), name).toEqual([])
+  }
+})
+
 test('opens selects from their visible labels', async ({ page }) => {
   await page.getByText('Shape', { exact: true }).click()
   await expect(page.getByRole('option', { name: 'Round', exact: true })).toBeVisible()
