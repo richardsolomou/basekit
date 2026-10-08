@@ -2,13 +2,14 @@ import { Box, Download, PanelLeft } from 'lucide-react'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { BasePanel } from '@/components/panels/BasePanel'
 import { HolderPanel } from '@/components/panels/HolderPanel'
-import { MovementTrayPanel } from '@/components/panels/MovementTrayPanel'
+import { isStandardMovementSize, MovementTrayPanel } from '@/components/panels/MovementTrayPanel'
 import { PaintingTrayPanel } from '@/components/panels/PaintingTrayPanel'
 import {
   AUTOMATIC_MAGNET_COUNT,
   fitSlotDepth,
   safeEdgeSize,
   type MagnetCountChoice,
+  type ResetAction,
   type SharedMagnetChanges,
   type SharedMagnetPlacementChanges,
 } from '@/components/panels/shared'
@@ -23,7 +24,7 @@ import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '
 import { baseName, footprint, isElongated } from '@/geometry/outline'
 import { footprintKey, SIZES_BY_SHAPE } from '@/geometry/presets'
 import { movementTrayHeight, movementTrayLayout, movementTrayName } from '@/geometry/movementTray'
-import { maxTokenEdgeSize, tokenHeight, tokenName } from '@/geometry/token'
+import { maxTokenEdgeSize, tokenFootprint, tokenHeight, tokenName } from '@/geometry/token'
 import {
   paintingHandleAxisCenter,
   paintingTrayAssemblyHeight,
@@ -34,11 +35,20 @@ import {
 import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/geometry/stem'
 import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
+import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import {
+  loadWorkspace,
+  resetGenerator,
+  resetShared,
+  saveWorkspace,
+  synchronizeWorkspace,
+  type GeneratorSettings,
+  type WorkspaceState,
+} from '@/lib/workspace'
 
 const MODELS = [
   { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
@@ -89,12 +99,20 @@ export function App() {
   const patchToken = (changes: Partial<TokenConfig>) =>
     setWorkspace((current) => {
       const next = { ...current.token, ...changes }
-      return { ...current, token: { ...next, profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)) } }
+      return {
+        ...current,
+        token: {
+          ...next,
+          cornerRadius: Math.min(next.cornerRadius, next.size / 2),
+          profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)),
+        },
+      }
     })
   const [customBaseSize, setCustomBaseSize] = useState(() => {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
+  const [customMovementSize, setCustomMovementSize] = useState(() => !isStandardMovementSize(workspace.movementTray))
   const [model, setModel] = useState<Generator>(modelForPath)
   const [tokenImageError, setTokenImageError] = useState<string>()
   const addTokenImage = async (file: File) => {
@@ -137,7 +155,7 @@ export function App() {
             : model === 'stem'
               ? stem
               : token
-  const { preview, error } = useGenerator(partConfig)
+  const { preview, grams, error } = useGenerator(partConfig)
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -203,7 +221,7 @@ export function App() {
             ? paintingSize.width
             : model === 'stem'
               ? stemDiameter
-              : token.diameter
+              : tokenFootprint(token).width
   const partLength =
     model === 'base'
       ? length
@@ -215,7 +233,7 @@ export function App() {
             ? paintingSize.length
             : model === 'stem'
               ? stemDiameter
-              : token.diameter
+              : tokenFootprint(token).length
   const partHeight =
     model === 'base'
       ? config.height
@@ -240,11 +258,17 @@ export function App() {
             : model === 'stem'
               ? stemName(stem)
               : tokenName(token)
+  const batch = useMemo(
+    () => workspace.batch.map((entry) => ({ config: batchBaseConfig(workspace, entry), quantity: entry.quantity })),
+    [workspace],
+  )
   const {
     exporting,
     error: exportError,
     exportStl,
     export3mf,
+    exportBatchStl,
+    exportBatch3mf,
   } = useExport({
     model,
     base: config,
@@ -255,6 +279,8 @@ export function App() {
     token,
     width: partWidth,
     length: partLength,
+    batch,
+    batchName: batchName(workspace.batch),
   })
   const elongated = isElongated(config.shape)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
@@ -305,6 +331,27 @@ export function App() {
     })
   }
 
+  const resetPart = (part: GeneratorSettings, label: string, shared: boolean): ResetAction => ({
+    label,
+    description: `Every ${label} setting returns to its default${part === 'base' ? ' and the batch list empties' : ''}. ${shared ? 'Shared settings and the' : 'The'} other generators keep their values.`,
+    onReset: () => {
+      posthog.capture('settings_reset', { scope: part })
+      if (part === 'base') setCustomBaseSize(false)
+      if (part === 'movementTray') setCustomMovementSize(false)
+      if (part === 'token') setTokenImageError(undefined)
+      setWorkspace((current) => resetGenerator(current, part))
+    },
+  })
+  const resetSharedSettings: ResetAction = {
+    label: 'shared settings',
+    description:
+      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and the labels toggle return to their defaults on bases, holders and spray trays.',
+    onReset: () => {
+      posthog.capture('settings_reset', { scope: 'shared' })
+      setWorkspace(resetShared)
+    },
+  }
+
   const panel =
     model === 'base' ? (
       <BasePanel
@@ -320,6 +367,12 @@ export function App() {
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
         setSharedMagnetPlacement={setSharedMagnetPlacement}
+        batch={workspace.batch}
+        setBatch={(next) => setWorkspace((current) => ({ ...current, batch: next(current.batch) }))}
+        exporting={exporting}
+        exportBatchStl={exportBatchStl}
+        exportBatch3mf={exportBatch3mf}
+        resets={[resetPart('base', 'base', true), resetSharedSettings]}
       />
     ) : model === 'holder' ? (
       <HolderPanel
@@ -330,13 +383,17 @@ export function App() {
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
+        resets={[resetPart('holder', 'holder', true), resetSharedSettings]}
       />
     ) : model === 'movement' ? (
       <MovementTrayPanel
         movementTray={movementTray}
         setMovementTray={setMovementTray}
+        custom={customMovementSize}
+        setCustom={setCustomMovementSize}
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         setSharedMagnets={setSharedMagnets}
+        resets={[resetPart('movementTray', 'movement tray', true), resetSharedSettings]}
       />
     ) : model === 'painting' ? (
       <PaintingTrayPanel
@@ -346,11 +403,18 @@ export function App() {
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         maxSharedDepthClearance={maxSharedDepthClearance}
         setSharedMagnets={setSharedMagnets}
+        resets={[resetPart('paintingTray', 'spray tray', true), resetSharedSettings]}
       />
     ) : model === 'stem' ? (
-      <StemPanel stem={stem} setStem={setStem} />
+      <StemPanel stem={stem} setStem={setStem} resets={[resetPart('stem', 'stem', false)]} />
     ) : (
-      <TokenPanel token={token} patchToken={patchToken} addTokenImage={addTokenImage} tokenImageError={tokenImageError} />
+      <TokenPanel
+        token={token}
+        patchToken={patchToken}
+        addTokenImage={addTokenImage}
+        tokenImageError={tokenImageError}
+        resets={[resetPart('token', 'token', false)]}
+      />
     )
 
   return (
@@ -428,7 +492,7 @@ export function App() {
             height={partHeight}
             minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
             orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
-            round={model === 'stem' || model === 'token' || (model === 'base' && !elongated)}
+            round={model === 'stem' || (model === 'token' && token.shape === 'round') || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />
           {(error || exportError) && (
@@ -439,7 +503,7 @@ export function App() {
               {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
             </div>
           )}
-          <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} />
+          <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} grams={grams} />
         </main>
       </div>
     </div>

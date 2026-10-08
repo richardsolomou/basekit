@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
 import { FieldDescription } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -12,7 +11,7 @@ import {
 import { trimNumber } from '@/geometry/outline'
 import { SIZES_BY_SHAPE } from '@/geometry/presets'
 import type { MovementTrayConfig, MovementTrayShape } from '@/geometry/types'
-import { BASE_DEFAULTS, RepositoryLink, type SharedMagnetChanges } from './shared'
+import { BASE_DEFAULTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const MOVEMENT_DEFAULTS = defaultMovementTrayConfig()
 const SHAPES: { value: MovementTrayShape; label: string }[] = [
@@ -25,15 +24,27 @@ const CUSTOM_SIZE = 'custom'
 const standardSize = (tray: MovementTrayConfig) =>
   SIZES_BY_SHAPE[tray.shape].find((size) => size.width === tray.width && (size.length ?? size.width) === tray.length)
 
+export const isStandardMovementSize = (tray: MovementTrayConfig) => standardSize(tray) !== undefined
+
 interface Props {
   movementTray: MovementTrayConfig
   setMovementTray: (movementTray: MovementTrayConfig) => void
+  custom: boolean
+  setCustom: (custom: boolean) => void
   maxSharedMagnetThickness: number
   setSharedMagnets: (changes: SharedMagnetChanges) => void
+  resets: ResetAction[]
 }
 
-export function MovementTrayPanel({ movementTray, setMovementTray, maxSharedMagnetThickness, setSharedMagnets }: Props) {
-  const [custom, setCustom] = useState(() => !standardSize(movementTray))
+export function MovementTrayPanel({
+  movementTray,
+  setMovementTray,
+  custom,
+  setCustom,
+  maxSharedMagnetThickness,
+  setSharedMagnets,
+  resets,
+}: Props) {
   const standard = standardSize(movementTray)
   const resize = (shape: MovementTrayShape, width: number, length: number) =>
     setMovementTray({ ...movementTray, ...movementTrayFootprint(shape, width, length) })
@@ -223,7 +234,7 @@ export function MovementTrayPanel({ movementTray, setMovementTray, maxSharedMagn
             </>
           )}
         </Section>
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )

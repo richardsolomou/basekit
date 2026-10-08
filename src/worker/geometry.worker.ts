@@ -44,7 +44,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
                   ? buildToken(wasm, config, font)
                   : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
-    send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
+    send({ id, kind: 'mesh', mesh, grams: result.stats.grams }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {
     send({ id, kind: 'error', message: error instanceof Error ? error.message : String(error) }, [])
   }

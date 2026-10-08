@@ -202,9 +202,16 @@ export interface TokenImage {
   luminance: string
 }
 
+/** Hexes sit with a flat edge at the top and bottom, which gives text the widest band through the middle. */
+export type TokenShape = 'round' | 'square' | 'hex'
+
 export interface TokenConfig {
   kind: 'token'
-  diameter: number
+  shape: TokenShape
+  /** Measured across the flats: the diameter of a round, the side of a square, flat to flat on a hex. */
+  size: number
+  /** Corner rounding for square. */
+  cornerRadius: number
   /** Disc thickness, excluding the raised artwork. */
   thickness: number
   /** Treatment on the top edge; the table face stays full size. */
