@@ -7,6 +7,7 @@ import { supportsFivePocketCross } from '@/geometry/base'
 import {
   defaultHolderConfig,
   holderGroupLabel,
+  holderSpareCapacity,
   maxHolderSlotDepth,
   minHolderHeight,
   type holderLayout,
@@ -44,6 +45,7 @@ export function HolderPanel({ holder, setHolder, holderSize, plan, maxSharedMagn
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
   const fittedByGroup = useMemo(() => fittedCounts(plan.modules), [plan])
+  const spareByGroup = useMemo(() => new Map(holder.groups.map((group) => [group.id, holderSpareCapacity(holder, group.id)])), [holder])
   const holderSupportsFiveCross =
     holder.magnets.patternVersion === 1 || holder.groups.some((group) => supportsFivePocketCross(group.shape, group.width))
   const holderMagnetLayout = holderSupportsFiveCross ? holder.magnets.layout : 'balanced'
@@ -63,6 +65,7 @@ export function HolderPanel({ holder, setHolder, holderSize, plan, maxSharedMagn
           <MiniatureGroupsEditor
             groups={holder.groups}
             fittedByGroup={fittedByGroup}
+            spareByGroup={spareByGroup}
             onChange={(groups) => setHolder({ ...holder, groups })}
           />
         </Section>
