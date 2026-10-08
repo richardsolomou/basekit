@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { trimNumber } from '@/geometry/outline'
-import { cn } from '@/lib/utils'
+import { cn } from 'cn'
 import type { MeshData } from '@/worker/protocol'
 
 const FIELD_OF_VIEW = 38
