@@ -28,6 +28,8 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 4. **Check both faces** in the live 3D view, where dimensions, the export name, and the part's weight as solid PLA stay visible. Holders and spray trays show the total for every part. A slicer's walls and infill will use less filament than that.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
+Rebasing an army usually means several sizes at once. Add the current size to the batch as often as you need it, adjust each quantity, and download them together: STLs arrive as one archive with one file per size and its quantity in the name, while a 3MF keeps one object per size and lays out every copy across as many build plates as it needs. Every size in a batch shares the current base settings and follows its own magnet count. The batch is saved with your other settings.
+
 ## Gridfinity holders 📦
 
 Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints. Miniature and holder-edge spacing are independently adjustable, with the edge spacing defaulting to half the miniature spacing.

@@ -293,6 +293,7 @@ test('resets one generator to its defaults after confirmation', async ({ page })
   await setDimension(page, 'Base height in mm', '5')
   await setDimension(page, 'Magnet diameter in mm', '7')
   await sizeLabel(page).fill('SQUAD 3')
+  await page.getByRole('button', { name: 'Add 32 to batch' }).click()
   await visit(page, 'Stems')
   await setDimension(page, 'Body diameter in mm', '6')
   await visit(page, 'Bases')
@@ -305,6 +306,7 @@ test('resets one generator to its defaults after confirmation', async ({ page })
   await page.getByRole('alertdialog').getByRole('button', { name: 'Reset', exact: true }).click()
   await expect(height).toHaveValue(defaultHeight)
   await expect(sizeLabel(page)).toHaveValue('')
+  await expect(page.getByLabel(/^Quantity of Round 32 in/)).toHaveCount(0)
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
   await visit(page, 'Stems')
   await expect(page.getByLabel('Body diameter in mm')).toHaveValue('6.0')
@@ -491,6 +493,51 @@ test('exports a 3MF as well', async ({ page }) => {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download 3MF' }).click()
   expect((await download).suggestedFilename()).toBe('base-round-32mm.3mf')
+})
+
+test('exports a batch of base sizes together', async ({ page }) => {
+  // Four high-quality export builds, where every other spec needs at most one.
+  test.slow()
+  await page.getByRole('button', { name: 'Add 32 to batch' }).click()
+  await page.getByLabel(/^Quantity of Round 32 in/).fill('10')
+  await page.getByLabel(/^Quantity of Round 32 in/).press('Enter')
+  const before = await triangles(page)
+  await pickSize(page, '40')
+  await rebuilt(page, before)
+  for (let added = 0; added < 3; added++) await page.getByRole('button', { name: 'Add 40 to batch' }).click()
+  await expect(page.getByLabel(/^Quantity of Round 40 in/)).toHaveValue('3')
+  await expect(across(page)).toHaveText('Ø40')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Batch STLs' }).click()
+  const saved = await pending
+  expect(saved.suggestedFilename()).toBe('base-batch-13.zip')
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  const stls = unzipSync(await readFile(path))
+  expect(Object.keys(stls).sort()).toEqual(['base-round-32mm-x10.stl', 'base-round-40mm-x3.stl'])
+
+  const pending3mf = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Batch 3MF' }).click()
+  const saved3mf = await pending3mf
+  expect(saved3mf.suggestedFilename()).toBe('base-batch-13.3mf')
+  const path3mf = await saved3mf.path()
+  if (!path3mf) throw new Error('download has no local path')
+  const archive = unzipSync(await readFile(path3mf))
+  const model = new TextDecoder().decode(archive['3D/3dmodel.model'])
+  const settings = new TextDecoder().decode(archive['Metadata/model_settings.config'])
+  expect({
+    objects: model.match(/<object /g)?.length,
+    copies: model.match(/<item objectid=/g)?.length,
+    plates: settings.match(/<plate>/g)?.length,
+  }).toEqual({ objects: 2, copies: 13, plates: 1 })
+
+  await page.reload()
+  await settled(page)
+  await expect(page.getByLabel(/^Quantity of Round 32 in/)).toHaveValue('10')
+  await page.getByRole('button', { name: 'Remove Round 32 from batch' }).click()
+  await expect(page.getByLabel(/^Quantity of Round 32 in/)).toHaveCount(0)
+  await expect(page.getByLabel(/^Quantity of Round 40 in/)).toHaveValue('3')
 })
 
 test('exports finer circular geometry than the preview', { tag: '@ci' }, async ({ page }) => {

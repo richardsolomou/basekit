@@ -179,6 +179,40 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage)).toMatchObject({ stem: { bodyHeight: 20 }, token: { kind: 'token', diameter: 40, text: '1' } })
   })
 
+  it('adds an empty base batch to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.token.text = '6'
+    delete legacy.batch
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({ token: { text: '6' }, batch: [] })
+  })
+
+  it('keeps a saved base batch', () => {
+    const storage = memoryStorage()
+    const batch = [
+      { shape: 'round' as const, width: 28.5, length: 28.5, quantity: 10 },
+      { shape: 'oval' as const, width: 60, length: 35, quantity: 3 },
+    ]
+    saveWorkspace(storage, { ...defaultWorkspace(), batch })
+
+    expect(loadWorkspace(storage).batch).toEqual(batch)
+  })
+
+  it('drops damaged batch entries without discarding the workspace', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    const kept = { shape: 'round', width: 40, length: 40, quantity: 2 }
+    const batch = [kept, { shape: 'star', width: 40, length: 40, quantity: 1 }, { ...kept, quantity: 0 }, { ...kept, width: '40' }]
+    storage.setItem(
+      'mini-bases.workspace',
+      JSON.stringify({ version: 8, workspace: { ...workspace, token: { ...workspace.token, text: '6' }, batch } }),
+    )
+
+    expect(loadWorkspace(storage)).toMatchObject({ token: { text: '6' }, batch: [kept] })
+  })
+
   it('keeps a saved objective token', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()
@@ -331,6 +365,7 @@ function customizedWorkspace() {
   state.stem = { ...state.stem, bodyDiameter: 6 }
   state.token = { ...state.token, text: 'A', diameter: 32 }
   state.shared = { ...state.shared, labelsEnabled: false, magnets: { ...state.shared.magnets, diameter: 6 } }
+  state.batch = [{ shape: 'round', width: 40, length: 40, quantity: 3 }]
   return synchronizeWorkspace(state)
 }
 
@@ -349,9 +384,21 @@ describe('resetting settings', () => {
 
   it.each(parts)('leaves every other generator unchanged when the %s is reset', (part) => {
     const before = customizedWorkspace()
-    const { [part]: _reset, ...others } = resetGenerator(before, part)
-    const { [part]: _original, ...expected } = before
+    const { [part]: _reset, batch: _resetBatch, ...others } = resetGenerator(before, part)
+    const { [part]: _original, batch: _originalBatch, ...expected } = before
     expect(others).toEqual(expected)
+  })
+
+  it('empties the batch list on a reset base', () => {
+    expect(resetGenerator(customizedWorkspace(), 'base').batch).toEqual([])
+  })
+
+  it.each(parts.filter((part) => part !== 'base'))('keeps the batch list when the %s is reset', (part) => {
+    expect(resetGenerator(customizedWorkspace(), part).batch).toEqual(customizedWorkspace().batch)
+  })
+
+  it('keeps the batch list when the shared settings are reset', () => {
+    expect(resetShared(customizedWorkspace()).batch).toEqual(customizedWorkspace().batch)
   })
 
   it('keeps the shared magnet settings on a reset base', () => {
