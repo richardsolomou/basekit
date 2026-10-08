@@ -85,6 +85,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
   const shadowsDirty = useRef<THREE.WebGLRenderer>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera>(null)
   const controlsRef = useRef<OrbitControls>(null)
+  const dirty = useRef(true)
   const held = useRef(false)
   const activeViewKey = useRef(viewKey)
   const cameraViews = useRef(new Map<string, CameraView>())
@@ -180,6 +181,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
       held.current = true
     }
     const publishCamera = () => {
+      dirty.current = true
       container.dataset.cameraView = [...camera.position.toArray(), ...controls.target.toArray(), camera.zoom]
         .map((value) => value.toFixed(2))
         .join(',')
@@ -197,6 +199,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
       lastWidth = w
       lastHeight = h
       renderer.setSize(w, h)
+      dirty.current = true
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
       if (!held.current) {
@@ -220,9 +223,19 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
       return [((scratch.x + 1) / 2) * container.clientWidth, ((1 - scratch.y) / 2) * container.clientHeight] as const
     }
 
+    /*
+     * Frames are drawn only when something changed. Redrawing an unchanged scene
+     * every frame kept the main thread busy for as long as the page was open,
+     * which starved input and every other task whenever the machine was loaded.
+     * Damping still advances every frame, and a step that moves the camera fires
+     * `change`, which marks the frame dirty.
+     */
     let raf = 0
     const tick = () => {
+      raf = requestAnimationFrame(tick)
       controls.update()
+      if (!dirty.current) return
+      dirty.current = false
       renderer.render(world, camera)
 
       const svg = overlay.current
@@ -267,7 +280,6 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
         place('label-across', (left + right) / 2, rail - 8)
         place('label-height', column + 10, (bottomY + topY) / 2 + 4)
       }
-      raf = requestAnimationFrame(tick)
     }
     tick()
 
@@ -319,6 +331,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
       light.shadow.camera.updateProjectionMatrix()
     }
     if (shadowsDirty.current) shadowsDirty.current.shadowMap.needsUpdate = true
+    dirty.current = true
 
     // Ink edges are what make it read as a drawn part rather than a render.
     const edges = new THREE.LineSegments(
@@ -349,6 +362,11 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     const controls = controlsRef.current
     if (!camera || !controls || activeViewKey.current === viewKey) return
 
+    // Land any momentum left from a drag in the view being left, rather than
+    // letting damping carry it on into the next generator's camera.
+    controls.enableDamping = false
+    controls.update()
+    controls.enableDamping = true
     cameraViews.current.set(activeViewKey.current, {
       held: held.current,
       position: camera.position.clone(),
@@ -373,6 +391,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
       camera.position.copy(controls.target).addScaledVector(VIEW_DIRECTION, framingDistance(camera.aspect, footprint))
     }
     controls.update()
+    dirty.current = true
   }, [viewKey, width, length, height, fitToPart, targetX, targetY, targetZ])
 
   const across = round ? `Ø${trimNumber(width)}` : `${trimNumber(width)} × ${trimNumber(length)}`
