@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -34,6 +34,10 @@ Add miniature groups, choose the available rows and columns, and BaseKit packs m
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
 
+## Movement trays 🛡️
+
+Move a rank-and-file unit for The Old World, Kings of War, or historical games as one. Pick a rectangular or round base size, set the columns and ranks, and BaseKit cuts a recess for each base with your chosen clearance and depth. Rectangular bases share one recess so ranks stay in base contact; round bases each get their own slot. Adjust the floor thickness and rim width, and add magnet pockets under every slot that match the base magnet pattern so magnetised bases hold. The tray prints flat with its slots facing up, so nothing needs supports.
+
 ## Spray trays 🎨
 
 Build a low-profile magnetic platform for batch priming and spray painting. Its top-opening pockets form an interleaved grid, with a second offset pocket between every four primary positions. The default 50mm centre spacing leaves clearance between two 32mm bases in neighbouring primary and diagonal positions. Adjust the rows, columns, centre spacing, and edge margin; the extra diagonal positions suit mixed base sizes while the flat, rimless surface keeps every base edge exposed to spray.
@@ -50,7 +54,7 @@ Make a round token for objectives, Oath of Moment, or anything else a game track
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
 - Round tokens with wrapped text and traced image silhouettes.
-- Shared magnet dimensions across bases, holders, and spray trays.
+- Shared magnet dimensions across bases, holders, movement trays, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences.

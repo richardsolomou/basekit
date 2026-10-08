@@ -30,6 +30,7 @@ Geometry changes need inspection outside the preview. Write sample STLs with:
 just samples
 just samples oval
 just samples painting
+just samples movement
 ```
 
 Load at least one affected export in a slicer or mesh checker. The geometry tests run against the same DOM-free builder as the browser, but an exported file is the final product.

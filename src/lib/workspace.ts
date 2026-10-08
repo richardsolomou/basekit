@@ -1,4 +1,5 @@
 import { defaultHolderConfig } from '../geometry/holder'
+import { defaultMovementTrayConfig, minimumMovementTrayFloor } from '../geometry/movementTray'
 import {
   defaultPaintingTrayConfig,
   minimumPaintingTrayEdgeMargin,
@@ -9,10 +10,10 @@ import { supportsFivePocketCross } from '../geometry/base'
 import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
+import type { BaseConfig, FlightStemConfig, HolderConfig, MovementTrayConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 8
+const WORKSPACE_VERSION = 9
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -22,6 +23,7 @@ interface SettingsStorage {
 export interface WorkspaceState {
   base: BaseConfig
   holder: HolderConfig
+  movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
   token: TokenConfig
@@ -81,6 +83,13 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
           shared.magnets.diameter,
           shared.magnets.thickness,
         ))
+  const movementTray = {
+    ...state.movementTray,
+    baseWallThickness: shared.wallThickness,
+    magnetBossWall: shared.magnetBossWall,
+    magnetCounts: shared.magnetCounts,
+    magnets: { ...state.movementTray.magnets, ...shared.magnets },
+  }
   return {
     ...state,
     base: {
@@ -113,6 +122,10 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
       engraving: { ...state.holder.engraving, enabled: shared.labelsEnabled },
       magnets: { ...state.holder.magnets, ...shared.magnets },
     },
+    movementTray: {
+      ...movementTray,
+      floorThickness: Math.max(movementTray.floorThickness, Math.ceil((minimumMovementTrayFloor(movementTray) - 1e-6) * 10) / 10),
+    },
     paintingTray: {
       ...state.paintingTray,
       height: Math.max(state.paintingTray.height, Math.ceil((minimumPaintingTrayHeight({ magnets: shared.magnets }) - 1e-6) * 10) / 10),
@@ -131,6 +144,7 @@ export function defaultWorkspace(): WorkspaceState {
   return synchronizeWorkspace({
     base,
     holder: defaultHolderConfig(),
+    movementTray: defaultMovementTrayConfig(),
     paintingTray: defaultPaintingTrayConfig(),
     stem: defaultFlightStemConfig(),
     token: defaultTokenConfig(),
@@ -151,6 +165,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
       migrateWorkspaceV5,
       migrateWorkspaceV6,
       migrateWorkspaceV7,
+      migrateWorkspaceV8,
     ]
     const version = parsed.version
     if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
@@ -162,6 +177,11 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV8(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), movementTray: defaultMovementTrayConfig() }
 }
 
 function migrateWorkspaceV7(value: unknown): unknown {
@@ -265,6 +285,8 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     workspace.token.kind === 'token' &&
     ['taper', 'straight', 'bevel', 'round'].includes(workspace.token.profile) &&
     isTokenImage(workspace.token.image) &&
+    workspace.movementTray.kind === 'movement-tray' &&
+    ['round', 'rect'].includes(workspace.movementTray.shape) &&
     workspace.paintingTray.kind === 'painting-tray' &&
     ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&

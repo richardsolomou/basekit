@@ -4,6 +4,7 @@ import fontUrl from '@/assets/fonts/oswald-700.woff?url'
 import { buildBase, type BuildResult } from '@/geometry/base'
 import { buildHolder } from '@/geometry/holder'
 import { loadManifold } from '@/geometry/manifold'
+import { buildMovementTray } from '@/geometry/movementTray'
 import { buildToken } from '@/geometry/token'
 import { buildPaintingHandle, buildPaintingTray } from '@/geometry/paintingTray'
 import { buildFlightStem } from '@/geometry/stem'
@@ -31,15 +32,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const result =
       config.kind === 'holder'
         ? buildHolder(wasm, config, font)
-        : config.kind === 'painting-handle'
-          ? buildPaintingHandle(wasm, config)
-          : config.kind === 'painting-tray'
-            ? buildPaintingTray(wasm, config)
-            : config.kind === 'stem'
-              ? buildFlightStem(wasm, config)
-              : config.kind === 'token'
-                ? buildToken(wasm, config, font)
-                : buildBase(wasm, config, font)
+        : config.kind === 'movement-tray'
+          ? buildMovementTray(wasm, config)
+          : config.kind === 'painting-handle'
+            ? buildPaintingHandle(wasm, config)
+            : config.kind === 'painting-tray'
+              ? buildPaintingTray(wasm, config)
+              : config.kind === 'stem'
+                ? buildFlightStem(wasm, config)
+                : config.kind === 'token'
+                  ? buildToken(wasm, config, font)
+                  : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {
