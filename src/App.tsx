@@ -32,6 +32,7 @@ import {
 import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/geometry/stem'
 import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, PaintingTrayConfig } from '@/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
+import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -204,11 +205,17 @@ export function App() {
           : model === 'stem'
             ? stemName(stem)
             : tokenName(token)
+  const batch = useMemo(
+    () => workspace.batch.map((entry) => ({ config: batchBaseConfig(workspace, entry), quantity: entry.quantity })),
+    [workspace],
+  )
   const {
     exporting,
     error: exportError,
     exportStl,
     export3mf,
+    exportBatchStl,
+    exportBatch3mf,
   } = useExport({
     model,
     base: config,
@@ -218,6 +225,8 @@ export function App() {
     token,
     width: partWidth,
     length: partLength,
+    batch,
+    batchName: batchName(workspace.batch),
   })
   const elongated = isElongated(config.shape)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
@@ -283,6 +292,11 @@ export function App() {
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
         setSharedMagnetPlacement={setSharedMagnetPlacement}
+        batch={workspace.batch}
+        setBatch={(next) => setWorkspace((current) => ({ ...current, batch: next(current.batch) }))}
+        exporting={exporting}
+        exportBatchStl={exportBatchStl}
+        exportBatch3mf={exportBatch3mf}
       />
     ) : model === 'holder' ? (
       <HolderPanel

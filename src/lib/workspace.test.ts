@@ -171,6 +171,40 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage)).toMatchObject({ stem: { bodyHeight: 20 }, token: { kind: 'token', diameter: 40, text: '1' } })
   })
 
+  it('adds an empty base batch to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.token.text = '6'
+    delete legacy.batch
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({ token: { text: '6' }, batch: [] })
+  })
+
+  it('keeps a saved base batch', () => {
+    const storage = memoryStorage()
+    const batch = [
+      { shape: 'round' as const, width: 28.5, length: 28.5, quantity: 10 },
+      { shape: 'oval' as const, width: 60, length: 35, quantity: 3 },
+    ]
+    saveWorkspace(storage, { ...defaultWorkspace(), batch })
+
+    expect(loadWorkspace(storage).batch).toEqual(batch)
+  })
+
+  it('drops damaged batch entries without discarding the workspace', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    const kept = { shape: 'round', width: 40, length: 40, quantity: 2 }
+    const batch = [kept, { shape: 'star', width: 40, length: 40, quantity: 1 }, { ...kept, quantity: 0 }, { ...kept, width: '40' }]
+    storage.setItem(
+      'mini-bases.workspace',
+      JSON.stringify({ version: 8, workspace: { ...workspace, token: { ...workspace.token, text: '6' }, batch } }),
+    )
+
+    expect(loadWorkspace(storage)).toMatchObject({ token: { text: '6' }, batch: [kept] })
+  })
+
   it('keeps a saved objective token', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()

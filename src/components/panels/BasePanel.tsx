@@ -1,4 +1,7 @@
+import { Box, Download, Plus, Trash2 } from 'lucide-react'
 import { Choice, Dimension, Section, SizeSelect, ToggleSetting } from '@/components/controls'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,7 +19,10 @@ import {
   type SizePreset,
 } from '@/geometry/presets'
 import type { BaseConfig, ShapeKind } from '@/geometry/types'
+import { addToBatch } from '@/lib/batch'
 import posthog from '@/lib/posthog'
+import type { ExportFormat } from '@/lib/useExport'
+import type { BatchEntry } from '@/lib/workspace'
 import {
   AUTOMATIC_MAGNET_COUNT,
   BASE_DEFAULTS,
@@ -41,6 +47,11 @@ const CUSTOM_HOLDER_SIZE = 'custom'
 const counts = (values: number[]) => values.map((value) => ({ value, label: value === 0 ? 'None' : String(value) }))
 const RIB_COUNTS = counts(RIB_CHOICES)
 
+const sizeText = (shape: ShapeKind, width: number, length: number) =>
+  isElongated(shape) ? `${trimNumber(width)}×${trimNumber(length)}` : trimNumber(width)
+const entryText = (entry: BatchEntry) =>
+  `${SHAPES.find((shape) => shape.value === entry.shape)!.label} ${sizeText(entry.shape, entry.width, entry.length)}`
+
 interface Props {
   config: BaseConfig
   setConfig: (config: BaseConfig) => void
@@ -54,6 +65,11 @@ interface Props {
   setSharedMagnets: (changes: SharedMagnetChanges) => void
   setSharedLabels: (enabled: boolean) => void
   setSharedMagnetPlacement: (changes: SharedMagnetPlacementChanges) => void
+  batch: BatchEntry[]
+  setBatch: (next: (batch: BatchEntry[]) => BatchEntry[]) => void
+  exporting: ExportFormat | undefined
+  exportBatchStl: () => void
+  exportBatch3mf: () => void
 }
 
 export function BasePanel({
@@ -69,6 +85,11 @@ export function BasePanel({
   setSharedMagnets,
   setSharedLabels,
   setSharedMagnetPlacement,
+  batch,
+  setBatch,
+  exporting,
+  exportBatchStl,
+  exportBatch3mf,
 }: Props) {
   const { width, length } = footprint(config)
   const elongated = isElongated(config.shape)
@@ -82,6 +103,10 @@ export function BasePanel({
   ]
   const magnetLayoutOptions =
     config.magnets.patternVersion === 1 || supportsFivePocketCross(config.shape, config.width) ? MAGNET_LAYOUTS : MAGNET_LAYOUTS.slice(0, 1)
+
+  const batchTotal = batch.reduce((total, entry) => total + entry.quantity, 0)
+  const setQuantity = (index: number, quantity: number) =>
+    setBatch((current) => current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, quantity } : entry)))
 
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
@@ -147,6 +172,63 @@ export function BasePanel({
                 setConfig(next)
               }}
             />
+          )}
+        </Section>
+
+        <Section
+          title="Batch"
+          aside={batchTotal > 0 ? <span className="readout text-xs text-muted-foreground">{batchTotal} bases</span> : undefined}
+        >
+          {batch.map((entry, index) => {
+            const text = entryText(entry)
+            return (
+              <div
+                key={`${entry.shape}:${entry.width}x${entry.length}`}
+                className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-2"
+              >
+                <Dimension
+                  label={`Quantity of ${text}`}
+                  value={entry.quantity}
+                  min={1}
+                  max={100}
+                  step={1}
+                  unit=""
+                  compact
+                  onChange={(quantity) => setQuantity(index, Math.round(quantity))}
+                />
+                <span className="readout truncate text-xs">{text}</span>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  aria-label={`Remove ${text} from batch`}
+                  onClick={() => setBatch((current) => current.filter((_, entryIndex) => entryIndex !== index))}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            )
+          })}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              posthog.capture('base_batch_size_added', { shape: config.shape, width, length })
+              setBatch((current) => addToBatch(current, config))
+            }}
+          >
+            <Plus /> Add {sizeText(config.shape, width, length)} to batch
+          </Button>
+          {batch.length > 0 && (
+            <ButtonGroup className="w-full [&>*]:flex-1">
+              <Button size="sm" onClick={exportBatchStl} disabled={exporting !== undefined}>
+                <Download />
+                {exporting === 'batch-stl' ? 'Building STLs' : 'Batch STLs'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={exportBatch3mf} disabled={exporting !== undefined}>
+                <Box />
+                {exporting === 'batch-3mf' ? 'Building 3MF' : 'Batch 3MF'}
+              </Button>
+            </ButtonGroup>
           )}
         </Section>
 
