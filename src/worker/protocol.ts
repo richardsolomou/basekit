@@ -11,4 +11,4 @@ export interface WorkerRequest {
   config: BuildConfig
 }
 
-export type WorkerReply = { id: number; kind: 'mesh'; mesh: MeshData } | { id: number; kind: 'error'; message: string }
+export type WorkerReply = { id: number; kind: 'mesh'; mesh: MeshData; grams: number } | { id: number; kind: 'error'; message: string }

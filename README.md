@@ -25,7 +25,7 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 1. **Choose the footprint** by picking its shape, then a standard size or exact dimensions.
 2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances, and count.
 3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
-4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
+4. **Check both faces** in the live 3D view, where dimensions, the export name, and the part's weight as solid PLA stay visible. Holders and spray trays show the total for every part. A slicer's walls and infill will use less filament than that.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
 ## Gridfinity holders 📦

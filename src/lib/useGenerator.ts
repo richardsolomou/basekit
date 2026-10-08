@@ -15,6 +15,7 @@ export function useGenerator(config: PartConfig) {
   const queued = useRef<PartConfig>(undefined)
 
   const [preview, setPreview] = useState<MeshData>()
+  const [grams, setGrams] = useState<number>()
   const [error, setError] = useState<string>()
 
   /** Sends one config and remembers it is the one whose reply matters. */
@@ -43,6 +44,7 @@ export function useGenerator(config: PartConfig) {
         setError(reply.message)
       } else {
         setPreview(reply.mesh)
+        setGrams(reply.grams)
         setError(undefined)
       }
       drain()
@@ -58,5 +60,5 @@ export function useGenerator(config: PartConfig) {
     else send(config)
   }, [config, send])
 
-  return { preview, error }
+  return { preview, grams, error }
 }

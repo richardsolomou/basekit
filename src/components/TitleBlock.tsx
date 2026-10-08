@@ -3,6 +3,7 @@ import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
 import { stemOverallHeight } from '@/geometry/stem'
+import { filamentEstimate } from '@/lib/filament'
 import type { PartConfig } from '@/geometry/types'
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
    */
   status: 'ready' | 'blocked'
   name: string
+  /** Weight of the solid the preview last built; absent until the first build. */
+  grams?: number
 }
 
 /** `truncate` keeps free-form values such as filenames to one line. */
@@ -30,26 +33,35 @@ function Row({ label, value, truncate = false }: { label: string; value: string;
  * The title block of a drawing: what the part is, in the corner of the sheet. It
  * replaces a status bar rather than adding to one.
  */
-export function TitleBlock({ config, status, name }: Props) {
+export function TitleBlock({ config, status, name, grams }: Props) {
+  return (
+    <TitleFrame status={status} name={name}>
+      <PartRows config={config} />
+      {grams !== undefined && <Row label="Filament" value={filamentEstimate(grams)} />}
+    </TitleFrame>
+  )
+}
+
+function PartRows({ config }: { config: PartConfig }) {
   if (config.kind === 'token') {
     return (
-      <TitleFrame status={status} name={name}>
+      <>
         <Row truncate label="Text" value={config.text.trim() ? `“${config.text.trim()}”` : 'none'} />
         <Row truncate label="Image" value={config.image?.name ?? 'none'} />
         <Row label="Top edge" value={config.profile === 'straight' ? 'square' : `${trimNumber(config.profileSize)}mm ${config.profile}`} />
-      </TitleFrame>
+      </>
     )
   }
   if (config.kind === 'stem') {
     return (
-      <TitleFrame status={status} name={name}>
+      <>
         <Row label="Overall" value={`${trimNumber(stemOverallHeight(config))} mm`} />
         {config.connection === 'peg' ? (
           <Row label="Model peg" value={`Ø${trimNumber(config.modelPegDiameter)} × ${trimNumber(config.modelPegLength)} mm`} />
         ) : (
           <Row label="Ball joint" value={`Ø${trimNumber(config.ballDiameter)} mm`} />
         )}
-      </TitleFrame>
+      </>
     )
   }
   if (config.kind === 'holder') {
@@ -58,21 +70,21 @@ export function TitleBlock({ config, status, name }: Props) {
     const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
     const slots = config.groups.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')
     return (
-      <TitleFrame status={status} name={name}>
+      <>
         <Row label="Models" value={slots} />
         <Row label="Modules" value={`${plan.modules.length} in ${layout.unitsWide} × ${layout.unitsDeep}`} />
         {plan.omitted.length > 0 && (
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
         <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
-      </TitleFrame>
+      </>
     )
   }
   if (config.kind === 'painting-tray') {
     const layout = paintingTrayLayout(config)
     const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
     return (
-      <TitleFrame status={status} name={name}>
+      <>
         <Row
           label="Grid"
           value={`${layout.columns}×${layout.rows} + ${Math.max(0, layout.columns - 1)}×${Math.max(0, layout.rows - 1)} · ${trimNumber(config.spacing)} mm pitch`}
@@ -80,20 +92,20 @@ export function TitleBlock({ config, status, name }: Props) {
         <Row label="Tray" value={`${trimNumber(layout.width)} × ${trimNumber(layout.length)} × ${trimNumber(config.height)} mm`} />
         <Row label="Magnets" value={`${paintingTrayMagnetPocketCount(config)} × ${pocket} mm hole`} />
         <Row label="Handle" value={paintingHandleDescription(config)} />
-      </TitleFrame>
+      </>
     )
   }
   const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
   const pocketDepth = trimNumber(config.magnets.thickness + config.magnets.depthClearance)
 
   return (
-    <TitleFrame status={status} name={name}>
+    <>
       <Row
         label="Magnets"
         value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${pocketDepth}mm deep`}
       />
       <Row label="Label" value={config.label.enabled ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'} />
-    </TitleFrame>
+    </>
   )
 }
 
@@ -108,12 +120,11 @@ function TitleFrame({ status, name, children }: { status: Props['status']; name:
       </div>
 
       {/* Footprint and height are already called out by the dimension leaders on
-          the part itself, so the block carries only what nothing else shows. Mesh
-          statistics used to sit below: a triangle count nobody acts on, a mass in
-          grams of an assumed material, and a "watertight" badge that only tested
-          the mesh was non-empty — it stayed lit right through the one real topology
-          bug this has had. Watertightness is asserted against a real export in the
-          tests instead. */}
+          the part itself, so the block carries only what nothing else shows. Nothing
+          here claims the mesh is watertight: a badge that did stayed lit right through
+          the one real topology bug this has had, so that is asserted against a real
+          export in the tests. The filament weight is of the solid, which a slicer's
+          walls and infill will print lighter than. */}
       <dl className="grid grid-cols-[5.5rem_1fr] items-baseline text-xs *:py-1 [&>dd]:pl-3 [&>dt]:border-r [&>dt]:border-border [&>dt]:px-3">
         {children}
       </dl>

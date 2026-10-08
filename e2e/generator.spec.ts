@@ -151,6 +151,21 @@ test('keeps a half millimetre size exact', { tag: '@ci' }, async ({ page }) => {
   await expect(sizeLabel(page)).toHaveAttribute('placeholder', '28.5')
 })
 
+test('estimates solid filament weight for every generator', { tag: '@ci' }, async ({ page }) => {
+  const filament = footer(page).getByText(/ g solid PLA$/)
+  await expect(filament).toHaveText('≈1.6 g solid PLA')
+
+  const before = await triangles(page)
+  await pickSize(page, '60')
+  await rebuilt(page, before)
+  await expect.poll(async () => Number((await filament.textContent())?.match(/[\d.]+/)?.[0])).toBeGreaterThan(1.6)
+
+  for (const generator of ['Holders', 'Spray tray', 'Stems', 'Tokens']) {
+    await visit(page, generator)
+    await expect(filament).toHaveText(/^[≈<][\d.]+ g solid PLA$/)
+  }
+})
+
 test('uses an end pair for a medium oval base', async ({ page }) => {
   await pickChoice(page, 'Shape', 'Oval')
   await pickSize(page, '90×52')
