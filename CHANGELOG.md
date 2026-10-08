@@ -1,5 +1,11 @@
 # basekit
 
+## 0.14.1
+
+### Patch Changes
+
+- 0f2dc36: Keep every dimension field on values its input accepts, so defaults such as the movement tray rim and spray tray spacing no longer read as invalid and arrow keys step to round figures.
+
 ## 0.14.0
 
 ### Minor Changes
