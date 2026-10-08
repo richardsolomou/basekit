@@ -1,5 +1,11 @@
 # basekit
 
+## 0.8.0
+
+### Minor Changes
+
+- a4c23b0: Show an approximate solid-PLA filament weight for every generator in the title block, totalled across holder modules and the spray tray with its handle.
+
 ## 0.7.0
 
 ### Minor Changes
