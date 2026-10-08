@@ -290,7 +290,7 @@ export function App() {
   const resetSharedSettings: ResetAction = {
     label: 'shared settings',
     description:
-      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and size labels return to their defaults on bases, holders and spray trays.',
+      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and the labels toggle return to their defaults on bases, holders and spray trays.',
     onReset: () => {
       posthog.capture('settings_reset', { scope: 'shared' })
       setWorkspace(resetShared)

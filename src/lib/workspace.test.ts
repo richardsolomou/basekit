@@ -325,7 +325,7 @@ describe('workspace state', () => {
 
 function customizedWorkspace() {
   const state = defaultWorkspace()
-  state.base = { ...state.base, width: 60, length: 60, height: 5 }
+  state.base = { ...state.base, width: 60, length: 60, height: 5, label: { ...state.base.label, text: 'SQUAD 3' } }
   state.holder = { ...state.holder, height: 30 }
   state.paintingTray = { ...state.paintingTray, rows: 2, columns: 3 }
   state.stem = { ...state.stem, bodyDiameter: 6 }
@@ -356,6 +356,10 @@ describe('resetting settings', () => {
 
   it('keeps the shared magnet settings on a reset base', () => {
     expect(resetGenerator(customizedWorkspace(), 'base').base.magnets.diameter).toBe(6)
+  })
+
+  it('clears custom label text on a reset base', () => {
+    expect(resetGenerator(customizedWorkspace(), 'base').base.label.text).toBe(defaultWorkspace().base.label.text)
   })
 
   it('returns a reset base to the default footprint', () => {
