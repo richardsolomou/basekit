@@ -1,5 +1,11 @@
 # basekit
 
+## 0.7.0
+
+### Minor Changes
+
+- a1b0474: Emboss custom base label text, such as a unit name or squad number, and report text that does not fit instead of dropping it.
+
 ## 0.6.0
 
 ### Minor Changes
