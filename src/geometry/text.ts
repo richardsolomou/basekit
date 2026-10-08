@@ -1,6 +1,10 @@
+import type { FillRule } from 'manifold-3d'
 import type { Font, PathCommand } from 'opentype.js'
 
 export type Polygon = [number, number][]
+
+/** Neighbouring glyphs can overlap, as Oswald's accents do; an even-odd fill would cut the overlap out as a hole. */
+export const GLYPH_FILL: FillRule = 'NonZero'
 
 /** Segments per quadratic/cubic curve. Digits at ~6mm need very little. */
 const CURVE_STEPS = 8

@@ -4,7 +4,7 @@ import { fitLabel, LABEL_MARGIN, labelAngles, LABEL_MAX_LENGTH, labelText, point
 import { baseOutline, defaultLabel } from './outline'
 import { MIN_PROFILE_WALL, profileInsetAt, profileSteps } from './profile'
 import { curveTolerance } from './quality'
-import { polygonsWidth, textPolygons, type Polygon } from './text'
+import { GLYPH_FILL, polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseConfig, BaseStats, MagnetLayout, ShapeKind } from './types'
 
 export interface BuildResult {
@@ -251,7 +251,7 @@ export function buildBase(wasm: ManifoldToplevel, config: BaseConfig, font?: Fon
         )
         if (fit) {
           const scaled: Polygon[] = polys.map((p) => p.map(([x, y]): [number, number] => [x * fit.scale, y * fit.scale]))
-          const glyphs = section(CrossSection.ofPolygons(scaled, 'NonZero'))
+          const glyphs = section(CrossSection.ofPolygons(scaled, GLYPH_FILL))
           const placed = section(glyphs.translate([fit.x, fit.y]))
           const raised = solidOf(placed.extrude(Math.min(config.label.emboss, wellDepth)))
           solid = solidOf(solid.add(solidOf(raised.translate([0, 0, config.floorThickness]))))

@@ -5,7 +5,7 @@ import { fitLabel, LABEL_MARGIN, labelAngles, pointInContours, type LabelCircle 
 import { isElongated, trimNumber } from './outline'
 import { automaticMagnetCount, DEFAULT_SIZE, footprintKey, presetFor } from './presets'
 import { curveTolerance, segmentsForTolerance } from './quality'
-import { polygonsWidth, textPolygons, type Polygon } from './text'
+import { GLYPH_FILL, polygonsWidth, textPolygons, type Polygon } from './text'
 import type { BaseStats, HolderConfig, HolderGroup, ShapeKind } from './types'
 
 const GRID = 42
@@ -427,6 +427,7 @@ const layoutCache = new Map<string, HolderLayout>()
 
 function singleHolderLayout(
   config: Pick<HolderConfig, 'groups' | 'maxColumns' | 'maxRows' | 'spacing' | 'edgeSpacing' | 'slotClearance'>,
+  exactSize = false,
 ): HolderLayout {
   const maxColumns = Math.max(1, Math.round(config.maxColumns))
   const maxRows = Math.max(1, Math.round(config.maxRows))
@@ -446,7 +447,7 @@ function singleHolderLayout(
       Array.from({ length: group.quantity }, (_, index): HolderSlot => ({ ...group, id: `${group.id}-${index}`, x: 0, y: 0 })),
     )
     .sort((a, b) => Math.max(slotWidth(b), slotLength(b)) - Math.max(slotWidth(a), slotLength(a)))
-  const key = `${maxColumns}:${maxRows}:${config.spacing}:${config.edgeSpacing}:${config.slotClearance}:${groups
+  const key = `${exactSize ? '=' : ''}${maxColumns}:${maxRows}:${config.spacing}:${config.edgeSpacing}:${config.slotClearance}:${groups
     .map((group) => `${group.quantity}x${group.shape}-${group.width}x${slotLength(group)}-${group.cornerRadius}-${group.sides}`)
     .join(',')}`
   const cached = layoutCache.get(key)
@@ -454,10 +455,10 @@ function singleHolderLayout(
   const largestWidth = Math.max(0, ...slots.map(slotWidth))
   const minimumColumns = Math.max(1, Math.ceil((largestWidth + config.slotClearance + config.edgeSpacing * 2 + GAP) / GRID))
   let layout: HolderLayout | undefined
-  for (let unitsWide = minimumColumns; unitsWide <= maxColumns && !layout; unitsWide++) {
+  for (let unitsWide = exactSize ? maxColumns : minimumColumns; unitsWide <= maxColumns && !layout; unitsWide++) {
     const width = unitsWide * GRID - GAP
     const packingWidth = width - config.edgeSpacing * 2
-    for (let unitsDeep = 1; unitsDeep <= maxRows; unitsDeep++) {
+    for (let unitsDeep = exactSize ? maxRows : 1; unitsDeep <= maxRows; unitsDeep++) {
       const length = unitsDeep * GRID - GAP
       const packingLength = length - config.edgeSpacing * 2
       if (
@@ -628,6 +629,57 @@ export function holderPlan(config: HolderConfig): HolderPlan {
   return cacheResult(planCache, key, plan)
 }
 
+function samePrintedModules(plan: HolderPlan, candidate: HolderPlan) {
+  return (
+    candidate.omitted.length === plan.omitted.length &&
+    candidate.omitted.every((group) => plan.omitted.some((entry) => entry.id === group.id && entry.quantity === group.quantity)) &&
+    candidate.modules.length === plan.modules.length &&
+    candidate.modules.every((module, index) => {
+      const current = plan.modules[index]
+      return (
+        module.column === current.column &&
+        module.row === current.row &&
+        module.layout.unitsWide === current.layout.unitsWide &&
+        module.layout.unitsDeep === current.layout.unitsDeep
+      )
+    })
+  )
+}
+
+export function holderSpareCapacity(config: HolderConfig, groupId: string): number {
+  const plan = holderPlan(config)
+  const group = config.groups.find((entry) => entry.id === groupId)
+  if (!group || plan.omitted.some((entry) => entry.id === groupId)) return 0
+  let spare = 0
+  for (const module of plan.modules) {
+    const current = module.config.groups.find((entry) => entry.id === groupId)
+    if (!current) continue
+    const limit = maxPossibleGroupQuantity(
+      group,
+      module.layout.unitsWide,
+      module.layout.unitsDeep,
+      config.spacing,
+      config.edgeSpacing,
+      config.slotClearance,
+    )
+    const total = module.config.groups.reduce((sum, entry) => sum + entry.quantity, 0)
+    let extra = 0
+    while (current.quantity + extra < limit) {
+      const groups = module.config.groups.map((entry) =>
+        entry.id === groupId ? { ...entry, quantity: current.quantity + extra + 1 } : entry,
+      )
+      if (singleHolderLayout({ ...module.config, groups }, true).slotCenters.length !== total + extra + 1) break
+      extra++
+    }
+    spare += extra
+  }
+  for (; spare > 0; spare--) {
+    const groups = config.groups.map((entry) => (entry.id === groupId ? { ...entry, quantity: entry.quantity + spare } : entry))
+    if (samePrintedModules(plan, holderPlan({ ...config, groups }))) break
+  }
+  return spare
+}
+
 export function holderLayout(config: HolderConfig): HolderLayout {
   const plan = holderPlan(config)
   const width = plan.unitsWide * GRID - GAP
@@ -770,7 +822,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
         const width = polygonsWidth(polygons)
         const scale = width > maxWidth ? maxWidth / width : 1
         const scaled: Polygon[] = polygons.map((polygon) => polygon.map(([px, py]): [number, number] => [px * scale + x, py * scale + y]))
-        return section(CrossSection.ofPolygons(scaled, 'EvenOdd'))
+        return section(CrossSection.ofPolygons(scaled, GLYPH_FILL))
       }
 
       if (config.engraving.placement === 'slots') {
@@ -806,7 +858,7 @@ function buildSingleHolder(wasm: ManifoldToplevel, config: HolderConfig, font?: 
           const placed: Polygon[] = polygons.map((polygon) =>
             polygon.map(([px, py]): [number, number] => [slot.x + px * fit.scale + fit.x, slot.y + py * fit.scale + fit.y]),
           )
-          labels.push(section(CrossSection.ofPolygons(placed, 'EvenOdd')))
+          labels.push(section(CrossSection.ofPolygons(placed, GLYPH_FILL)))
         }
         if (labels.length > 0) {
           const outlines = section(CrossSection.union(labels))
