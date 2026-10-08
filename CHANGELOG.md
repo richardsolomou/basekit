@@ -1,5 +1,11 @@
 # basekit
 
+## 0.11.0
+
+### Minor Changes
+
+- abe2ec8: Add square and hex tokens, sized across their flats, with text and images fitted to each shape's face.
+
 ## 0.10.0
 
 ### Minor Changes
