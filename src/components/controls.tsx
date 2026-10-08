@@ -36,6 +36,12 @@ interface DimensionProps {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 const quantise = (value: number, step: number) => Math.round(value / step) * step
+/** Narrows bounds inward to multiples of step; a range narrower than one step keeps its raw bounds. */
+const onStepGrid = (min: number, max: number, step: number): [number, number] => {
+  const lo = Number((Math.ceil(min / step - 1e-9) * step).toFixed(6))
+  const hi = Number((Math.floor(max / step + 1e-9) * step).toFixed(6))
+  return lo <= hi ? [lo, hi] : [min, max]
+}
 
 function ResetButton({ label, value, onReset }: { label: string; value: string; onReset: () => void }) {
   return (
@@ -66,8 +72,8 @@ const settingLabel = 'col-start-1 row-start-1 w-full font-normal'
 export function Dimension({
   label,
   value,
-  min,
-  max,
+  min: rawMin,
+  max: rawMax,
   step,
   unit = 'mm',
   disabled,
@@ -76,6 +82,8 @@ export function Dimension({
   defaultValue,
   onChange,
 }: DimensionProps) {
+  // Values snap to multiples of step, but a number input counts steps from its min, so the bounds move onto the same grid.
+  const [min, max] = onStepGrid(rawMin, rawMax, step)
   const id = useId()
   const [text, setText] = useState<string | undefined>()
   const format = (next: number) => (Number.isInteger(step) ? String(Math.round(next)) : next.toFixed(step < 0.1 ? 2 : 1))
