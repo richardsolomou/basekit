@@ -507,8 +507,7 @@ test('caps oversized holder quantities before rendering', async ({ page }) => {
 })
 
 test('reports spare holder room for one and several more models', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const quantity = page.getByLabel(/^Quantity 1 in/)
   for (const [models, room] of [
     ['4', 'Room for 1 more'],
