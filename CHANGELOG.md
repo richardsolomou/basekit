@@ -1,5 +1,11 @@
 # basekit
 
+## 0.13.0
+
+### Minor Changes
+
+- 6da438d: Add base adapters that seat an old base in a recess inside a new footprint, with optional magnet pockets in the underside.
+
 ## 0.12.0
 
 ### Minor Changes
