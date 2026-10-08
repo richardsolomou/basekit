@@ -8,6 +8,7 @@ import {
   fitSlotDepth,
   safeEdgeSize,
   type MagnetCountChoice,
+  type ResetAction,
   type SharedMagnetChanges,
   type SharedMagnetPlacementChanges,
 } from '@/components/panels/shared'
@@ -36,7 +37,15 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import {
+  loadWorkspace,
+  resetGenerator,
+  resetShared,
+  saveWorkspace,
+  synchronizeWorkspace,
+  type GeneratorSettings,
+  type WorkspaceState,
+} from '@/lib/workspace'
 
 const MODELS = [
   { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
@@ -268,6 +277,26 @@ export function App() {
     })
   }
 
+  const resetPart = (part: GeneratorSettings, label: string, shared: boolean): ResetAction => ({
+    label,
+    description: `Every ${label} setting returns to its default. ${shared ? 'Shared settings and the' : 'The'} other generators keep their values.`,
+    onReset: () => {
+      posthog.capture('settings_reset', { scope: part })
+      if (part === 'base') setCustomBaseSize(false)
+      if (part === 'token') setTokenImageError(undefined)
+      setWorkspace((current) => resetGenerator(current, part))
+    },
+  })
+  const resetSharedSettings: ResetAction = {
+    label: 'shared settings',
+    description:
+      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and the labels toggle return to their defaults on bases, holders and spray trays.',
+    onReset: () => {
+      posthog.capture('settings_reset', { scope: 'shared' })
+      setWorkspace(resetShared)
+    },
+  }
+
   const panel =
     model === 'base' ? (
       <BasePanel
@@ -283,6 +312,7 @@ export function App() {
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
         setSharedMagnetPlacement={setSharedMagnetPlacement}
+        resets={[resetPart('base', 'base', true), resetSharedSettings]}
       />
     ) : model === 'holder' ? (
       <HolderPanel
@@ -293,6 +323,7 @@ export function App() {
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
+        resets={[resetPart('holder', 'holder', true), resetSharedSettings]}
       />
     ) : model === 'painting' ? (
       <PaintingTrayPanel
@@ -302,11 +333,18 @@ export function App() {
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         maxSharedDepthClearance={maxSharedDepthClearance}
         setSharedMagnets={setSharedMagnets}
+        resets={[resetPart('paintingTray', 'spray tray', true), resetSharedSettings]}
       />
     ) : model === 'stem' ? (
-      <StemPanel stem={stem} setStem={setStem} />
+      <StemPanel stem={stem} setStem={setStem} resets={[resetPart('stem', 'stem', false)]} />
     ) : (
-      <TokenPanel token={token} patchToken={patchToken} addTokenImage={addTokenImage} tokenImageError={tokenImageError} />
+      <TokenPanel
+        token={token}
+        patchToken={patchToken}
+        addTokenImage={addTokenImage}
+        tokenImageError={tokenImageError}
+        resets={[resetPart('token', 'token', false)]}
+      />
     )
 
   return (

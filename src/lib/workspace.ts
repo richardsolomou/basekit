@@ -138,6 +138,16 @@ export function defaultWorkspace(): WorkspaceState {
   })
 }
 
+export type GeneratorSettings = Exclude<keyof WorkspaceState, 'shared'>
+
+export function resetGenerator(state: WorkspaceState, part: GeneratorSettings): WorkspaceState {
+  return synchronizeWorkspace({ ...state, [part]: defaultWorkspace()[part] })
+}
+
+export function resetShared(state: WorkspaceState): WorkspaceState {
+  return synchronizeWorkspace({ ...state, shared: defaultWorkspace().shared })
+}
+
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   try {
     const saved = storage.getItem(WORKSPACE_KEY)

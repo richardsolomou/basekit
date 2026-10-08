@@ -282,6 +282,49 @@ test('remembers workspace settings on reload', async ({ page }) => {
   await expect(page.getByRole('switch', { name: 'Labels', exact: true })).not.toBeChecked()
 })
 
+async function setDimension(page: Page, label: string, value: string) {
+  await page.getByLabel(label).fill(value)
+  await page.getByLabel(label).press('Enter')
+}
+
+test('resets one generator to its defaults after confirmation', async ({ page }) => {
+  const height = page.getByLabel('Base height in mm')
+  const defaultHeight = await height.inputValue()
+  await setDimension(page, 'Base height in mm', '5')
+  await setDimension(page, 'Magnet diameter in mm', '7')
+  await sizeLabel(page).fill('SQUAD 3')
+  await visit(page, 'Stems')
+  await setDimension(page, 'Body diameter in mm', '6')
+  await visit(page, 'Bases')
+
+  await page.getByRole('button', { name: 'Reset base', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click()
+  await expect(height).toHaveValue('5.0')
+
+  await page.getByRole('button', { name: 'Reset base', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(height).toHaveValue(defaultHeight)
+  await expect(sizeLabel(page)).toHaveValue('')
+  await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
+  await visit(page, 'Stems')
+  await expect(page.getByLabel('Body diameter in mm')).toHaveValue('6.0')
+})
+
+test('resets shared settings without touching generator settings', async ({ page }) => {
+  const magnet = page.getByLabel('Magnet diameter in mm')
+  const defaultMagnet = await magnet.inputValue()
+  await setDimension(page, 'Base height in mm', '5')
+  await setDimension(page, 'Magnet diameter in mm', '7')
+  await visit(page, 'Holders')
+
+  await page.getByRole('button', { name: 'Reset shared settings' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(magnet).toHaveValue(defaultMagnet)
+  await visit(page, 'Bases')
+  await expect(magnet).toHaveValue(defaultMagnet)
+  await expect(page.getByLabel('Base height in mm')).toHaveValue('5.0')
+})
+
 test('shares the size label preference between bases and holders', async ({ page }) => {
   await page.getByRole('switch', { name: 'Labels', exact: true }).click()
   await page.getByRole('link', { name: 'Holders' }).click()

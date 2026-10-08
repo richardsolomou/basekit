@@ -9,18 +9,19 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { trimNumber } from '@/geometry/outline'
 import { defaultTokenConfig, maxTokenEdgeSize, MIN_TOKEN_TEXT_HEIGHT } from '@/geometry/token'
 import type { TokenConfig } from '@/geometry/types'
-import { PROFILES, RepositoryLink } from './shared'
+import { PanelFooter, PROFILES, type ResetAction } from './shared'
 
 const TOKEN_DEFAULTS = defaultTokenConfig()
 
 interface Props {
+  resets: ResetAction[]
   token: TokenConfig
   patchToken: (changes: Partial<TokenConfig>) => void
   addTokenImage: (file: File) => Promise<void>
   tokenImageError: string | undefined
 }
 
-export function TokenPanel({ token, patchToken, addTokenImage, tokenImageError }: Props) {
+export function TokenPanel({ token, patchToken, addTokenImage, tokenImageError, resets }: Props) {
   const tokenImageInput = useRef<HTMLInputElement>(null)
 
   return (
@@ -164,7 +165,7 @@ export function TokenPanel({ token, patchToken, addTokenImage, tokenImageError }
           <FieldDescription>Print flat on the table face; the artwork stands up from the top.</FieldDescription>
         </Section>
 
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )

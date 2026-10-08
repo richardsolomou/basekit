@@ -53,7 +53,7 @@ Make a round token for objectives, Oath of Moment, or anything else a game track
 - Shared magnet dimensions across bases, holders, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
-- Browser-saved settings with shared base and holder preferences.
+- Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
 
 BaseKit generates bases and accessories for using them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 

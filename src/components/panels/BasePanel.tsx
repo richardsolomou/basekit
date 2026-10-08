@@ -23,9 +23,10 @@ import {
   BASE_DEFAULTS,
   MAGNET_LAYOUTS,
   PROFILES,
-  RepositoryLink,
+  PanelFooter,
   safeEdgeSize,
   type MagnetCountChoice,
+  type ResetAction,
   type SharedMagnetChanges,
   type SharedMagnetPlacementChanges,
 } from './shared'
@@ -43,6 +44,7 @@ const counts = (values: number[]) => values.map((value) => ({ value, label: valu
 const RIB_COUNTS = counts(RIB_CHOICES)
 
 interface Props {
+  resets: ResetAction[]
   config: BaseConfig
   setConfig: (config: BaseConfig) => void
   patch: (changes: Partial<BaseConfig>) => void
@@ -70,6 +72,7 @@ export function BasePanel({
   setSharedMagnets,
   setSharedLabels,
   setSharedMagnetPlacement,
+  resets,
 }: Props) {
   const { width, length } = footprint(config)
   const elongated = isElongated(config.shape)
@@ -408,7 +411,7 @@ export function BasePanel({
             )}
           </Section>
         )}
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )
