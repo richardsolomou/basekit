@@ -1,5 +1,12 @@
 # basekit
 
+## 0.5.1
+
+### Patch Changes
+
+- eb8330e: Fill raised text solidly where neighbouring glyphs overlap, such as accented letters, instead of leaving gaps in tokens, base labels and holder engravings.
+- bfc0b01: Stop the 3D viewer redrawing while nothing changes, and keep a drag's momentum from carrying into the next generator's view.
+
 ## 0.5.0
 
 ### Minor Changes

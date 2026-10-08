@@ -43,6 +43,13 @@ async function rebuilt(page: Page, previous: number) {
   await settled(page)
 }
 
+/** Opens another generator and waits for its own part to replace the previous one. */
+async function visit(page: Page, name: string) {
+  const before = await triangles(page)
+  await page.getByRole('link', { name }).click()
+  await rebuilt(page, before)
+}
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -81,7 +88,6 @@ test('keeps the 3D canvas out of the observed viewer layout', { tag: '@ci' }, as
 
 test('keeps a separate camera view for each generator', async ({ page }) => {
   const canvas = page.locator('main canvas')
-  const dimensionPath = page.locator('#dim-across')
   const cameraView = () => drawn(page).getAttribute('data-camera-view')
   const cameraDifference = async (expected: string | null) => {
     const actual = await cameraView()
@@ -89,56 +95,38 @@ test('keeps a separate camera view for each generator', async ({ page }) => {
     const expectedValues = expected.split(',').map(Number)
     return Math.max(...actual.split(',').map((value, index) => Math.abs(Number(value) - expectedValues[index])))
   }
-  const settledCamera = async () => {
-    let previous: string | null = null
-    let stableSamples = 0
-    await expect
-      .poll(
-        async () => {
-          const current = await cameraView()
-          stableSamples = current === previous ? stableSamples + 1 : 0
-          previous = current
-          return stableSamples
-        },
-        { timeout: 15_000, intervals: [100] },
-      )
-      .toBeGreaterThanOrEqual(3)
-    return cameraView()
+  const orbit = async (dx: number, dy: number) => {
+    const bounds = await canvas.boundingBox()
+    if (!bounds) throw new Error('3D canvas has no bounds')
+    const x = bounds.x + bounds.width / 2
+    const y = bounds.y + bounds.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + dx, y + dy, { steps: 10 })
+    await page.mouse.up()
   }
-  await expect(dimensionPath).toHaveAttribute('d', /^M /)
   await expect(drawn(page)).toHaveAttribute('data-camera-view', /,/)
-
   const baseDefault = await cameraView()
-  const canvasBounds = await canvas.boundingBox()
-  if (!canvasBounds) throw new Error('3D canvas has no bounds')
-  const cameraX = canvasBounds.x + canvasBounds.width / 2
-  const cameraY = canvasBounds.y + canvasBounds.height / 2
-  await page.mouse.move(cameraX, cameraY)
-  await page.mouse.down()
-  await page.mouse.move(cameraX + 120, cameraY + 80, { steps: 10 })
-  await page.mouse.up()
-  await expect.poll(cameraView).not.toBe(baseDefault)
-  const baseView = await settledCamera()
-
-  const baseTriangles = await triangles(page)
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await rebuilt(page, baseTriangles)
+  await visit(page, 'Holders')
   const holderDefault = await cameraView()
-  await page.mouse.move(cameraX, cameraY)
-  await page.mouse.down()
-  await page.mouse.move(cameraX - 90, cameraY - 60, { steps: 10 })
-  await page.mouse.up()
-  await expect.poll(cameraView).not.toBe(holderDefault)
-  const holderView = await settledCamera()
+  await visit(page, 'Bases')
 
-  const holderTriangles = await triangles(page)
-  await page.getByRole('link', { name: 'Bases' }).click()
-  await rebuilt(page, holderTriangles)
+  // Leaving while a drag is still coasting must not carry its momentum into the
+  // next generator, so each switch here follows its drag immediately.
+  await orbit(120, 80)
+  await visit(page, 'Holders')
+  await expect.poll(() => cameraDifference(holderDefault)).toBeLessThan(0.02)
+  await orbit(-90, -60)
+  await visit(page, 'Bases')
+  const baseView = await cameraView()
+  expect(await cameraDifference(baseDefault)).toBeGreaterThan(1)
+
+  await visit(page, 'Holders')
+  const holderView = await cameraView()
+  expect(await cameraDifference(holderDefault)).toBeGreaterThan(1)
+  await visit(page, 'Bases')
   await expect.poll(() => cameraDifference(baseView)).toBeLessThan(0.02)
-
-  const restoredBaseTriangles = await triangles(page)
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await rebuilt(page, restoredBaseTriangles)
+  await visit(page, 'Holders')
   await expect.poll(() => cameraDifference(holderView)).toBeLessThan(0.02)
 })
 
@@ -309,9 +297,7 @@ test('shares the size label preference between bases and holders', async ({ page
 })
 
 test('builds a matching printable flying stem', async ({ page }) => {
-  const before = await triangles(page)
-  await page.getByRole('link', { name: 'Stems' }).click()
-  await rebuilt(page, before)
+  await visit(page, 'Stems')
 
   await expect(across(page)).toHaveText('Ø4.8')
   await expect(tall(page)).toHaveText('19')
@@ -336,9 +322,7 @@ const SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="
 </svg>`
 
 test('builds a token from text and an uploaded image', async ({ page }) => {
-  const before = await triangles(page)
-  await page.getByRole('link', { name: 'Tokens' }).click()
-  await rebuilt(page, before)
+  await visit(page, 'Tokens')
 
   await expect(across(page)).toHaveText('Ø40')
   await expect(tall(page)).toHaveText('4')
@@ -365,9 +349,7 @@ test('builds a token from text and an uploaded image', async ({ page }) => {
 })
 
 test('keeps a long image name from widening the token panel', async ({ page }) => {
-  const before = await triangles(page)
-  await page.getByRole('link', { name: 'Tokens' }).click()
-  await rebuilt(page, before)
+  await visit(page, 'Tokens')
 
   const named = await triangles(page)
   const name = `${'a-very-long-image-file-name-'.repeat(4)}shield.svg`
@@ -378,9 +360,7 @@ test('keeps a long image name from widening the token panel', async ({ page }) =
 })
 
 test('builds a low-profile spray tray with an interleaved magnet grid', async ({ page }) => {
-  const before = await triangles(page)
-  await page.getByRole('link', { name: 'Spray tray' }).click()
-  await rebuilt(page, before)
+  await visit(page, 'Spray tray')
 
   await expect(page).toHaveURL(/\/spray-tray$/)
   await expect(page.getByRole('complementary', { name: 'Spray tray settings' })).toBeVisible()
@@ -483,9 +463,7 @@ test('exports finer circular geometry than the preview', { tag: '@ci' }, async (
 })
 
 test('builds and exports an automatically sized Gridfinity holder', async ({ page }) => {
-  const before = await triangles(page)
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await rebuilt(page, before)
+  await visit(page, 'Holders')
   await expect(page).toHaveURL(/\/holders$/)
   await expect(across(page)).toHaveText('41.5 × 167.5')
   await expect(tall(page)).toHaveText('14')
@@ -503,8 +481,7 @@ test('builds and exports an automatically sized Gridfinity holder', async ({ pag
 })
 
 test('frames every slot in a tall holder', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await page.getByLabel(/^Quantity 1 in/).fill('4')
   await page.getByLabel(/^Quantity 1 in/).press('Enter')
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
@@ -523,8 +500,7 @@ test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, asyn
 })
 
 test('updates integer holder inputs immediately without losing focus', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await expect(page.getByLabel(/^Maximum columns in/)).toHaveValue('7')
   await expect(page.getByLabel(/^Maximum rows in/)).toHaveValue('5')
   const quantity = page.getByLabel(/^Quantity 1 in/)
@@ -536,8 +512,7 @@ test('updates integer holder inputs immediately without losing focus', async ({ 
 })
 
 test('caps oversized holder quantities before rendering', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const quantity = page.getByLabel(/^Quantity 1 in/)
   const before = await triangles(page)
   await quantity.fill('100')
@@ -548,9 +523,22 @@ test('caps oversized holder quantities before rendering', async ({ page }) => {
   await expect(page.getByText(/Only \d+ of 100 fit/)).toBeVisible()
 })
 
+test('reports spare holder room for one and several more models', async ({ page }) => {
+  await visit(page, 'Holders')
+  const quantity = page.getByLabel(/^Quantity 1 in/)
+  for (const [models, room] of [
+    ['4', 'Room for 1 more'],
+    ['13', 'Room for 2 more'],
+  ]) {
+    const before = await triangles(page)
+    await quantity.fill(models)
+    await rebuilt(page, before)
+    await expect(page.getByText(room)).toBeVisible()
+  }
+})
+
 test('switches between subtractive holder engraving locations', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await expect(page.getByRole('switch', { name: 'Size labels' })).toBeChecked()
   await expect(page.getByRole('combobox', { name: 'Label location' })).toContainText('In slots')
   const before = await triangles(page)
@@ -564,8 +552,7 @@ test('switches between subtractive holder engraving locations', async ({ page })
 })
 
 test('keeps slot features above the Gridfinity foot', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const depth = page.getByRole('spinbutton', { name: 'Slot depth in mm' })
   const magnets = page.getByRole('switch', { name: 'Slot magnets' })
   await expect(page.getByRole('combobox', { name: 'Pocket layout' })).toHaveCount(0)
@@ -583,8 +570,7 @@ test('keeps slot features above the Gridfinity foot', async ({ page }) => {
 })
 
 test('offers only holder heights that fit the selected slot features', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const height = page.getByRole('spinbutton', { name: 'Holder height in mm' })
   await expect(height).toHaveAttribute('min', '14')
 
@@ -601,8 +587,7 @@ test('offers only holder heights that fit the selected slot features', async ({ 
 })
 
 test('moves to a second column when the row constraint requires it', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const before = await triangles(page)
   await page.getByLabel(/^Maximum rows in/).fill('3')
   await page.getByLabel(/^Maximum rows in/).press('Enter')
@@ -612,8 +597,7 @@ test('moves to a second column when the row constraint requires it', async ({ pa
 })
 
 test('fits what it can and reports box overflow', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await page.getByLabel(/^Maximum columns in/).fill('1')
   await page.getByLabel(/^Maximum columns in/).press('Enter')
   const before = await triangles(page)
@@ -625,8 +609,7 @@ test('fits what it can and reports box overflow', async ({ page }) => {
 })
 
 test('uses clear wording when no holder miniatures fit', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await page.getByLabel(/^Maximum columns in/).fill('1')
   await page.getByLabel(/^Maximum columns in/).press('Enter')
   const constrained = await triangles(page)
@@ -641,8 +624,7 @@ test('uses clear wording when no holder miniatures fit', async ({ page }) => {
 })
 
 test('adds another miniature size to the holder', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   await expect(page.getByRole('switch', { name: 'Split into modules' })).toBeChecked()
   const before = await triangles(page)
   await page.getByRole('button', { name: 'Add size' }).click()
@@ -691,8 +673,7 @@ test('adds another miniature size to the holder', async ({ page }) => {
 })
 
 test('changes holder slots to non-round base shapes', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const before = await triangles(page)
   await pickChoice(page, 'Shape 1', 'Oval')
   await rebuilt(page, before)
@@ -713,8 +694,7 @@ test('changes holder slots to non-round base shapes', async ({ page }) => {
 })
 
 test('uses canonical magnet patterns in holder slots', async ({ page }) => {
-  await page.getByRole('link', { name: 'Holders' }).click()
-  await settled(page)
+  await visit(page, 'Holders')
   const before = await triangles(page)
   await page.getByRole('combobox', { name: 'Standard base size 1' }).click()
   await page.getByRole('option', { name: '65 Large monsters' }).click()
