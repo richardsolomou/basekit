@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Page } from '@playwright/test'
 import { unzipSync } from 'fflate'
 
 /** The drawing's title block carries the filename, the spec and the status. */
@@ -280,6 +280,118 @@ test('remembers workspace settings on reload', async ({ page }) => {
   await expect(page.getByLabel('Base height in mm')).toHaveValue('5.0')
   await expect(page.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
   await expect(page.getByRole('switch', { name: 'Labels', exact: true })).not.toBeChecked()
+})
+
+async function copyLink(page: Page) {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('button', { name: 'Copy link' }).click()
+  await expect(page.getByRole('status')).toContainText('Link copied')
+  return page.evaluate(() => navigator.clipboard.readText())
+}
+
+async function openLink(browser: Browser, url: string) {
+  const page = await (await browser.newContext()).newPage()
+  await page.goto(url)
+  await settled(page)
+  return page
+}
+
+test('opens a copied link with the same setup in a fresh browser', { tag: '@ci' }, async ({ page, browser }) => {
+  await pickSize(page, 'Custom')
+  await page.getByLabel('Diameter in mm', { exact: true }).fill('37')
+  await page.getByLabel('Diameter in mm', { exact: true }).press('Enter')
+  await page.getByLabel('Magnet diameter in mm').fill('7')
+  await page.getByLabel('Magnet diameter in mm').press('Enter')
+
+  const recipient = await openLink(browser, await copyLink(page))
+  await expect(across(recipient)).toHaveText('Ø37')
+  await expect(recipient.getByLabel('Magnet diameter in mm')).toHaveValue('7.0')
+})
+
+test('clears an opened link so a reload uses the saved workspace', async ({ page, browser }) => {
+  const height = page.getByLabel('Base height in mm')
+  await height.fill('5')
+  await height.press('Enter')
+
+  const recipient = await openLink(browser, await copyLink(page))
+  await expect(recipient).toHaveURL(/\/$/)
+  await recipient.getByLabel('Base height in mm').fill('6')
+  await recipient.getByLabel('Base height in mm').press('Enter')
+  await recipient.reload()
+  await settled(recipient)
+  await expect(recipient.getByLabel('Base height in mm')).toHaveValue('6.0')
+})
+
+test('opens a link on the generator it was copied from', async ({ page, browser }) => {
+  await visit(page, 'Stems')
+  await pickChoice(page, 'Stem height', '20 mm')
+  await expect(tall(page)).toHaveText('24')
+
+  const recipient = await openLink(browser, await copyLink(page))
+  await expect(recipient.getByRole('link', { name: 'Stems' })).toHaveAttribute('aria-current', 'page')
+  await expect(tall(recipient)).toHaveText('24')
+})
+
+test('ignores a garbled link and keeps the saved workspace', async ({ page }) => {
+  await page.getByLabel('Base height in mm').fill('5')
+  await page.getByLabel('Base height in mm').press('Enter')
+  await page.goto('/holders#setup=not-a-real-link')
+  await settled(page)
+  await expect(page).toHaveURL(/\/holders$/)
+  await page.getByRole('link', { name: 'Bases' }).click()
+  await expect(page.getByLabel('Base height in mm')).toHaveValue('5.0')
+})
+
+test('copies a token link without an image too large to share', async ({ page, browser }) => {
+  await visit(page, 'Tokens')
+  const noise = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 256
+    const context = canvas.getContext('2d')!
+    const pixels = context.createImageData(256, 256)
+    // Light noise stays above the trace threshold, so only the dark square is raised.
+    for (let i = 0; i < pixels.data.length; i += 1) {
+      const x = (i / 4) % 256
+      const y = Math.floor(i / 4 / 256)
+      const square = x >= 64 && x < 192 && y >= 64 && y < 192
+      pixels.data[i] = i % 4 === 3 ? 255 : square ? 0 : 160 + Math.floor(Math.random() * 96)
+    }
+    context.putImageData(pixels, 0, 0)
+    return canvas.toDataURL('image/png').split(',')[1]
+  })
+  const textOnly = await triangles(page)
+  await page.getByLabel('Token image').setInputFiles({ name: 'noise.png', mimeType: 'image/png', buffer: Buffer.from(noise, 'base64') })
+  await rebuilt(page, textOnly)
+
+  const url = await copyLink(page)
+  await expect(page.getByRole('status')).toContainText('without the image')
+  const recipient = await openLink(browser, url)
+  await expect(footer(recipient)).not.toContainText('noise.png')
+})
+
+test('carries a small token image in its link', async ({ page, browser }) => {
+  await visit(page, 'Tokens')
+  const textOnly = await triangles(page)
+  await page.getByLabel('Token image').setInputFiles({ name: 'shield.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SHIELD_SVG) })
+  await rebuilt(page, textOnly)
+
+  const recipient = await openLink(browser, await copyLink(page))
+  await expect(footer(recipient)).toContainText('shield.svg')
+})
+
+test('opens a movement tray link with the shared magnets it uses', async ({ page, browser }) => {
+  await page.getByLabel('Magnet diameter in mm').fill('6')
+  await page.getByLabel('Magnet diameter in mm').press('Enter')
+  await visit(page, 'Movement trays')
+  const square = await triangles(page)
+  await page.getByLabel('Columns in ', { exact: true }).fill('6')
+  await page.getByLabel('Columns in ', { exact: true }).press('Enter')
+  await rebuilt(page, square)
+
+  const recipient = await openLink(browser, await copyLink(page))
+  await expect(recipient).toHaveURL(/\/movement-trays$/)
+  await expect(footer(recipient)).toContainText('movement-tray-6x4-rect-25x25mm')
+  await expect(footer(recipient)).toContainText('24 × 6.2 mm hole')
 })
 
 async function setDimension(page: Page, label: string, value: string) {

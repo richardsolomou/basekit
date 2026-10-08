@@ -67,12 +67,15 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
+- Copyable links that open the current generator with the same settings.
 
 BaseKit generates bases and accessories for using them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
 ## Private by design 🔒
 
 The generator, 3D preview, fonts, and exporters all run locally in your browser. BaseKit has no backend, accounts, database, or file uploads.
+
+**Copy link** packs the current generator's settings, plus the shared magnet and wall settings it uses, into the part of the address after `#`, which browsers never send to a server. Opening the link applies those settings over your saved ones for that generator, then tidies the address so a reload uses your saved settings again. A token image travels with the link only while the link stays under about 8KB; otherwise the link is copied without it and BaseKit says so. A base link leaves the batch export list behind, so opening one keeps your own.
 
 ## Development 🛠️
 

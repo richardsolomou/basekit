@@ -6,6 +6,7 @@ import packageJson from '../../package.json' with { type: 'json' }
 const { provider, render } = vi.hoisted(() => ({ provider: vi.fn(), render: vi.fn() }))
 vi.mock('react-dom/client', () => ({ createRoot: () => ({ render }) }))
 vi.mock('../App', () => ({ App: () => 'application' }))
+vi.mock('./shareLink', () => ({ takeShareHash: () => undefined }))
 vi.mock('ras-stack/posthog/react', () => ({
   PostHogIntegration: (props: { children: ReactNode }) => {
     provider(props)
