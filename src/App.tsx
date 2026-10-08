@@ -427,13 +427,13 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
             round={model === 'stem' || model === 'token' || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />
-          <div className="absolute inset-x-0 top-0">
+          <div className="pointer-events-none absolute inset-x-12 top-5 flex flex-col gap-2">
             {(error || exportError) && (
-              <div role="alert" className="border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive">
+              <div role="alert" className="border border-destructive/50 bg-card/90 px-3 py-2 backdrop-blur-sm text-xs text-destructive">
                 {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
               </div>
             )}
-            <output className="block empty:hidden border-b border-measure/50 bg-measure/10 px-5 py-2 text-xs text-measure">
+            <output className="block empty:hidden border border-measure/50 bg-card/90 px-3 py-2 backdrop-blur-sm text-xs text-measure">
               {shareNotice?.text}
             </output>
           </div>
