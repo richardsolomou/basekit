@@ -7,6 +7,20 @@ export interface LabelCircle {
 export const LABEL_MARGIN = 0.8
 const TAU = 2 * Math.PI
 
+const span = (from: number, to: number) => String.fromCodePoint(...Array.from({ length: to - from + 1 }, (_, i) => from + i))
+
+/** Printable ASCII and Latin-1, all drawn by the bundled Oswald, less the invisible no-break space and soft hyphen. */
+export const LABEL_CHARACTERS = span(0x20, 0x7e) + span(0xa1, 0xac) + span(0xae, 0xff)
+export const LABEL_MAX_LENGTH = 20
+const accepted = new Set(LABEL_CHARACTERS)
+
+/** Custom label text reduced to what the font can draw, at most `LABEL_MAX_LENGTH` characters. */
+export const labelText = (text: string) =>
+  [...text]
+    .filter((ch) => accepted.has(ch))
+    .join('')
+    .slice(0, LABEL_MAX_LENGTH)
+
 function boxHitsCircle(cx: number, cy: number, hw: number, hh: number, c: LabelCircle, pad: number): boolean {
   const dx = Math.max(Math.abs(c.x - cx) - hw, 0)
   const dy = Math.max(Math.abs(c.y - cy) - hh, 0)

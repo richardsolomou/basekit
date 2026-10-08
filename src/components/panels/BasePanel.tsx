@@ -6,6 +6,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { supportsFivePocketCross } from '@/geometry/base'
+import { labelText } from '@/geometry/label'
 import { defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   defaultBaseHeight,
@@ -28,9 +29,10 @@ import {
   BASE_DEFAULTS,
   MAGNET_LAYOUTS,
   PROFILES,
-  RepositoryLink,
+  PanelFooter,
   safeEdgeSize,
   type MagnetCountChoice,
+  type ResetAction,
   type SharedMagnetChanges,
   type SharedMagnetPlacementChanges,
 } from './shared'
@@ -53,6 +55,7 @@ const entryText = (entry: BatchEntry) =>
   `${SHAPES.find((shape) => shape.value === entry.shape)!.label} ${sizeText(entry.shape, entry.width, entry.length)}`
 
 interface Props {
+  resets: ResetAction[]
   config: BaseConfig
   setConfig: (config: BaseConfig) => void
   patch: (changes: Partial<BaseConfig>) => void
@@ -90,6 +93,7 @@ export function BasePanel({
   exporting,
   exportBatchStl,
   exportBatch3mf,
+  resets,
 }: Props) {
   const { width, length } = footprint(config)
   const elongated = isElongated(config.shape)
@@ -111,7 +115,8 @@ export function BasePanel({
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
-    setConfig(presetFor(size, config.magnets.maxCount, config.magnets.patternVersion))
+    const preset = presetFor(size, config.magnets.maxCount, config.magnets.patternVersion)
+    setConfig({ ...preset, label: { ...preset.label, text: config.label.text } })
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -285,9 +290,9 @@ export function BasePanel({
           </FieldDescription>
         </Section>
 
-        <Section title="Size Label">
+        <Section title="Label">
           <ToggleSetting
-            label="Size labels"
+            label="Labels"
             checked={config.label.enabled}
             defaultChecked={BASE_DEFAULTS.label.enabled}
             onChange={(enabled) => {
@@ -304,9 +309,10 @@ export function BasePanel({
                 id="marking-text"
                 value={config.label.text ?? ''}
                 placeholder={defaultLabel(config)}
-                onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
+                onChange={(e) => patch({ label: { ...config.label, text: labelText(e.currentTarget.value) } })}
                 className="readout"
               />
+              <FieldDescription>Leave empty to emboss the exact size.</FieldDescription>
             </Field>
           )}
         </Section>
@@ -487,7 +493,7 @@ export function BasePanel({
             )}
           </Section>
         )}
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )

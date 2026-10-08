@@ -27,10 +27,11 @@ function sizePreset(group: Pick<HolderGroup, 'shape' | 'width' | 'length'>) {
 interface Props {
   groups: HolderGroup[]
   fittedByGroup: Map<string, number>
+  spareByGroup: Map<string, number>
   onChange: (groups: HolderGroup[]) => void
 }
 
-export function MiniatureGroupsEditor({ groups, fittedByGroup, onChange }: Props) {
+export function MiniatureGroupsEditor({ groups, fittedByGroup, spareByGroup, onChange }: Props) {
   const [customGroups, setCustomGroups] = useState<Set<string>>(() => new Set())
   const setCustom = (id: string, custom: boolean) =>
     setCustomGroups((current) => {
@@ -63,6 +64,7 @@ export function MiniatureGroupsEditor({ groups, fittedByGroup, onChange }: Props
         const customOpen = customGroups.has(group.id) || !standard
         const fitted = fittedByGroup.get(group.id) ?? 0
         const missing = group.quantity - fitted
+        const spare = spareByGroup.get(group.id) ?? 0
         return (
           <div
             key={group.id}
@@ -147,6 +149,7 @@ export function MiniatureGroupsEditor({ groups, fittedByGroup, onChange }: Props
                   {fitted === 0 ? `None of ${group.quantity} fit` : `Only ${fitted} of ${group.quantity} fit`}
                 </p>
               )}
+              {missing <= 0 && spare > 0 && <p className="min-w-0 truncate text-xs text-muted-foreground">Room for {spare} more</p>}
               <div className="ms-auto flex shrink-0">
                 <Button
                   size="icon-xs"
