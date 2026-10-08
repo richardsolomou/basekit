@@ -1,5 +1,11 @@
 # basekit
 
+## 0.9.0
+
+### Minor Changes
+
+- 0dfe417: Add a confirmed reset for each generator's settings and for the shared magnet settings, so a bad saved configuration no longer sticks.
+
 ## 0.8.0
 
 ### Minor Changes
