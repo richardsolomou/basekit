@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
+import { movementTrayBaseLabel, movementTrayMagnetPocketCount } from '@/geometry/movementTray'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
 import { stemOverallHeight } from '@/geometry/stem'
 import { filamentEstimate } from '@/lib/filament'
@@ -77,6 +78,16 @@ function PartRows({ config }: { config: PartConfig }) {
           <Row label="Overflow" value={plan.omitted.map((group) => `${group.quantity}×${holderGroupLabel(group)}`).join(' · ')} />
         )}
         <Row label="Magnets" value={config.magnets.enabled ? `${holderMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
+      </>
+    )
+  }
+  if (config.kind === 'movement-tray') {
+    const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
+    return (
+      <>
+        <Row label="Grid" value={`${config.columns} × ${config.ranks} · ${movementTrayBaseLabel(config)}`} />
+        <Row label="Slots" value={`${trimNumber(config.slotDepth)} mm deep · +${trimNumber(config.slotClearance)} mm`} />
+        <Row label="Magnets" value={config.magnets.enabled ? `${movementTrayMagnetPocketCount(config)} × ${pocket} mm hole` : 'none'} />
       </>
     )
   }

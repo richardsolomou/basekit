@@ -463,6 +463,42 @@ test('builds a low-profile spray tray with an interleaved magnet grid', async ({
   await expect(footer(page)).toContainText('32 × 5.2 mm hole')
 })
 
+test('builds a rank-and-file movement tray with magnet pockets', async ({ page }) => {
+  await visit(page, 'Movement trays')
+
+  await expect(page).toHaveURL(/\/movement-trays$/)
+  await expect(page.getByRole('complementary', { name: 'Movement tray settings' })).toBeVisible()
+  await expect(across(page)).toHaveText('133.5 × 108')
+  await expect(tall(page)).toHaveText('5')
+  await expect(footer(page)).toContainText('movement-tray-5x4-rect-25x25mm')
+  await expect(footer(page)).toContainText('5 × 4 · 25×25')
+  await expect(footer(page)).toContainText('20 × 5.2 mm hole')
+  await expect(footer(page)).toContainText(/Filament\s*≈\d+ g solid PLA/)
+
+  const square = await triangles(page)
+  await page.getByLabel('Columns in ', { exact: true }).fill('6')
+  await page.getByLabel('Columns in ', { exact: true }).press('Enter')
+  await rebuilt(page, square)
+  await expect(across(page)).toHaveText('159 × 108')
+  await expect(footer(page)).toContainText('24 × 5.2 mm hole')
+
+  const wider = await triangles(page)
+  await pickChoice(page, 'Base shape', 'Round')
+  await rebuilt(page, wider)
+  await pickSize(page, '32')
+  await expect(footer(page)).toContainText('movement-tray-6x4-round-32mm')
+  await expect(footer(page)).toContainText('6 × 4 · Ø32')
+
+  const magnetised = await triangles(page)
+  await page.getByRole('switch', { name: 'Slot magnets' }).click()
+  await rebuilt(page, magnetised)
+  await expect(footer(page)).toContainText('Magnetsnone')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  expect((await pending).suggestedFilename()).toBe('movement-tray-6x4-round-32mm.stl')
+})
+
 test('aligns toggle and dimension reset columns', async ({ page }) => {
   await page.getByRole('link', { name: 'Holders' }).click()
   await page.getByLabel('Between miniatures in mm').fill('1.5')

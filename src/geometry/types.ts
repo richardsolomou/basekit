@@ -149,6 +149,32 @@ export interface PaintingTrayConfig {
   assembly?: boolean
 }
 
+export type MovementTrayShape = 'round' | 'rect'
+
+export interface MovementTrayConfig {
+  kind: 'movement-tray'
+  shape: MovementTrayShape
+  /** Base footprint across the frontage. The diameter for round. */
+  width: number
+  /** Base footprint front to back. Ignored by round. */
+  length: number
+  cornerRadius: number
+  columns: number
+  ranks: number
+  /** Added to each base footprint so a unit drops in without binding. */
+  slotClearance: number
+  slotDepth: number
+  /** Material between the slot floor and the table, which the magnet pockets cut into. */
+  floorThickness: number
+  /** Wall left around the recess. */
+  rim: number
+  magnets: HolderConfig['magnets']
+  magnetCounts: Record<string, number>
+  baseWallThickness: number
+  magnetBossWall: number
+  segments: number
+}
+
 export interface PaintingHandleConfig {
   kind: 'painting-handle'
   handle: PaintingHandleSettings
@@ -207,5 +233,5 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
+export type PartConfig = BasePartConfig | HolderConfig | MovementTrayConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
 export type BuildConfig = PartConfig | PaintingHandleConfig

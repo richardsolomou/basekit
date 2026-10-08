@@ -718,7 +718,12 @@ export function holderName(config: HolderConfig): string {
   return `holder-${layout.unitsWide}x${layout.unitsDeep}-${models}`
 }
 
-function slotOutline(wasm: ManifoldToplevel, slot: HolderSlot, clearance: number, segments: number): CrossSection {
+export function slotOutline(
+  wasm: ManifoldToplevel,
+  slot: Omit<HolderGroup, 'id' | 'quantity'>,
+  clearance: number,
+  segments: number,
+): CrossSection {
   const { CrossSection } = wasm
   const width = slotWidth(slot) + clearance
   const length = slotLength(slot) + clearance

@@ -277,6 +277,60 @@ describe('workspace state', () => {
     })
   })
 
+  it.each([8, 9])('adds the movement-tray generator to workspaces saved at version %i', (version) => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.stem.bodyHeight = 20
+    delete legacy.movementTray
+    if (version === 8) {
+      legacy.token = { ...legacy.token, diameter: 32.5 }
+      for (const key of ['shape', 'size', 'cornerRadius']) delete legacy.token[key]
+    }
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({
+      stem: { bodyHeight: 20 },
+      movementTray: { kind: 'movement-tray', shape: 'rect', width: 25, length: 25, columns: 5, ranks: 4 },
+    })
+  })
+
+  it('upgrades a version 8 token alongside the new movement tray', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    delete legacy.movementTray
+    legacy.token = { ...legacy.token, diameter: 32.5 }
+    for (const key of ['shape', 'size', 'cornerRadius']) delete legacy.token[key]
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+
+    expect(loadWorkspace(storage).token).toMatchObject({ shape: 'round', size: 32.5 })
+  })
+
+  it('keeps a saved movement tray', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    saveWorkspace(storage, { ...workspace, movementTray: { ...workspace.movementTray, columns: 8, ranks: 3 } })
+
+    expect(loadWorkspace(storage).movementTray).toMatchObject({ columns: 8, ranks: 3 })
+  })
+
+  it('shares magnet settings with the movement tray', () => {
+    const state = defaultWorkspace()
+    state.shared.magnetCounts['rect:25x25'] = 2
+    state.shared.magnets = { ...state.shared.magnets, diameter: 6, clearance: 0.3 }
+
+    expect(synchronizeWorkspace(state).movementTray).toMatchObject({
+      magnets: { diameter: 6, clearance: 0.3 },
+      magnetCounts: { 'rect:25x25': 2 },
+    })
+  })
+
+  it('thickens the movement-tray floor around thicker shared magnets', () => {
+    const state = defaultWorkspace()
+    state.shared.magnets = { ...state.shared.magnets, thickness: 3, depthClearance: 0.2 }
+
+    expect(synchronizeWorkspace(state).movementTray.floorThickness).toBe(3.8)
+  })
+
   it('preserves saved count and layout behavior as the legacy pocket pattern', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()
@@ -382,6 +436,7 @@ function customizedWorkspace() {
   const state = defaultWorkspace()
   state.base = { ...state.base, width: 60, length: 60, height: 5, label: { ...state.base.label, text: 'SQUAD 3' } }
   state.holder = { ...state.holder, height: 30 }
+  state.movementTray = { ...state.movementTray, columns: 8, ranks: 2 }
   state.paintingTray = { ...state.paintingTray, rows: 2, columns: 3 }
   state.stem = { ...state.stem, bodyDiameter: 6 }
   state.token = { ...state.token, text: 'A', shape: 'hex', size: 32 }
@@ -391,11 +446,12 @@ function customizedWorkspace() {
 }
 
 describe('resetting settings', () => {
-  const parts = ['base', 'holder', 'paintingTray', 'stem', 'token'] as const
+  const parts = ['base', 'holder', 'movementTray', 'paintingTray', 'stem', 'token'] as const
 
   it.each([
     ['base', (state: WorkspaceState) => state.base.height],
     ['holder', (state: WorkspaceState) => state.holder.height],
+    ['movementTray', (state: WorkspaceState) => [state.movementTray.columns, state.movementTray.ranks]],
     ['paintingTray', (state: WorkspaceState) => state.paintingTray.rows],
     ['stem', (state: WorkspaceState) => state.stem],
     ['token', (state: WorkspaceState) => state.token],

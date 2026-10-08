@@ -2,6 +2,7 @@ import { Box, Download, PanelLeft } from 'lucide-react'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { BasePanel } from '@/components/panels/BasePanel'
 import { HolderPanel } from '@/components/panels/HolderPanel'
+import { isStandardMovementSize, MovementTrayPanel } from '@/components/panels/MovementTrayPanel'
 import { PaintingTrayPanel } from '@/components/panels/PaintingTrayPanel'
 import {
   AUTOMATIC_MAGNET_COUNT,
@@ -22,6 +23,7 @@ import { Viewer } from '@/components/Viewer'
 import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '@/geometry/holder'
 import { baseName, footprint, isElongated } from '@/geometry/outline'
 import { footprintKey, SIZES_BY_SHAPE } from '@/geometry/presets'
+import { movementTrayHeight, movementTrayLayout, movementTrayName } from '@/geometry/movementTray'
 import { maxTokenEdgeSize, tokenFootprint, tokenHeight, tokenName } from '@/geometry/token'
 import {
   paintingHandleAxisCenter,
@@ -31,7 +33,7 @@ import {
   paintingTrayName,
 } from '@/geometry/paintingTray'
 import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, PaintingTrayConfig } from '@/geometry/types'
+import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
 import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'
@@ -51,6 +53,7 @@ import {
 const MODELS = [
   { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
   { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
+  { value: 'movement' as const, label: 'Movement trays', mobileLabel: 'Movement', href: '/movement-trays' },
   { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
   { value: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
   { value: 'token' as const, label: 'Tokens', mobileLabel: 'Tokens', href: '/tokens' },
@@ -59,12 +62,23 @@ type Generator = (typeof MODELS)[number]['value']
 
 const modelForPath = (): Generator => MODELS.find((item) => item.href === window.location.pathname)?.value ?? 'base'
 const modelLabel = (model: Generator) =>
-  model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : model === 'stem' ? 'Stem' : 'Token'
+  model === 'base'
+    ? 'Base'
+    : model === 'holder'
+      ? 'Holder'
+      : model === 'movement'
+        ? 'Movement tray'
+        : model === 'painting'
+          ? 'Spray tray'
+          : model === 'stem'
+            ? 'Stem'
+            : 'Token'
 
 export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
   const holder = workspace.holder
+  const movementTray = workspace.movementTray
   const paintingTray = workspace.paintingTray
   const stem = workspace.stem
   const token = workspace.token
@@ -74,6 +88,7 @@ export function App() {
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
+  const setMovementTray = (next: MovementTrayConfig) => setWorkspace((current) => ({ ...current, movementTray: next }))
   const setPaintingTray = (next: PaintingTrayConfig | ((current: PaintingTrayConfig) => PaintingTrayConfig)) =>
     setWorkspace((current) => ({
       ...current,
@@ -97,6 +112,7 @@ export function App() {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
+  const [customMovementSize, setCustomMovementSize] = useState(() => !isStandardMovementSize(workspace.movementTray))
   const [model, setModel] = useState<Generator>(modelForPath)
   const [tokenImageError, setTokenImageError] = useState<string>()
   const addTokenImage = async (file: File) => {
@@ -128,7 +144,17 @@ export function App() {
   // Tailwind's `md`, the width at which the panel stops needing to slide in.
   const docked = useMediaQuery('(min-width: 48rem)')
   const partConfig =
-    model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
+    model === 'base'
+      ? config
+      : model === 'holder'
+        ? holder
+        : model === 'movement'
+          ? movementTray
+          : model === 'painting'
+            ? paintingTray
+            : model === 'stem'
+              ? stem
+              : token
   const { preview, grams, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -143,11 +169,13 @@ export function App() {
         ? 'Bases'
         : model === 'holder'
           ? 'Holders'
-          : model === 'painting'
-            ? 'Spray Trays'
-            : model === 'stem'
-              ? 'Flying Stems'
-              : 'Tokens'
+          : model === 'movement'
+            ? 'Movement Trays'
+            : model === 'painting'
+              ? 'Spray Trays'
+              : model === 'stem'
+                ? 'Flying Stems'
+                : 'Tokens'
     }`
   }, [model])
 
@@ -174,6 +202,7 @@ export function App() {
   const { width, length } = footprint(config)
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const paintingSize = useMemo(() => paintingTrayLayout(paintingTray), [paintingTray])
+  const movementSize = useMemo(() => movementTrayLayout(movementTray), [movementTray])
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
   const maxBaseDepthClearance = config.height - config.floorThickness - config.magnets.thickness
@@ -186,41 +215,49 @@ export function App() {
       ? width
       : model === 'holder'
         ? holderSize.width
-        : model === 'painting'
-          ? paintingSize.width
-          : model === 'stem'
-            ? stemDiameter
-            : tokenFootprint(token).width
+        : model === 'movement'
+          ? movementSize.width
+          : model === 'painting'
+            ? paintingSize.width
+            : model === 'stem'
+              ? stemDiameter
+              : tokenFootprint(token).width
   const partLength =
     model === 'base'
       ? length
       : model === 'holder'
         ? holderSize.length
-        : model === 'painting'
-          ? paintingSize.length
-          : model === 'stem'
-            ? stemDiameter
-            : tokenFootprint(token).length
+        : model === 'movement'
+          ? movementSize.length
+          : model === 'painting'
+            ? paintingSize.length
+            : model === 'stem'
+              ? stemDiameter
+              : tokenFootprint(token).length
   const partHeight =
     model === 'base'
       ? config.height
       : model === 'holder'
         ? holder.height
-        : model === 'painting'
-          ? paintingTrayAssemblyHeight(paintingTray)
-          : model === 'stem'
-            ? stemOverallHeight(stem)
-            : tokenHeight(token)
+        : model === 'movement'
+          ? movementTrayHeight(movementTray)
+          : model === 'painting'
+            ? paintingTrayAssemblyHeight(paintingTray)
+            : model === 'stem'
+              ? stemOverallHeight(stem)
+              : tokenHeight(token)
   const partName =
     model === 'base'
       ? baseName(config)
       : model === 'holder'
         ? holderName(holder)
-        : model === 'painting'
-          ? paintingTrayName(paintingTray)
-          : model === 'stem'
-            ? stemName(stem)
-            : tokenName(token)
+        : model === 'movement'
+          ? movementTrayName(movementTray)
+          : model === 'painting'
+            ? paintingTrayName(paintingTray)
+            : model === 'stem'
+              ? stemName(stem)
+              : tokenName(token)
   const batch = useMemo(
     () => workspace.batch.map((entry) => ({ config: batchBaseConfig(workspace, entry), quantity: entry.quantity })),
     [workspace],
@@ -236,6 +273,7 @@ export function App() {
     model,
     base: config,
     holder,
+    movementTray,
     paintingTray,
     stem,
     token,
@@ -299,6 +337,7 @@ export function App() {
     onReset: () => {
       posthog.capture('settings_reset', { scope: part })
       if (part === 'base') setCustomBaseSize(false)
+      if (part === 'movementTray') setCustomMovementSize(false)
       if (part === 'token') setTokenImageError(undefined)
       setWorkspace((current) => resetGenerator(current, part))
     },
@@ -345,6 +384,16 @@ export function App() {
         setSharedMagnets={setSharedMagnets}
         setSharedLabels={setSharedLabels}
         resets={[resetPart('holder', 'holder', true), resetSharedSettings]}
+      />
+    ) : model === 'movement' ? (
+      <MovementTrayPanel
+        movementTray={movementTray}
+        setMovementTray={setMovementTray}
+        custom={customMovementSize}
+        setCustom={setCustomMovementSize}
+        maxSharedMagnetThickness={maxSharedMagnetThickness}
+        setSharedMagnets={setSharedMagnets}
+        resets={[resetPart('movementTray', 'movement tray', true), resetSharedSettings]}
       />
     ) : model === 'painting' ? (
       <PaintingTrayPanel
