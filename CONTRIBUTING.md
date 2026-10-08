@@ -45,6 +45,7 @@ When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, t
 - `src/geometry` — DOM-free geometry, presets, profile sampling, and STL/3MF exporters shared by the worker, Node tests, and sample script.
 - `src/worker` — the mesh-building worker and its config-in/mesh-out protocol.
 - `src/components` — app-specific controls, drawing annotations, and the three.js viewer.
+- `src/components/panels` — one settings panel per generator; `src/App.tsx` owns the workspace state and passes each panel what it edits.
 - `src/components/ui` — shadcn Base UI components generated from the registry; re-add them with the CLI instead of editing them by hand.
 - `src/lib` — browser orchestration for preview scheduling, one-shot export builds, downloads, and media queries.
 - `e2e` — Playwright coverage against the production build.
