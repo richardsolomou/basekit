@@ -1,5 +1,65 @@
 # basekit
 
+## 0.14.1
+
+### Patch Changes
+
+- 0f2dc36: Keep every dimension field on values its input accepts, so defaults such as the movement tray rim and spray tray spacing no longer read as invalid and arrow keys step to round figures.
+
+## 0.14.0
+
+### Minor Changes
+
+- 31f5ddf: Add a Copy link button that shares the current generator's settings in the address, with no server involved.
+
+## 0.13.0
+
+### Minor Changes
+
+- 6da438d: Add base adapters that seat an old base in a recess inside a new footprint, with optional magnet pockets in the underside.
+
+## 0.12.0
+
+### Minor Changes
+
+- c8e031c: Add rank-and-file movement trays with base slots and magnet pockets that match magnetised bases.
+
+## 0.11.0
+
+### Minor Changes
+
+- abe2ec8: Add square and hex tokens, sized across their flats, with text and images fitted to each shape's face.
+
+## 0.10.0
+
+### Minor Changes
+
+- 9d18a64: Export several base sizes at once, with quantities, as an STL archive or a multi-plate 3MF.
+
+## 0.9.0
+
+### Minor Changes
+
+- 0dfe417: Add a confirmed reset for each generator's settings and for the shared magnet settings, so a bad saved configuration no longer sticks.
+
+## 0.8.0
+
+### Minor Changes
+
+- a4c23b0: Show an approximate solid-PLA filament weight for every generator in the title block, totalled across holder modules and the spray tray with its handle.
+
+## 0.7.0
+
+### Minor Changes
+
+- a1b0474: Emboss custom base label text, such as a unit name or squad number, and report text that does not fit instead of dropping it.
+
+## 0.6.0
+
+### Minor Changes
+
+- f668c4a: Show how many more of each holder miniature size fit in the modules already planned.
+
 ## 0.5.1
 
 ### Patch Changes

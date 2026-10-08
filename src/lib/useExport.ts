@@ -1,58 +1,118 @@
 import { useState } from 'react'
 import { zipSync } from 'fflate'
-import { to3mf, toStl } from '@/geometry/exporters'
+import { adapterName } from '@/geometry/adapter'
+import { packPlates, to3mf, to3mfPlates, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
+import { movementTrayHeight, movementTrayName } from '@/geometry/movementTray'
 import { tokenHeight, tokenName } from '@/geometry/token'
-import { baseName } from '@/geometry/outline'
+import { baseName, footprint } from '@/geometry/outline'
 import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/geometry/paintingTray'
 import { exportSegmentsFor } from '@/geometry/quality'
 import { stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig, PartConfig } from '@/geometry/types'
+import type {
+  AdapterConfig,
+  BaseConfig,
+  FlightStemConfig,
+  HolderConfig,
+  MovementTrayConfig,
+  TokenConfig,
+  PaintingTrayConfig,
+  PartConfig,
+} from '@/geometry/types'
 import posthog from '@/lib/posthog'
+import { batchFileName } from './batch'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
 
-type ExportFormat = 'stl' | '3mf'
+export type ExportFormat = 'stl' | '3mf' | 'batch-stl' | 'batch-3mf'
+
+interface BatchPart {
+  config: BaseConfig
+  quantity: number
+}
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'painting' | 'stem' | 'token'
+  model: 'base' | 'adapter' | 'holder' | 'movement' | 'painting' | 'stem' | 'token'
   base: BaseConfig
+  adapter: AdapterConfig
   holder: HolderConfig
+  movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
   token: TokenConfig
   width: number
   length: number
+  batch: BatchPart[]
+  batchName: string
 }
 
-export function useExport({ model, base, holder, paintingTray, stem, token, width, length }: ExportOptions) {
+export function useExport({
+  model,
+  base,
+  adapter,
+  holder,
+  movementTray,
+  paintingTray,
+  stem,
+  token,
+  width,
+  length,
+  batch,
+  batchName,
+}: ExportOptions) {
   const [exporting, setExporting] = useState<ExportFormat>()
   const [error, setError] = useState<string>()
   const config: PartConfig =
-    model === 'base' ? base : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
+    model === 'base'
+      ? base
+      : model === 'adapter'
+        ? adapter
+        : model === 'holder'
+          ? holder
+          : model === 'movement'
+            ? movementTray
+            : model === 'painting'
+              ? paintingTray
+              : model === 'stem'
+                ? stem
+                : token
   const name =
     model === 'base'
       ? baseName(base)
-      : model === 'holder'
-        ? holderName(holder)
-        : model === 'painting'
-          ? paintingTrayName(paintingTray)
-          : model === 'stem'
-            ? stemName(stem)
-            : tokenName(token)
+      : model === 'adapter'
+        ? adapterName(adapter)
+        : model === 'holder'
+          ? holderName(holder)
+          : model === 'movement'
+            ? movementTrayName(movementTray)
+            : model === 'painting'
+              ? paintingTrayName(paintingTray)
+              : model === 'stem'
+                ? stemName(stem)
+                : tokenName(token)
 
-  const run = async <T>(format: ExportFormat, operation: () => Promise<T>): Promise<T | undefined> => {
+  const run = async (
+    format: ExportFormat,
+    operation: () => Promise<void>,
+    event = `${model}_exported`,
+    properties: Record<string, number> = {
+      width,
+      length,
+      height:
+        config.kind === 'stem'
+          ? stemOverallHeight(config)
+          : config.kind === 'token'
+            ? tokenHeight(config)
+            : config.kind === 'movement-tray'
+              ? movementTrayHeight(config)
+              : config.height,
+    },
+  ) => {
     setExporting(format)
     setError(undefined)
     try {
-      const result = await operation()
-      posthog.capture(`${model}_exported`, {
-        format,
-        width,
-        length,
-        height: config.kind === 'stem' ? stemOverallHeight(config) : config.kind === 'token' ? tokenHeight(config) : config.height,
-      })
-      return result
+      await operation()
+      posthog.capture(event, { format, ...properties })
     } catch (failure) {
       posthog.captureException(failure, { export_format: format, model })
       setError(failure instanceof Error ? failure.message : String(failure))
@@ -125,5 +185,54 @@ export function useExport({ model, base, holder, paintingTray, stem, token, widt
       download(`${name}.3mf`, to3mf([{ mesh: asMeshLike(mesh), name }]))
     })
 
-  return { exporting, error, exportStl, export3mf }
+  const batchProperties = { sizes: batch.length, bases: batch.reduce((total, part) => total + part.quantity, 0) }
+  const buildBatch = () =>
+    Promise.all(
+      batch.map(async ({ config: part, quantity }) => {
+        const size = footprint(part)
+        const mesh = await buildMesh({ ...part, segments: exportSegmentsFor(Math.max(size.width, size.length)) })
+        return { mesh: asMeshLike(mesh), config: part, quantity }
+      }),
+    )
+
+  const exportBatchStl = () =>
+    run(
+      'batch-stl',
+      async () => {
+        const parts = await buildBatch()
+        const files = Object.fromEntries(
+          parts.map(({ mesh, config: part, quantity }) => {
+            const filename = `${batchFileName(part, quantity)}.stl`
+            return [filename, toStl(mesh, filename)]
+          }),
+        )
+        download(`${batchName}.zip`, zipSync(files))
+      },
+      'base_batch_exported',
+      batchProperties,
+    )
+
+  const exportBatch3mf = () =>
+    run(
+      'batch-3mf',
+      async () => {
+        const parts = await buildBatch()
+        const plates = packPlates(
+          parts.map(({ mesh }) => mesh),
+          parts.map(({ quantity }) => quantity),
+        )
+        const meshes = parts.map(({ mesh, config: part }) => ({ mesh, name: baseName(part) }))
+        download(
+          `${batchName}.3mf`,
+          to3mfPlates(
+            meshes,
+            plates.map((items, index) => ({ name: plates.length === 1 ? batchName : `${batchName}-plate-${index + 1}`, items })),
+          ),
+        )
+      },
+      'base_batch_exported',
+      batchProperties,
+    )
+
+  return { exporting, error, exportStl, export3mf, exportBatchStl, exportBatch3mf }
 }

@@ -1,7 +1,7 @@
 import type { CrossSection, ManifoldToplevel, Vec3 } from 'manifold-3d'
 import type { Font } from 'opentype.js'
 import type { BuildResult } from './base'
-import { trimNumber } from './outline'
+import { baseOutline, trimNumber } from './outline'
 import { profileSteps } from './profile'
 import { curveTolerance, previewSegmentsFor } from './quality'
 import { GLYPH_FILL, glyphOutlines, type Polygon } from './text'
@@ -17,14 +17,17 @@ export const MIN_TOKEN_TEXT_HEIGHT = 1.5
 const MIN_FEATURE = 0.4
 const LINE_PITCH = 1.3
 const MAX_LINES = 3
-/** Where the face divides when it carries both an image and text, as a fraction of its radius. */
+/** Where the face divides when it carries both an image and text, as a fraction of its half-height. */
 const IMAGE_TEXT_SPLIT = -0.2
 const IMAGE_TEXT_GAP = 1
+const HEX_CORNERS_PER_FLAT = 1 / Math.cos(Math.PI / 6)
 
 export function defaultTokenConfig(): TokenConfig {
   return {
     kind: 'token',
-    diameter: 40,
+    shape: 'round',
+    size: 40,
+    cornerRadius: 3,
     thickness: 3,
     profile: 'bevel',
     profileSize: 0.6,
@@ -42,13 +45,23 @@ const hasArtwork = (config: TokenConfig) => Boolean(config.text.trim() || config
 
 export const tokenHeight = (config: TokenConfig): number => config.thickness + (hasArtwork(config) ? config.emboss : 0)
 
-/** Radius of the flat top face the artwork may occupy. */
-export const tokenFaceRadius = (config: TokenConfig): number =>
-  config.diameter / 2 - (config.profile === 'straight' ? 0 : config.profileSize) - TOKEN_FACE_MARGIN
+/** How far the flat top face the artwork may occupy sits inside the outline. */
+export const tokenFaceInset = (config: TokenConfig): number => (config.profile === 'straight' ? 0 : config.profileSize) + TOKEN_FACE_MARGIN
 
 /** Largest edge treatment that fits the thickness and still leaves a face for the artwork. */
-export const maxTokenEdgeSize = ({ diameter, thickness }: Pick<TokenConfig, 'diameter' | 'thickness'>): number =>
-  Math.max(0, Math.min(3, thickness - 0.1, diameter / 2 - TOKEN_FACE_MARGIN - 2.5))
+export const maxTokenEdgeSize = ({ size, thickness }: Pick<TokenConfig, 'size' | 'thickness'>): number =>
+  Math.max(0, Math.min(3, thickness - 0.1, size / 2 - TOKEN_FACE_MARGIN - 2.5))
+
+/** Overall extents; a hex is wider across its corners than the size it is measured by. */
+export function tokenFootprint({ shape, size }: Pick<TokenConfig, 'shape' | 'size'>): { width: number; length: number } {
+  return { width: shape === 'hex' ? size * HEX_CORNERS_PER_FLAT : size, length: size }
+}
+
+export function tokenOutline(wasm: ManifoldToplevel, config: TokenConfig): CrossSection {
+  const { width, length } = tokenFootprint(config)
+  const shape = config.shape === 'hex' ? 'polygon' : config.shape === 'square' ? 'rect' : 'round'
+  return baseOutline(wasm, { shape, width, length, cornerRadius: config.cornerRadius, sides: 6, segments: config.segments })
+}
 
 const slug = (value: string) =>
   value
@@ -59,7 +72,7 @@ const slug = (value: string) =>
 
 export function tokenName(config: TokenConfig): string {
   const label = slug(config.text) || slug(config.image?.name.replace(/\.[^.]*$/, '') ?? '')
-  return `token-${trimNumber(config.diameter)}mm${label ? `-${label}` : ''}`
+  return `token-${config.shape}-${trimNumber(config.size)}mm${label ? `-${label}` : ''}`
 }
 
 interface Rect {
@@ -70,11 +83,31 @@ interface Rect {
 }
 
 /**
- * Largest scale, up to `limit`, at which the rectangles fit inside the face
- * circle and the horizontal band, centred on the band. Shrinking a centred
- * block never pushes a corner outward, so the search is monotonic.
+ * Half the face's width along the horizontal line at `y`, or -Infinity off the
+ * face. Every face is convex and mirrored about the y axis, so a centred
+ * rectangle fits exactly when the width at its top and bottom edges covers it.
  */
-function fitScale(rects: Rect[], radius: number, bottom: number, top: number, limit: number): number {
+function faceHalfWidth(face: CrossSection): (y: number) => number {
+  const edges = face.toPolygons().flatMap((contour) => contour.map((p, i) => [p, contour[(i + 1) % contour.length]] as const))
+  return (y) => {
+    let left = Infinity
+    let right = -Infinity
+    for (const [[x0, y0], [x1, y1]] of edges) {
+      if ((y < y0 && y < y1) || (y > y0 && y > y1)) continue
+      const xs = y0 === y1 ? [x0, x1] : [x0 + ((y - y0) / (y1 - y0)) * (x1 - x0)]
+      left = Math.min(left, ...xs)
+      right = Math.max(right, ...xs)
+    }
+    return Math.min(right, -left)
+  }
+}
+
+/**
+ * Largest scale, up to `limit`, at which the rectangles fit inside the face and
+ * the horizontal band, centred on the band. Shrinking a centred block never
+ * pushes a corner outward, so the search is monotonic.
+ */
+function fitScale(rects: Rect[], halfWidth: (y: number) => number, bottom: number, top: number, limit: number): number {
   const low = Math.min(...rects.map((r) => r.y0))
   const high = Math.max(...rects.map((r) => r.y1))
   const middle = (low + high) / 2
@@ -83,7 +116,7 @@ function fitScale(rects: Rect[], radius: number, bottom: number, top: number, li
     rects.every((r) =>
       [r.y0, r.y1].every((y) => {
         const placed = centre + (y - middle) * scale
-        return placed >= bottom && placed <= top && Math.hypot(Math.max(Math.abs(r.x0), Math.abs(r.x1)) * scale, placed) <= radius
+        return placed >= bottom && placed <= top && Math.max(Math.abs(r.x0), Math.abs(r.x1)) * scale <= halfWidth(placed)
       }),
     )
   if (fits(limit)) return limit
@@ -165,11 +198,14 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
 
   try {
     if (config.thickness < 1) throw new Error('Token must be at least 1 mm thick')
-    const radius = tokenFaceRadius(config)
-    if (radius <= 0) throw new Error('Edge treatment leaves no flat face — reduce the edge size')
+    const outline = own(tokenOutline(wasm, config))
+    const face = own(outline.offset(-tokenFaceInset(config), 'Miter', 2, config.segments))
+    if (face.isEmpty()) throw new Error('Edge treatment leaves no flat face — reduce the edge size')
+    const halfWidth = faceHalfWidth(face)
+    const { min: faceMin, max: faceMax } = face.bounds()
+    const halfHeight = faceMax[1]
 
-    const tolerance = curveTolerance(config.diameter, config.segments)
-    const outline = own(CrossSection.circle(config.diameter / 2, config.segments))
+    const tolerance = curveTolerance(tokenFootprint(config).width, config.segments)
     const points: Vec3[] = []
     for (const step of profileSteps(config.thickness, config.profile, config.profileSize, tolerance)) {
       const ring: CrossSection = step.inset > 0 ? own(outline.offset(-step.inset, 'Miter', 2, config.segments)) : outline
@@ -181,9 +217,9 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
 
     const words = config.text.trim().split(/\s+/).filter(Boolean)
     const hasText = Boolean(font) && words.length > 0
-    const split = radius * IMAGE_TEXT_SPLIT
-    const imageBand: [number, number] = hasText ? [split + IMAGE_TEXT_GAP / 2, radius] : [-radius, radius]
-    const textBand: [number, number] = config.image ? [-radius, split - IMAGE_TEXT_GAP / 2] : [-radius, radius]
+    const split = halfHeight * IMAGE_TEXT_SPLIT
+    const imageBand: [number, number] = hasText ? [split + IMAGE_TEXT_GAP / 2, halfHeight] : [-halfHeight, halfHeight]
+    const textBand: [number, number] = config.image ? [-halfHeight, split - IMAGE_TEXT_GAP / 2] : [-halfHeight, halfHeight]
     const artwork: CrossSection[] = []
 
     if (config.image) {
@@ -195,7 +231,8 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
       const centred = own(traced.translate([-(min[0] + max[0]) / 2, -(min[1] + max[1]) / 2]))
       const half = [(max[0] - min[0]) / 2, (max[1] - min[1]) / 2]
       const rect = { x0: -half[0], x1: half[0], y0: -half[1], y1: half[1] }
-      const scale = fitScale([rect], radius, ...imageBand, (2 * radius) / Math.max(width, height))
+      const span = Math.max(faceMax[0] - faceMin[0], faceMax[1] - faceMin[1])
+      const scale = fitScale([rect], halfWidth, ...imageBand, span / Math.max(width, height))
       const placed = own(own(centred.scale(scale)).translate([0, (imageBand[0] + imageBand[1]) / 2]))
       const opened = own(own(placed.offset(-MIN_FEATURE / 2, 'Round', 2, 16)).offset(MIN_FEATURE / 2, 'Round', 2, 16))
       if (opened.isEmpty()) throw new Error('Image detail is finer than a printer can lay down — enlarge the token or simplify the image')
@@ -205,7 +242,7 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
     if (hasText && font) {
       const candidates = wraps(words, config.image ? 2 : MAX_LINES).map((lines) => {
         const block = textBlock(font, lines, config.textHeight)
-        return { block, scale: fitScale(block.rects, radius, ...textBand, 1) }
+        return { block, scale: fitScale(block.rects, halfWidth, ...textBand, 1) }
       })
       // The largest text wins, and among equals the fewest lines, which come first.
       const best = candidates.reduce((a, b) => (b.scale > a.scale + 1e-9 ? b : a))
@@ -217,8 +254,8 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
 
     if (artwork.length > 0 && config.emboss > 0) {
       // Offsetting can leave coincident points, which extrude into a pinched edge once a slicer welds vertices.
-      const face = own(own(CrossSection.union(artwork)).simplify(1e-3))
-      solid = own(solid.add(own(own(face.extrude(config.emboss)).translate([0, 0, config.thickness]))))
+      const relief = own(own(CrossSection.union(artwork)).simplify(1e-3))
+      solid = own(solid.add(own(own(relief.extrude(config.emboss)).translate([0, 0, config.thickness]))))
     }
 
     const volume = solid.volume()
