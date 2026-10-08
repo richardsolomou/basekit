@@ -7,7 +7,15 @@ import { DEFAULT_SIZE, MAGNET_CHOICES, SIZES_BY_SHAPE } from '@/geometry/presets
 import { previewSegmentsFor } from '@/geometry/quality'
 import type { AdapterConfig, AdapterFootprint, ShapeKind } from '@/geometry/types'
 import posthog from '@/lib/posthog'
-import { AUTOMATIC_MAGNET_COUNT, BASE_DEFAULTS, PROFILES, RepositoryLink, type MagnetCountChoice, type SharedMagnetChanges } from './shared'
+import {
+  AUTOMATIC_MAGNET_COUNT,
+  BASE_DEFAULTS,
+  PROFILES,
+  PanelFooter,
+  type MagnetCountChoice,
+  type ResetAction,
+  type SharedMagnetChanges,
+} from './shared'
 
 const ADAPTER_DEFAULTS = defaultAdapterConfig()
 const SHAPES: { value: ShapeKind; label: string }[] = [
@@ -98,6 +106,7 @@ interface Props {
   setMagnetCount: (count: MagnetCountChoice) => void
   maxSharedMagnetThickness: number
   setSharedMagnets: (changes: SharedMagnetChanges) => void
+  resets: ResetAction[]
 }
 
 export function AdapterPanel({
@@ -107,6 +116,7 @@ export function AdapterPanel({
   setMagnetCount,
   maxSharedMagnetThickness,
   setSharedMagnets,
+  resets,
 }: Props) {
   const magnets = adapter.magnets
   const minHeight = ceilTenth(minAdapterHeight(adapter))
@@ -246,7 +256,7 @@ export function AdapterPanel({
             </>
           )}
         </Section>
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )

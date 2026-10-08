@@ -1,5 +1,48 @@
 # basekit
 
+## 0.11.0
+
+### Minor Changes
+
+- abe2ec8: Add square and hex tokens, sized across their flats, with text and images fitted to each shape's face.
+
+## 0.10.0
+
+### Minor Changes
+
+- 9d18a64: Export several base sizes at once, with quantities, as an STL archive or a multi-plate 3MF.
+
+## 0.9.0
+
+### Minor Changes
+
+- 0dfe417: Add a confirmed reset for each generator's settings and for the shared magnet settings, so a bad saved configuration no longer sticks.
+
+## 0.8.0
+
+### Minor Changes
+
+- a4c23b0: Show an approximate solid-PLA filament weight for every generator in the title block, totalled across holder modules and the spray tray with its handle.
+
+## 0.7.0
+
+### Minor Changes
+
+- a1b0474: Emboss custom base label text, such as a unit name or squad number, and report text that does not fit instead of dropping it.
+
+## 0.6.0
+
+### Minor Changes
+
+- f668c4a: Show how many more of each holder miniature size fit in the modules already planned.
+
+## 0.5.1
+
+### Patch Changes
+
+- eb8330e: Fill raised text solidly where neighbouring glyphs overlap, such as accented letters, instead of leaving gaps in tokens, base labels and holder engravings.
+- bfc0b01: Stop the 3D viewer redrawing while nothing changes, and keep a drag's momentum from carrying into the next generator's view.
+
 ## 0.5.0
 
 ### Minor Changes

@@ -5,7 +5,7 @@ import { trimNumber } from '@/geometry/outline'
 import { CLASSIC_STEM_HEIGHTS, defaultFlightStemConfig, stemNeckDiameter, stemOverallHeight } from '@/geometry/stem'
 import type { FlightStemConfig } from '@/geometry/types'
 import posthog from '@/lib/posthog'
-import { RepositoryLink } from './shared'
+import { PanelFooter, type ResetAction } from './shared'
 
 const STEM_DEFAULTS = defaultFlightStemConfig()
 const STEM_HEIGHTS = CLASSIC_STEM_HEIGHTS.map((value) => ({ value, label: `${value} mm` }))
@@ -15,11 +15,12 @@ const STEM_CONNECTIONS = [
 ]
 
 interface Props {
+  resets: ResetAction[]
   stem: FlightStemConfig
   setStem: (stem: FlightStemConfig) => void
 }
 
-export function StemPanel({ stem, setStem }: Props) {
+export function StemPanel({ stem, setStem, resets }: Props) {
   return (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
       <aside aria-label="Stem settings" className="pb-4 [counter-reset:schedule]">
@@ -102,7 +103,7 @@ export function StemPanel({ stem, setStem }: Props) {
           )}
         </Section>
 
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )
