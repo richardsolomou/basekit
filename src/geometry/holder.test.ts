@@ -10,6 +10,7 @@ import {
   holderMagnetPocketCount,
   holderPlan,
   holderSlotMagnetCenters,
+  holderSpareCapacity,
   maxHolderMagnetThickness,
   maxHolderSlotDepth,
   minHolderHeight,
@@ -318,6 +319,56 @@ describe('holderPlan', () => {
       groups: [holderGroup('unit', 5, { width: 32 }), holderGroup('character', 1, { width: 40 })],
     }
     expect(holderPlan(config).modules).toHaveLength(1)
+  })
+})
+
+describe('holderSpareCapacity', () => {
+  const withGroup = (quantity: number, overrides: Parameters<typeof holderGroup>[2] = {}) => ({
+    ...defaultHolderConfig(),
+    groups: [holderGroup('unit', quantity, { width: 32, ...overrides })],
+  })
+
+  it('reports no room when the modules are full', () => {
+    expect(holderSpareCapacity(withGroup(5), 'unit')).toBe(0)
+  })
+
+  it('reports room for one more in a partly filled module', () => {
+    expect(holderSpareCapacity(withGroup(4), 'unit')).toBe(1)
+  })
+
+  it('reports room for several more across the planned modules', () => {
+    expect(holderSpareCapacity(withGroup(13), 'unit')).toBe(2)
+  })
+
+  it('reports room that the planner fills without changing the printed modules', () => {
+    const config = withGroup(13)
+    const plan = holderPlan(config)
+    const filled = holderPlan(withGroup(13 + holderSpareCapacity(config, 'unit')))
+    expect(filled.modules.map((module) => [module.column, module.row, module.layout.unitsWide, module.layout.unitsDeep])).toEqual(
+      plan.modules.map((module) => [module.column, module.row, module.layout.unitsWide, module.layout.unitsDeep]),
+    )
+  })
+
+  it('reports no room once one more would need another module', () => {
+    const config = withGroup(13)
+    const plan = holderPlan(config)
+    const overfilled = holderPlan(withGroup(14 + holderSpareCapacity(config, 'unit')))
+    expect(overfilled.modules.map((module) => [module.column, module.row, module.layout.unitsWide, module.layout.unitsDeep])).not.toEqual(
+      plan.modules.map((module) => [module.column, module.row, module.layout.unitsWide, module.layout.unitsDeep]),
+    )
+  })
+
+  it('reports no room for a group that already overflows the box', () => {
+    expect(holderSpareCapacity({ ...withGroup(6), maxColumns: 1, maxRows: 4 }, 'unit')).toBe(0)
+  })
+
+  it('counts room for each group of a combined holder', () => {
+    const config = {
+      ...defaultHolderConfig(),
+      splitGroups: false,
+      groups: [holderGroup('unit', 4, { width: 32 }), holderGroup('character', 1, { width: 50 })],
+    }
+    expect(config.groups.map((group) => holderSpareCapacity(config, group.id))).toEqual([2, 1])
   })
 })
 

@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -25,14 +25,16 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 1. **Choose the footprint** by picking its shape, then a standard size or exact dimensions.
 2. **Match your magnets** by setting their diameter, thickness, fit and depth clearances, and count.
 3. **Tune the print** with the edge profile, wall thickness, top thickness, and internal supports.
-4. **Check both faces** in the live 3D view, where dimensions and the export name stay visible.
+4. **Check both faces** in the live 3D view, where dimensions, the export name, and the part's weight as solid PLA stay visible. Holders and spray trays show the total for every part. A slicer's walls and infill will use less filament than that.
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
+
+Rebasing an army usually means several sizes at once. Add the current size to the batch as often as you need it, adjust each quantity, and download them together: STLs arrive as one archive with one file per size and its quantity in the name, while a 3MF keeps one object per size and lays out every copy across as many build plates as it needs. Every size in a batch shares the current base settings and follows its own magnet count. The batch is saved with your other settings.
 
 ## Gridfinity holders 📦
 
 Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints. Miniature and holder-edge spacing are independently adjustable, with the edge spacing defaulting to half the miniature spacing.
 
-Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan.
+Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan, and groups with spare slots show how many more fit without adding or resizing a module.
 
 ## Spray trays 🎨
 
@@ -53,7 +55,7 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 - Shared magnet dimensions across bases, holders, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
-- Browser-saved settings with shared base and holder preferences.
+- Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
 
 BaseKit generates bases and accessories for using them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 

@@ -15,11 +15,14 @@ beforeAll(async () => {
   font = parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
 })
 
-/** A white square image, with a dark disc in the middle unless it is blank. */
-function discImage(size = 64, blank = false): TokenImage {
+/** A white square image, with a dark disc in the middle unless it is blank, holed when `hole` is set. */
+function discImage(size = 64, blank = false, hole = 0): TokenImage {
   const pixels = new Uint8Array(size * size)
   for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) pixels[y * size + x] = !blank && Math.hypot(x - size / 2, y - size / 2) < size / 3 ? 0 : 255
+    for (let x = 0; x < size; x++) {
+      const r = Math.hypot(x - size / 2, y - size / 2)
+      pixels[y * size + x] = !blank && r < size / 3 && r >= hole ? 0 : 255
+    }
   }
   return { name: 'shield.png', width: size, height: size, luminance: Buffer.from(pixels).toString('base64') }
 }
@@ -126,6 +129,19 @@ describe('buildToken', () => {
     const textOnly = raised(buildToken(wasm, { ...config, image: null }, font).mesh, config.thickness)
 
     expect(Math.max(...withImage.map(([, y]) => y))).toBeGreaterThan(Math.max(...textOnly.map(([, y]) => y)) + 3)
+  })
+
+  it('fills where neighbouring glyphs overlap', () => {
+    // Oswald's accents overhang their neighbours; an even-odd fill punches the overlap out.
+    const relief = (text: string) => build({ size: 100, textHeight: 10, text }).stats.volume - build({ text: '', size: 100 }).stats.volume
+
+    expect(relief('ÏÏ') / (2 * relief('Ï'))).toBeGreaterThan(0.97)
+  })
+
+  it('keeps the holes in a traced image', () => {
+    const relief = (image: TokenImage) => build({ text: '', image }).stats.volume - build({ text: '' }).stats.volume
+
+    expect(relief(discImage(64, false, 10)) / relief(discImage())).toBeLessThan(0.9)
   })
 
   it('refuses text too long to read rather than shrinking it to nothing', () => {

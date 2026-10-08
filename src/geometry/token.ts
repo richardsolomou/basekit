@@ -4,7 +4,7 @@ import type { BuildResult } from './base'
 import { baseOutline, trimNumber } from './outline'
 import { profileSteps } from './profile'
 import { curveTolerance, previewSegmentsFor } from './quality'
-import { glyphOutlines, type Polygon } from './text'
+import { GLYPH_FILL, glyphOutlines, type Polygon } from './text'
 import { traceSilhouette } from './trace'
 import type { TokenConfig, TokenImage } from './types'
 
@@ -249,7 +249,7 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
       if (best.scale * config.textHeight < MIN_TOKEN_TEXT_HEIGHT) {
         throw new Error('Text is too long to read at this size — shorten it or enlarge the token')
       }
-      artwork.push(own(CrossSection.ofPolygons(place(best.block, best.scale, ...textBand), 'EvenOdd')))
+      artwork.push(own(CrossSection.ofPolygons(place(best.block, best.scale, ...textBand), GLYPH_FILL)))
     }
 
     if (artwork.length > 0 && config.emboss > 0) {

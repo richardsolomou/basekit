@@ -9,10 +9,12 @@ import { supportsFivePocketCross } from '../geometry/base'
 import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
+import type { BaseConfig, FlightStemConfig, HolderConfig, ShapeKind, TokenConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
 const WORKSPACE_VERSION = 9
+
+const SHAPES = new Set<string>(['round', 'oval', 'pill', 'rect', 'polygon'])
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -27,6 +29,15 @@ export interface WorkspaceState {
   token: TokenConfig
   /** Values exposed by multiple generators have one canonical owner. */
   shared: SharedSettings
+  /** Base footprints exported together, each built with the current base settings. */
+  batch: BatchEntry[]
+}
+
+export interface BatchEntry {
+  shape: ShapeKind
+  width: number
+  length: number
+  quantity: number
 }
 
 export interface SharedSettings {
@@ -135,7 +146,19 @@ export function defaultWorkspace(): WorkspaceState {
     stem: defaultFlightStemConfig(),
     token: defaultTokenConfig(),
     shared: sharedFromBase(base),
+    batch: [],
   })
+}
+
+export type GeneratorSettings = Exclude<keyof WorkspaceState, 'shared' | 'batch'>
+
+/** The batch is a list of base footprints, so it belongs to the base generator and resets with it. */
+export function resetGenerator(state: WorkspaceState, part: GeneratorSettings): WorkspaceState {
+  return synchronizeWorkspace({ ...state, [part]: defaultWorkspace()[part], ...(part === 'base' ? { batch: [] } : {}) })
+}
+
+export function resetShared(state: WorkspaceState): WorkspaceState {
+  return synchronizeWorkspace({ ...state, shared: defaultWorkspace().shared })
 }
 
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
@@ -155,7 +178,8 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
     ]
     const version = parsed.version
     if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
-    const workspace = migrations.slice(version - 1).reduce((value, migrate) => migrate(value), parsed.workspace)
+    const migrated = migrations.slice(version - 1).reduce((value, migrate) => migrate(value), parsed.workspace)
+    const workspace = withValidBatch(migrated)
     if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
     const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
     delete base.underside
@@ -163,6 +187,22 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function isBatchEntry(entry: unknown): entry is BatchEntry {
+  if (typeof entry !== 'object' || entry === null) return false
+  const { shape, width, length, quantity } = entry as Record<string, unknown>
+  const size = (value: unknown) => typeof value === 'number' && value >= 15 && value <= 180
+  return (
+    typeof shape === 'string' && SHAPES.has(shape) && size(width) && size(length) && Number.isInteger(quantity) && (quantity as number) >= 1
+  )
+}
+
+/** Workspaces saved before batches existed load with an empty one, and a damaged entry costs only itself. */
+function withValidBatch(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const { batch } = value as Record<string, unknown>
+  return { ...value, batch: Array.isArray(batch) ? batch.filter(isBatchEntry) : [] }
 }
 
 function migrateWorkspaceV8(value: unknown): unknown {
@@ -268,7 +308,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
   if (!hasShape(value, template)) return false
   const workspace = value as WorkspaceState
   return (
-    ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
+    SHAPES.has(workspace.base.shape) &&
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
@@ -279,7 +319,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     workspace.paintingTray.kind === 'painting-tray' &&
     ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
-    workspace.holder.groups.every((group) => ['round', 'oval', 'pill', 'rect', 'polygon'].includes(group.shape)) &&
+    workspace.holder.groups.every((group) => SHAPES.has(group.shape)) &&
     Object.values(workspace.shared.magnetCounts).every((count) => typeof count === 'number' && Number.isFinite(count))
   )
 }

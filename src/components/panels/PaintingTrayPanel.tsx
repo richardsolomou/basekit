@@ -12,7 +12,7 @@ import {
   type paintingTrayLayout,
 } from '@/geometry/paintingTray'
 import type { PaintingHandleShape, PaintingTrayConfig } from '@/geometry/types'
-import { BASE_DEFAULTS, RepositoryLink, type SharedMagnetChanges } from './shared'
+import { BASE_DEFAULTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const PAINTING_DEFAULTS = defaultPaintingTrayConfig()
 const PAINTING_HANDLE_SHAPES: { value: PaintingHandleShape; label: string }[] = [
@@ -23,6 +23,7 @@ const PAINTING_HANDLE_SHAPES: { value: PaintingHandleShape; label: string }[] = 
 ]
 
 interface Props {
+  resets: ResetAction[]
   paintingTray: PaintingTrayConfig
   setPaintingTray: (paintingTray: PaintingTrayConfig) => void
   paintingSize: ReturnType<typeof paintingTrayLayout>
@@ -38,6 +39,7 @@ export function PaintingTrayPanel({
   maxSharedMagnetThickness,
   maxSharedDepthClearance,
   setSharedMagnets,
+  resets,
 }: Props) {
   return (
     <ScrollArea className="h-full w-81 max-w-[85vw] shrink-0 border-border bg-card md:border-r">
@@ -206,7 +208,7 @@ export function PaintingTrayPanel({
             the tray and exports as a separate upright, support-free part.
           </FieldDescription>
         </Section>
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )
