@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Choice, Dimension, Section, ToggleSetting } from '@/components/controls'
 import { MiniatureGroupsEditor } from '@/components/MiniatureGroupsEditor'
 import { FieldDescription } from '@/components/ui/field'
@@ -7,6 +7,7 @@ import { supportsFivePocketCross } from '@/geometry/base'
 import {
   defaultHolderConfig,
   holderGroupLabel,
+  holderSpareCapacity,
   maxHolderSlotDepth,
   minHolderHeight,
   type holderLayout,
@@ -17,6 +18,8 @@ import type { HolderConfig, HolderGroup } from '@/geometry/types'
 import { BASE_DEFAULTS, fitSlotDepth, MAGNET_LAYOUTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const HOLDER_DEFAULTS = defaultHolderConfig()
+const SPARE_ROOM_SETTLE_MS = 200
+const NO_SPARE_ROOM = new Map<string, number>()
 const ENGRAVING_PLACEMENTS = [
   { value: 'slots' as const, label: 'In slots' },
   { value: 'module' as const, label: 'On module' },
@@ -54,6 +57,16 @@ export function HolderPanel({
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
   const fittedByGroup = useMemo(() => fittedCounts(plan.modules), [plan])
+  const [spareRoom, setSpareRoom] = useState<{ holder: HolderConfig; byGroup: Map<string, number> }>()
+  useEffect(() => {
+    // Re-planning for spare room costs far more than a preview, so it waits for edits to settle instead of blocking a scrub.
+    const timer = setTimeout(
+      () => setSpareRoom({ holder, byGroup: new Map(holder.groups.map((group) => [group.id, holderSpareCapacity(holder, group.id)])) }),
+      SPARE_ROOM_SETTLE_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [holder])
+  const spareByGroup = spareRoom?.holder === holder ? spareRoom.byGroup : NO_SPARE_ROOM
   const holderSupportsFiveCross =
     holder.magnets.patternVersion === 1 || holder.groups.some((group) => supportsFivePocketCross(group.shape, group.width))
   const holderMagnetLayout = holderSupportsFiveCross ? holder.magnets.layout : 'balanced'
@@ -73,6 +86,7 @@ export function HolderPanel({
           <MiniatureGroupsEditor
             groups={holder.groups}
             fittedByGroup={fittedByGroup}
+            spareByGroup={spareByGroup}
             onChange={(groups) => setHolder({ ...holder, groups })}
           />
         </Section>
@@ -180,7 +194,7 @@ export function HolderPanel({
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <ToggleSetting
-            label="Size labels"
+            label="Labels"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
             onChange={setSharedLabels}
