@@ -1,5 +1,17 @@
-import { Code2 } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { Code2, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { maxHolderSlotDepth, minHolderHeight } from '@/geometry/holder'
 import { DEFAULT_PRESET, presetFor } from '@/geometry/presets'
 import { maxProfileSize } from '@/geometry/profile'
@@ -32,9 +44,50 @@ export const fitSlotDepth = (next: HolderConfig) => ({
     : { slotDepth: Math.min(next.slotDepth, Math.floor(maxHolderSlotDepth(next) / 0.5) * 0.5) }),
 })
 
-export function RepositoryLink() {
+export interface ResetAction {
+  label: string
+  description: string
+  onReset: () => void
+}
+
+function ResetButton({ label, description, onReset }: ResetAction) {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="flex justify-center px-5 pt-4">
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger render={<Button size="sm" variant="ghost" className="text-muted-foreground" />}>
+        <RotateCcw />
+        Reset {label}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset {label}?</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => {
+              onReset()
+              setOpen(false)
+            }}
+          >
+            Reset
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+export function PanelFooter({ resets }: { resets: ResetAction[] }) {
+  return (
+    <div className="flex flex-col items-center gap-1 border-t border-border px-5 pt-4">
+      <div className="flex flex-wrap justify-center gap-1">
+        {resets.map((reset) => (
+          <ResetButton key={reset.label} {...reset} />
+        ))}
+      </div>
       <a
         href="https://github.com/richardsolomou/basekit"
         target="_blank"

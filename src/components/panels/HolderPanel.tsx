@@ -14,7 +14,7 @@ import {
 } from '@/geometry/holder'
 import { trimNumber } from '@/geometry/outline'
 import type { HolderConfig, HolderGroup } from '@/geometry/types'
-import { BASE_DEFAULTS, fitSlotDepth, MAGNET_LAYOUTS, RepositoryLink, type SharedMagnetChanges } from './shared'
+import { BASE_DEFAULTS, fitSlotDepth, MAGNET_LAYOUTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const HOLDER_DEFAULTS = defaultHolderConfig()
 const ENGRAVING_PLACEMENTS = [
@@ -31,6 +31,7 @@ function fittedCounts(modules: { config: { groups: HolderGroup[] } }[]) {
 }
 
 interface Props {
+  resets: ResetAction[]
   holder: HolderConfig
   setHolder: (holder: HolderConfig) => void
   holderSize: ReturnType<typeof holderLayout>
@@ -40,7 +41,16 @@ interface Props {
   setSharedLabels: (enabled: boolean) => void
 }
 
-export function HolderPanel({ holder, setHolder, holderSize, plan, maxSharedMagnetThickness, setSharedMagnets, setSharedLabels }: Props) {
+export function HolderPanel({
+  holder,
+  setHolder,
+  holderSize,
+  plan,
+  maxSharedMagnetThickness,
+  setSharedMagnets,
+  setSharedLabels,
+  resets,
+}: Props) {
   const maxSlotDepth = Math.max(1, Math.floor(maxHolderSlotDepth(holder) / 0.5) * 0.5)
   const requestedModels = useMemo(() => holder.groups.reduce((total, group) => total + group.quantity, 0), [holder.groups])
   const fittedByGroup = useMemo(() => fittedCounts(plan.modules), [plan])
@@ -249,7 +259,7 @@ export function HolderPanel({ holder, setHolder, holderSize, plan, maxSharedMagn
             </>
           )}
         </Section>
-        <RepositoryLink />
+        <PanelFooter resets={resets} />
       </aside>
     </ScrollArea>
   )

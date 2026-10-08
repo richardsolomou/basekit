@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { holderSlotMagnetCenters } from '../geometry/holder'
 import { footprintKey } from '../geometry/presets'
-import { defaultWorkspace, loadWorkspace, saveWorkspace, synchronizeWorkspace } from './workspace'
+import {
+  defaultWorkspace,
+  loadWorkspace,
+  resetGenerator,
+  resetShared,
+  saveWorkspace,
+  synchronizeWorkspace,
+  type WorkspaceState,
+} from './workspace'
 
 function memoryStorage() {
   const values = new Map<string, string>()
@@ -312,5 +320,63 @@ describe('workspace state', () => {
     const storage = memoryStorage()
     storage.setItem('mini-bases.workspace', '{"version":1,"workspace":{"shared":{"labelsEnabled":false}}}')
     expect(loadWorkspace(storage)).toEqual(defaultWorkspace())
+  })
+})
+
+function customizedWorkspace() {
+  const state = defaultWorkspace()
+  state.base = { ...state.base, width: 60, length: 60, height: 5 }
+  state.holder = { ...state.holder, height: 30 }
+  state.paintingTray = { ...state.paintingTray, rows: 2, columns: 3 }
+  state.stem = { ...state.stem, bodyDiameter: 6 }
+  state.token = { ...state.token, text: 'A', diameter: 32 }
+  state.shared = { ...state.shared, labelsEnabled: false, magnets: { ...state.shared.magnets, diameter: 6 } }
+  return synchronizeWorkspace(state)
+}
+
+describe('resetting settings', () => {
+  const parts = ['base', 'holder', 'paintingTray', 'stem', 'token'] as const
+
+  it.each([
+    ['base', (state: WorkspaceState) => state.base.height],
+    ['holder', (state: WorkspaceState) => state.holder.height],
+    ['paintingTray', (state: WorkspaceState) => state.paintingTray.rows],
+    ['stem', (state: WorkspaceState) => state.stem],
+    ['token', (state: WorkspaceState) => state.token],
+  ] as const)('restores the %s settings to their defaults', (part, read) => {
+    expect(read(resetGenerator(customizedWorkspace(), part))).toEqual(read(defaultWorkspace()))
+  })
+
+  it.each(parts)('leaves every other generator unchanged when the %s is reset', (part) => {
+    const before = customizedWorkspace()
+    const { [part]: _reset, ...others } = resetGenerator(before, part)
+    const { [part]: _original, ...expected } = before
+    expect(others).toEqual(expected)
+  })
+
+  it('keeps the shared magnet settings on a reset base', () => {
+    expect(resetGenerator(customizedWorkspace(), 'base').base.magnets.diameter).toBe(6)
+  })
+
+  it('returns a reset base to the default footprint', () => {
+    expect(resetGenerator(customizedWorkspace(), 'base').base.width).toBe(defaultWorkspace().base.width)
+  })
+
+  it('restores the shared settings to their defaults', () => {
+    expect(resetShared(customizedWorkspace()).shared).toEqual(defaultWorkspace().shared)
+  })
+
+  it('applies the default shared settings to every generator that uses them', () => {
+    expect(resetShared(customizedWorkspace()).holder.magnets.diameter).toBe(defaultWorkspace().holder.magnets.diameter)
+  })
+
+  it('keeps generator-owned settings when the shared settings are reset', () => {
+    const reset = resetShared(customizedWorkspace())
+    expect({ width: reset.base.width, rows: reset.paintingTray.rows, stem: reset.stem, token: reset.token }).toEqual({
+      width: 60,
+      rows: 2,
+      stem: customizedWorkspace().stem,
+      token: customizedWorkspace().token,
+    })
   })
 })
