@@ -1,3 +1,4 @@
+import { defaultAdapterConfig, minAdapterHeight } from '../geometry/adapter'
 import { defaultHolderConfig } from '../geometry/holder'
 import {
   defaultPaintingTrayConfig,
@@ -9,10 +10,10 @@ import { supportsFivePocketCross } from '../geometry/base'
 import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
+import type { AdapterConfig, BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 8
+const WORKSPACE_VERSION = 9
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -21,6 +22,7 @@ interface SettingsStorage {
 
 export interface WorkspaceState {
   base: BaseConfig
+  adapter: AdapterConfig
   holder: HolderConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
@@ -61,6 +63,27 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
       depthClearance: base.magnets.depthClearance,
     },
   }
+}
+
+/** Adapters follow the same per-footprint count as a base of their target footprint, without the legacy pattern. */
+function synchronizeAdapter(adapter: AdapterConfig, shared: SharedSettings): AdapterConfig {
+  const { shape, width, length } = adapter.target
+  const fiveCross = shared.magnets.layout === 'five-cross' && supportsFivePocketCross(shape, width)
+  const count = fiveCross
+    ? 5
+    : (shared.magnetCounts[footprintKey(shape, width, length)] ??
+      automaticMagnetCount(width, length, shared.magnets.maxCount, shared.magnets.diameter, shared.magnets.thickness))
+  const next = {
+    ...adapter,
+    magnets: {
+      ...adapter.magnets,
+      ...shared.magnets,
+      layout: fiveCross ? ('five-cross' as const) : ('balanced' as const),
+      count,
+      bossWall: shared.magnetBossWall,
+    },
+  }
+  return { ...next, height: Math.max(next.height, Math.ceil((minAdapterHeight(next) - 1e-6) * 10) / 10) }
 }
 
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
@@ -105,6 +128,7 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
               : state.base.ribs.count,
       },
     },
+    adapter: synchronizeAdapter(state.adapter, shared),
     holder: {
       ...state.holder,
       baseWallThickness: shared.wallThickness,
@@ -130,6 +154,7 @@ export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
   return synchronizeWorkspace({
     base,
+    adapter: defaultAdapterConfig(),
     holder: defaultHolderConfig(),
     paintingTray: defaultPaintingTrayConfig(),
     stem: defaultFlightStemConfig(),
@@ -151,6 +176,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
       migrateWorkspaceV5,
       migrateWorkspaceV6,
       migrateWorkspaceV7,
+      migrateWorkspaceV8,
     ]
     const version = parsed.version
     if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
@@ -162,6 +188,11 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV8(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), adapter: defaultAdapterConfig() }
 }
 
 function migrateWorkspaceV7(value: unknown): unknown {
@@ -261,6 +292,11 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     ['round', 'oval', 'pill', 'rect', 'polygon'].includes(workspace.base.shape) &&
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
+    workspace.adapter.kind === 'adapter' &&
+    [workspace.adapter.target, workspace.adapter.source].every((part) =>
+      ['round', 'oval', 'pill', 'rect', 'polygon'].includes(part.shape),
+    ) &&
+    ['taper', 'straight', 'bevel', 'round'].includes(workspace.adapter.profile) &&
     workspace.stem.kind === 'stem' &&
     workspace.token.kind === 'token' &&
     ['taper', 'straight', 'bevel', 'round'].includes(workspace.token.profile) &&

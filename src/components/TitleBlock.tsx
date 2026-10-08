@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { adapterPocketDepth, adapterRecess } from '@/geometry/adapter'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
@@ -49,6 +50,19 @@ export function TitleBlock({ config, status, name }: Props) {
         ) : (
           <Row label="Ball joint" value={`Ø${trimNumber(config.ballDiameter)} mm`} />
         )}
+      </TitleFrame>
+    )
+  }
+  if (config.kind === 'adapter') {
+    const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
+    const pocketDepth = adapterPocketDepth(config)
+    return (
+      <TitleFrame status={status} name={name}>
+        <Row label="Recess" value={`${holderGroupLabel(adapterRecess(config))} × ${trimNumber(config.recessDepth)} mm`} />
+        <Row
+          label="Magnets"
+          value={pocketDepth === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${trimNumber(pocketDepth)}mm deep`}
+        />
       </TitleFrame>
     )
   }

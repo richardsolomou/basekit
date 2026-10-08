@@ -196,9 +196,35 @@ export interface TokenConfig {
   segments: number
 }
 
+export interface AdapterFootprint {
+  shape: ShapeKind
+  width: number
+  /** Ignored by round and polygon, which are driven by width alone. */
+  length: number
+}
+
+export interface AdapterConfig {
+  kind: 'adapter'
+  /** The new footprint, which is the adapter's own outline. */
+  target: AdapterFootprint
+  /** The old base, which drops into the recess. */
+  source: AdapterFootprint
+  /** Added to the old base's width and length so it drops in. */
+  clearance: number
+  recessDepth: number
+  height: number
+  /** Treatment on the top edge; the underside stays full size. */
+  profile: EdgeProfile
+  profileSize: number
+  /** Least material allowed between the recess and the outer edge. */
+  minWall: number
+  magnets: MagnetSpec & { enabled: boolean }
+  segments: number
+}
+
 export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
+export type PartConfig = BasePartConfig | AdapterConfig | HolderConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
 export type BuildConfig = PartConfig | PaintingHandleConfig

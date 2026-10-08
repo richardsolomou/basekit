@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { zipSync } from 'fflate'
+import { adapterName } from '@/geometry/adapter'
 import { to3mf, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
 import { tokenHeight, tokenName } from '@/geometry/token'
@@ -7,7 +8,15 @@ import { baseName } from '@/geometry/outline'
 import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/geometry/paintingTray'
 import { exportSegmentsFor } from '@/geometry/quality'
 import { stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig, PartConfig } from '@/geometry/types'
+import type {
+  AdapterConfig,
+  BaseConfig,
+  FlightStemConfig,
+  HolderConfig,
+  TokenConfig,
+  PaintingTrayConfig,
+  PartConfig,
+} from '@/geometry/types'
 import posthog from '@/lib/posthog'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
@@ -15,8 +24,9 @@ import { asMeshLike, download } from './download'
 type ExportFormat = 'stl' | '3mf'
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'painting' | 'stem' | 'token'
+  model: 'base' | 'adapter' | 'holder' | 'painting' | 'stem' | 'token'
   base: BaseConfig
+  adapter: AdapterConfig
   holder: HolderConfig
   paintingTray: PaintingTrayConfig
   stem: FlightStemConfig
@@ -25,21 +35,33 @@ interface ExportOptions {
   length: number
 }
 
-export function useExport({ model, base, holder, paintingTray, stem, token, width, length }: ExportOptions) {
+export function useExport({ model, base, adapter, holder, paintingTray, stem, token, width, length }: ExportOptions) {
   const [exporting, setExporting] = useState<ExportFormat>()
   const [error, setError] = useState<string>()
   const config: PartConfig =
-    model === 'base' ? base : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
+    model === 'base'
+      ? base
+      : model === 'adapter'
+        ? adapter
+        : model === 'holder'
+          ? holder
+          : model === 'painting'
+            ? paintingTray
+            : model === 'stem'
+              ? stem
+              : token
   const name =
     model === 'base'
       ? baseName(base)
-      : model === 'holder'
-        ? holderName(holder)
-        : model === 'painting'
-          ? paintingTrayName(paintingTray)
-          : model === 'stem'
-            ? stemName(stem)
-            : tokenName(token)
+      : model === 'adapter'
+        ? adapterName(adapter)
+        : model === 'holder'
+          ? holderName(holder)
+          : model === 'painting'
+            ? paintingTrayName(paintingTray)
+            : model === 'stem'
+              ? stemName(stem)
+              : tokenName(token)
 
   const run = async <T>(format: ExportFormat, operation: () => Promise<T>): Promise<T | undefined> => {
     setExporting(format)

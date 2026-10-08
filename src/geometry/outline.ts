@@ -11,7 +11,7 @@ export function isElongated(shape: ShapeKind): boolean {
   return shape === 'oval' || shape === 'pill' || shape === 'rect'
 }
 
-export function footprint(config: BaseConfig): { width: number; length: number } {
+export function footprint(config: Pick<BaseConfig, 'shape' | 'width' | 'length'>): { width: number; length: number } {
   return { width: config.width, length: isElongated(config.shape) ? config.length : config.width }
 }
 
@@ -32,7 +32,10 @@ export function baseName(config: BaseConfig): string {
  * The footprint at full size, centred on the origin. Every shape here is convex,
  * which is what lets the body be lofted as a convex hull.
  */
-export function baseOutline(wasm: ManifoldToplevel, config: BaseConfig): CrossSection {
+export function baseOutline(
+  wasm: ManifoldToplevel,
+  config: Pick<BaseConfig, 'shape' | 'width' | 'length' | 'cornerRadius' | 'sides' | 'segments'>,
+): CrossSection {
   const { CrossSection } = wasm
   const { width, length } = footprint(config)
   const segments = config.segments

@@ -1,6 +1,7 @@
 import wasmUrl from 'manifold-3d/manifold.wasm?url'
 import { parse, type Font } from 'opentype.js'
 import fontUrl from '@/assets/fonts/oswald-700.woff?url'
+import { buildAdapter } from '@/geometry/adapter'
 import { buildBase, type BuildResult } from '@/geometry/base'
 import { buildHolder } from '@/geometry/holder'
 import { loadManifold } from '@/geometry/manifold'
@@ -29,17 +30,19 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     const [wasm, font] = await ready
     const result =
-      config.kind === 'holder'
-        ? buildHolder(wasm, config, font)
-        : config.kind === 'painting-handle'
-          ? buildPaintingHandle(wasm, config)
-          : config.kind === 'painting-tray'
-            ? buildPaintingTray(wasm, config)
-            : config.kind === 'stem'
-              ? buildFlightStem(wasm, config)
-              : config.kind === 'token'
-                ? buildToken(wasm, config, font)
-                : buildBase(wasm, config, font)
+      config.kind === 'adapter'
+        ? buildAdapter(wasm, config)
+        : config.kind === 'holder'
+          ? buildHolder(wasm, config, font)
+          : config.kind === 'painting-handle'
+            ? buildPaintingHandle(wasm, config)
+            : config.kind === 'painting-tray'
+              ? buildPaintingTray(wasm, config)
+              : config.kind === 'stem'
+                ? buildFlightStem(wasm, config)
+                : config.kind === 'token'
+                  ? buildToken(wasm, config, font)
+                  : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {
