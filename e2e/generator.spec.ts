@@ -741,6 +741,35 @@ test('marks even a cramped rank base', async ({ page }) => {
   expect(withMark).toBeGreaterThan(await triangles(page))
 })
 
+test('embosses custom label text and keeps it across sizes', async ({ page }) => {
+  const before = await triangles(page)
+  await sizeLabel(page).fill('SQUAD 3')
+  await rebuilt(page, before)
+  await expect(footer(page)).toContainText('“SQUAD 3”')
+  // The filename names the printed size, never the label.
+  await expect(footer(page)).toContainText('base-round-32mm')
+
+  await pickSize(page, '40')
+  await expect(across(page)).toHaveText('Ø40')
+  await expect(sizeLabel(page)).toHaveValue('SQUAD 3')
+})
+
+test('reports custom label text that does not fit', async ({ page }) => {
+  await pickSize(page, '25')
+  await settled(page)
+  await sizeLabel(page).fill('W'.repeat(20))
+  await expect(page.getByRole('alert')).toContainText('Label text does not fit')
+  await expect(footer(page)).toContainText(/blocked/i)
+
+  await sizeLabel(page).fill('')
+  await expect(footer(page)).toContainText(/ready/i)
+})
+
+test('accepts only label characters the font can draw', async ({ page }) => {
+  await sizeLabel(page).fill(`Ω squad ☠ ${'x'.repeat(30)}`)
+  await expect(sizeLabel(page)).toHaveValue(` squad  ${'x'.repeat(12)}`)
+})
+
 test('still builds with the wall and floor wound to their limits', async ({ page }) => {
   // The dimension fields clamp to their limits, so no combination can reach an
   // unbuildable base. The geometry does throw outside those bounds, so this guards

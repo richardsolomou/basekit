@@ -3,6 +3,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { supportsFivePocketCross } from '@/geometry/base'
+import { labelText } from '@/geometry/label'
 import { defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
 import {
   defaultBaseHeight,
@@ -86,7 +87,8 @@ export function BasePanel({
   const loadPreset = (size: SizePreset) => {
     posthog.capture('base_size_selected', { size: size.label, shape: config.shape })
     setCustomBaseSize(false)
-    setConfig(presetFor(size, config.magnets.maxCount, config.magnets.patternVersion))
+    const preset = presetFor(size, config.magnets.maxCount, config.magnets.patternVersion)
+    setConfig({ ...preset, label: { ...preset.label, text: config.label.text } })
   }
 
   /** Keeps the current settings but adopts the new shape's usual footprint. */
@@ -203,7 +205,7 @@ export function BasePanel({
           </FieldDescription>
         </Section>
 
-        <Section title="Size Label">
+        <Section title="Label">
           <ToggleSetting
             label="Size labels"
             checked={config.label.enabled}
@@ -222,9 +224,10 @@ export function BasePanel({
                 id="marking-text"
                 value={config.label.text ?? ''}
                 placeholder={defaultLabel(config)}
-                onChange={(e) => patch({ label: { ...config.label, text: e.currentTarget.value } })}
+                onChange={(e) => patch({ label: { ...config.label, text: labelText(e.currentTarget.value) } })}
                 className="readout"
               />
+              <FieldDescription>Leave empty to emboss the exact size.</FieldDescription>
             </Field>
           )}
         </Section>

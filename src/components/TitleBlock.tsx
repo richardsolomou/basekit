@@ -92,7 +92,7 @@ export function TitleBlock({ config, status, name }: Props) {
         label="Magnets"
         value={config.magnets.count === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${pocketDepth}mm deep`}
       />
-      <Row label="Size label" value={config.label.enabled ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'} />
+      <Row label="Label" value={config.label.enabled ? `“${config.label.text?.trim() || defaultLabel(config)}”` : 'none'} />
     </TitleFrame>
   )
 }
