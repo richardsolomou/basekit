@@ -1,5 +1,11 @@
 # basekit
 
+## 0.10.0
+
+### Minor Changes
+
+- 9d18a64: Export several base sizes at once, with quantities, as an STL archive or a multi-plate 3MF.
+
 ## 0.9.0
 
 ### Minor Changes
