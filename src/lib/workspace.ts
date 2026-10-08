@@ -12,7 +12,7 @@ import { defaultFlightStemConfig } from '../geometry/stem'
 import type { BaseConfig, FlightStemConfig, HolderConfig, TokenConfig, PaintingTrayConfig } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 8
+const WORKSPACE_VERSION = 9
 
 interface SettingsStorage {
   getItem(key: string): string | null
@@ -151,6 +151,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
       migrateWorkspaceV5,
       migrateWorkspaceV6,
       migrateWorkspaceV7,
+      migrateWorkspaceV8,
     ]
     const version = parsed.version
     if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
@@ -162,6 +163,15 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   } catch {
     return defaultWorkspace()
   }
+}
+
+function migrateWorkspaceV8(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  const workspace = value as Record<string, unknown>
+  const saved = workspace.token as Record<string, unknown> | undefined
+  if (!saved || !('diameter' in saved)) return value
+  const { diameter, ...token } = saved
+  return { ...workspace, token: { ...token, shape: 'round', size: diameter, cornerRadius: defaultTokenConfig().cornerRadius } }
 }
 
 function migrateWorkspaceV7(value: unknown): unknown {
@@ -263,6 +273,7 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
     workspace.stem.kind === 'stem' &&
     workspace.token.kind === 'token' &&
+    ['round', 'square', 'hex'].includes(workspace.token.shape) &&
     ['taper', 'straight', 'bevel', 'round'].includes(workspace.token.profile) &&
     isTokenImage(workspace.token.image) &&
     workspace.paintingTray.kind === 'painting-tray' &&

@@ -33,7 +33,7 @@ describe('workspace state', () => {
         },
       },
       stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
-      token: { kind: 'token', diameter: 40, thickness: 3, text: '1' },
+      token: { kind: 'token', shape: 'round', size: 40, thickness: 3, text: '1' },
     })
   })
 
@@ -168,7 +168,28 @@ describe('workspace state', () => {
     delete legacy.token
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 7, workspace: legacy }))
 
-    expect(loadWorkspace(storage)).toMatchObject({ stem: { bodyHeight: 20 }, token: { kind: 'token', diameter: 40, text: '1' } })
+    expect(loadWorkspace(storage)).toMatchObject({
+      stem: { bodyHeight: 20 },
+      token: { kind: 'token', shape: 'round', size: 40, text: '1' },
+    })
+  })
+
+  it('keeps a token saved before shapes existed as a round of the same diameter', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.token = { ...legacy.token, diameter: 32.5, text: '6' }
+    for (const key of ['shape', 'size', 'cornerRadius']) delete legacy.token[key]
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 8, workspace: legacy }))
+
+    expect(loadWorkspace(storage).token).toMatchObject({ shape: 'round', size: 32.5, text: '6' })
+  })
+
+  it('keeps a saved token shape', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    saveWorkspace(storage, { ...workspace, token: { ...workspace.token, shape: 'hex', size: 25.4 } })
+
+    expect(loadWorkspace(storage).token).toMatchObject({ shape: 'hex', size: 25.4 })
   })
 
   it('keeps a saved objective token', () => {

@@ -42,14 +42,14 @@ Choose a round, oval-barrel, flared, or pistol grip, then adjust its width, leng
 
 ## Tokens 🪙
 
-Make a round token for objectives, Oath of Moment, or anything else a game tracks. Type a word, a phrase, or a number and it wraps and scales to fill the face; drop in an image and its dark areas are traced into a raised silhouette, above the text when the token has both. Adjust the threshold or raise the light areas instead to suit the artwork, then set the diameter, thickness, relief height, and top edge. Tokens print flat on the table face with the artwork facing up, so nothing needs supports.
+Make a round, square, or hex token for objectives, Oath of Moment, or anything else a game tracks. Every shape is sized across its flats: a round's diameter, a square's width, and a hex's flat-to-flat distance, so a 25.4mm hex fills a one-inch hex grid cell. Squares can round their corners. Type a word, a phrase, or a number and it wraps and scales to fill the face; drop in an image and its dark areas are traced into a raised silhouette, above the text when the token has both. Adjust the threshold or raise the light areas instead to suit the artwork, then set the size, thickness, relief height, and top edge. Tokens print flat on the table face with the artwork facing up, so nothing needs supports.
 
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
-- Round tokens with wrapped text and traced image silhouettes.
+- Round, square, and hex tokens with wrapped text and traced image silhouettes.
 - Shared magnet dimensions across bases, holders, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
