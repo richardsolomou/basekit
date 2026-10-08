@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { adapterPocketDepth, adapterRecess } from '@/geometry/adapter'
 import { defaultLabel, trimNumber } from '@/geometry/outline'
 import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
 import { movementTrayBaseLabel, movementTrayMagnetPocketCount } from '@/geometry/movementTray'
@@ -62,6 +63,19 @@ function PartRows({ config }: { config: PartConfig }) {
         ) : (
           <Row label="Ball joint" value={`Ø${trimNumber(config.ballDiameter)} mm`} />
         )}
+      </>
+    )
+  }
+  if (config.kind === 'adapter') {
+    const pocket = trimNumber(config.magnets.diameter + config.magnets.clearance)
+    const pocketDepth = adapterPocketDepth(config)
+    return (
+      <>
+        <Row label="Recess" value={`${holderGroupLabel(adapterRecess(config))} × ${trimNumber(config.recessDepth)} mm`} />
+        <Row
+          label="Magnets"
+          value={pocketDepth === 0 ? 'none' : `${config.magnets.count} × ${pocket} mm hole · ${trimNumber(pocketDepth)}mm deep`}
+        />
       </>
     )
   }

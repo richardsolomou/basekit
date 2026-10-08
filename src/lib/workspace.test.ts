@@ -42,6 +42,12 @@ describe('workspace state', () => {
       },
       stem: { kind: 'stem', bodyHeight: 15, bodyDiameter: 4.8, connection: 'peg', modelPegDiameter: 1.8, ballDiameter: 4 },
       token: { kind: 'token', shape: 'round', size: 40, thickness: 3, text: '1' },
+      adapter: {
+        kind: 'adapter',
+        source: { shape: 'round', width: 25 },
+        target: { shape: 'round', width: 32 },
+        magnets: { enabled: false },
+      },
     })
   })
 
@@ -167,6 +173,39 @@ describe('workspace state', () => {
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 5, workspace: legacy }))
 
     expect(loadWorkspace(storage).stem).toMatchObject({ bodyHeight: 20, connection: 'peg', ballDiameter: 4 })
+  })
+
+  it.each([8, 9, 10])('adds the base-adapter generator to a version %i workspace', (version) => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.base.height = 5
+    delete legacy.adapter
+    if (version < 10) delete legacy.movementTray
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({ base: { height: 5 }, adapter: { kind: 'adapter', target: { width: 32 } } })
+  })
+
+  it('keeps a saved adapter', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    saveWorkspace(storage, { ...workspace, adapter: { ...workspace.adapter, source: { shape: 'round', width: 28.5, length: 28.5 } } })
+
+    expect(loadWorkspace(storage).adapter.source.width).toBe(28.5)
+  })
+
+  it('shares the per-footprint magnet count between a base and an adapter of that footprint', () => {
+    const state = defaultWorkspace()
+    state.shared.magnetCounts[footprintKey('round', 32, 32)] = 3
+
+    expect(synchronizeWorkspace(state).adapter.magnets.count).toBe(3)
+  })
+
+  it('raises the adapter to fit its magnet pockets below the recess', () => {
+    const state = defaultWorkspace()
+    state.adapter = { ...state.adapter, height: 3, recessDepth: 2, magnets: { ...state.adapter.magnets, enabled: true } }
+
+    expect(synchronizeWorkspace(state).adapter.height).toBe(4.9)
   })
 
   it('adds the objective-token generator to saved workspaces', () => {

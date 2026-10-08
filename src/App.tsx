@@ -1,5 +1,6 @@
 import { Box, Download, PanelLeft } from 'lucide-react'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { AdapterPanel } from '@/components/panels/AdapterPanel'
 import { BasePanel } from '@/components/panels/BasePanel'
 import { HolderPanel } from '@/components/panels/HolderPanel'
 import { isStandardMovementSize, MovementTrayPanel } from '@/components/panels/MovementTrayPanel'
@@ -20,6 +21,7 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
+import { adapterName } from '@/geometry/adapter'
 import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '@/geometry/holder'
 import { baseName, footprint, isElongated } from '@/geometry/outline'
 import { footprintKey, SIZES_BY_SHAPE } from '@/geometry/presets'
@@ -33,7 +35,15 @@ import {
   paintingTrayName,
 } from '@/geometry/paintingTray'
 import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/geometry/types'
+import type {
+  AdapterConfig,
+  BaseConfig,
+  FlightStemConfig,
+  TokenConfig,
+  HolderConfig,
+  MovementTrayConfig,
+  PaintingTrayConfig,
+} from '@/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
 import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'
@@ -52,6 +62,7 @@ import {
 
 const MODELS = [
   { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
+  { value: 'adapter' as const, label: 'Adapters', mobileLabel: 'Adapters', href: '/adapters' },
   { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
   { value: 'movement' as const, label: 'Movement trays', mobileLabel: 'Movement', href: '/movement-trays' },
   { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
@@ -64,19 +75,22 @@ const modelForPath = (): Generator => MODELS.find((item) => item.href === window
 const modelLabel = (model: Generator) =>
   model === 'base'
     ? 'Base'
-    : model === 'holder'
-      ? 'Holder'
-      : model === 'movement'
-        ? 'Movement tray'
-        : model === 'painting'
-          ? 'Spray tray'
-          : model === 'stem'
-            ? 'Stem'
-            : 'Token'
+    : model === 'adapter'
+      ? 'Adapter'
+      : model === 'holder'
+        ? 'Holder'
+        : model === 'movement'
+          ? 'Movement tray'
+          : model === 'painting'
+            ? 'Spray tray'
+            : model === 'stem'
+              ? 'Stem'
+              : 'Token'
 
 export function App() {
   const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
   const config = workspace.base
+  const adapter = workspace.adapter
   const holder = workspace.holder
   const movementTray = workspace.movementTray
   const paintingTray = workspace.paintingTray
@@ -86,6 +100,8 @@ export function App() {
     setWorkspaceState((current) => synchronizeWorkspace(typeof next === 'function' ? next(current) : next))
   const setConfig = (next: BaseConfig | ((current: BaseConfig) => BaseConfig)) =>
     setWorkspace((current) => ({ ...current, base: typeof next === 'function' ? next(current.base) : next }))
+  const patchAdapter = (changes: Partial<AdapterConfig>) =>
+    setWorkspace((current) => ({ ...current, adapter: { ...current.adapter, ...changes } }))
   const setHolder = (next: HolderConfig | ((current: HolderConfig) => HolderConfig)) =>
     setWorkspace((current) => ({ ...current, holder: typeof next === 'function' ? next(current.holder) : next }))
   const setMovementTray = (next: MovementTrayConfig) => setWorkspace((current) => ({ ...current, movementTray: next }))
@@ -146,15 +162,17 @@ export function App() {
   const partConfig =
     model === 'base'
       ? config
-      : model === 'holder'
-        ? holder
-        : model === 'movement'
-          ? movementTray
-          : model === 'painting'
-            ? paintingTray
-            : model === 'stem'
-              ? stem
-              : token
+      : model === 'adapter'
+        ? adapter
+        : model === 'holder'
+          ? holder
+          : model === 'movement'
+            ? movementTray
+            : model === 'painting'
+              ? paintingTray
+              : model === 'stem'
+                ? stem
+                : token
   const { preview, grams, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -167,15 +185,17 @@ export function App() {
     document.title = `BaseKit — ${
       model === 'base'
         ? 'Bases'
-        : model === 'holder'
-          ? 'Holders'
-          : model === 'movement'
-            ? 'Movement Trays'
-            : model === 'painting'
-              ? 'Spray Trays'
-              : model === 'stem'
-                ? 'Flying Stems'
-                : 'Tokens'
+        : model === 'adapter'
+          ? 'Base Adapters'
+          : model === 'holder'
+            ? 'Holders'
+            : model === 'movement'
+              ? 'Movement Trays'
+              : model === 'painting'
+                ? 'Spray Trays'
+                : model === 'stem'
+                  ? 'Flying Stems'
+                  : 'Tokens'
     }`
   }, [model])
 
@@ -210,54 +230,63 @@ export function App() {
   const maxSharedDepthClearance = Math.max(0, Math.min(0.5, maxBaseDepthClearance, maxHolderDepthClearance))
   const plan = useMemo(() => holderPlan(holder), [holder])
   const stemDiameter = stemMaximumDiameter(stem)
+  const adapterSize = footprint(adapter.target)
   const partWidth =
     model === 'base'
       ? width
-      : model === 'holder'
-        ? holderSize.width
-        : model === 'movement'
-          ? movementSize.width
-          : model === 'painting'
-            ? paintingSize.width
-            : model === 'stem'
-              ? stemDiameter
-              : tokenFootprint(token).width
+      : model === 'adapter'
+        ? adapterSize.width
+        : model === 'holder'
+          ? holderSize.width
+          : model === 'movement'
+            ? movementSize.width
+            : model === 'painting'
+              ? paintingSize.width
+              : model === 'stem'
+                ? stemDiameter
+                : tokenFootprint(token).width
   const partLength =
     model === 'base'
       ? length
-      : model === 'holder'
-        ? holderSize.length
-        : model === 'movement'
-          ? movementSize.length
-          : model === 'painting'
-            ? paintingSize.length
-            : model === 'stem'
-              ? stemDiameter
-              : tokenFootprint(token).length
+      : model === 'adapter'
+        ? adapterSize.length
+        : model === 'holder'
+          ? holderSize.length
+          : model === 'movement'
+            ? movementSize.length
+            : model === 'painting'
+              ? paintingSize.length
+              : model === 'stem'
+                ? stemDiameter
+                : tokenFootprint(token).length
   const partHeight =
     model === 'base'
       ? config.height
-      : model === 'holder'
-        ? holder.height
-        : model === 'movement'
-          ? movementTrayHeight(movementTray)
-          : model === 'painting'
-            ? paintingTrayAssemblyHeight(paintingTray)
-            : model === 'stem'
-              ? stemOverallHeight(stem)
-              : tokenHeight(token)
+      : model === 'adapter'
+        ? adapter.height
+        : model === 'holder'
+          ? holder.height
+          : model === 'movement'
+            ? movementTrayHeight(movementTray)
+            : model === 'painting'
+              ? paintingTrayAssemblyHeight(paintingTray)
+              : model === 'stem'
+                ? stemOverallHeight(stem)
+                : tokenHeight(token)
   const partName =
     model === 'base'
       ? baseName(config)
-      : model === 'holder'
-        ? holderName(holder)
-        : model === 'movement'
-          ? movementTrayName(movementTray)
-          : model === 'painting'
-            ? paintingTrayName(paintingTray)
-            : model === 'stem'
-              ? stemName(stem)
-              : tokenName(token)
+      : model === 'adapter'
+        ? adapterName(adapter)
+        : model === 'holder'
+          ? holderName(holder)
+          : model === 'movement'
+            ? movementTrayName(movementTray)
+            : model === 'painting'
+              ? paintingTrayName(paintingTray)
+              : model === 'stem'
+                ? stemName(stem)
+                : tokenName(token)
   const batch = useMemo(
     () => workspace.batch.map((entry) => ({ config: batchBaseConfig(workspace, entry), quantity: entry.quantity })),
     [workspace],
@@ -272,6 +301,7 @@ export function App() {
   } = useExport({
     model,
     base: config,
+    adapter,
     holder,
     movementTray,
     paintingTray,
@@ -284,8 +314,8 @@ export function App() {
   })
   const elongated = isElongated(config.shape)
   const magnetCountKey = footprintKey(config.shape, config.width, config.length)
-  const magnetCountOverride = workspace.shared.magnetCounts[magnetCountKey]
-  const magnetCountValue: MagnetCountChoice = magnetCountOverride ?? AUTOMATIC_MAGNET_COUNT
+  const adapterMagnetCountKey = footprintKey(adapter.target.shape, adapter.target.width, adapter.target.length)
+  const magnetCountValue = (key: string): MagnetCountChoice => workspace.shared.magnetCounts[key] ?? AUTOMATIC_MAGNET_COUNT
 
   const setSharedMagnets = (changes: SharedMagnetChanges) => {
     setWorkspace((current) => ({
@@ -294,11 +324,11 @@ export function App() {
     }))
   }
 
-  const setMagnetCount = (count: MagnetCountChoice) =>
+  const setMagnetCount = (key: string) => (count: MagnetCountChoice) =>
     setWorkspace((current) => {
       const magnetCounts = { ...current.shared.magnetCounts }
-      if (count === AUTOMATIC_MAGNET_COUNT) delete magnetCounts[magnetCountKey]
-      else magnetCounts[magnetCountKey] = count
+      if (count === AUTOMATIC_MAGNET_COUNT) delete magnetCounts[key]
+      else magnetCounts[key] = count
       return { ...current, shared: { ...current.shared, magnetCounts } }
     })
 
@@ -345,7 +375,7 @@ export function App() {
   const resetSharedSettings: ResetAction = {
     label: 'shared settings',
     description:
-      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and the labels toggle return to their defaults on bases, holders and spray trays.',
+      'Magnet size and fit, pocket layout, magnet counts, wall thickness, magnet boss wall and the labels toggle return to their defaults on bases, adapters, holders, movement trays and spray trays.',
     onReset: () => {
       posthog.capture('settings_reset', { scope: 'shared' })
       setWorkspace(resetShared)
@@ -360,8 +390,8 @@ export function App() {
         patch={patch}
         customBaseSize={customBaseSize}
         setCustomBaseSize={setCustomBaseSize}
-        magnetCountValue={magnetCountValue}
-        setMagnetCount={setMagnetCount}
+        magnetCountValue={magnetCountValue(magnetCountKey)}
+        setMagnetCount={setMagnetCount(magnetCountKey)}
         maxSharedMagnetThickness={maxSharedMagnetThickness}
         maxSharedDepthClearance={maxSharedDepthClearance}
         setSharedMagnets={setSharedMagnets}
@@ -373,6 +403,16 @@ export function App() {
         exportBatchStl={exportBatchStl}
         exportBatch3mf={exportBatch3mf}
         resets={[resetPart('base', 'base', true), resetSharedSettings]}
+      />
+    ) : model === 'adapter' ? (
+      <AdapterPanel
+        adapter={adapter}
+        patchAdapter={patchAdapter}
+        magnetCountValue={magnetCountValue(adapterMagnetCountKey)}
+        setMagnetCount={setMagnetCount(adapterMagnetCountKey)}
+        maxSharedMagnetThickness={maxSharedMagnetThickness}
+        setSharedMagnets={setSharedMagnets}
+        resets={[resetPart('adapter', 'adapter', true), resetSharedSettings]}
       />
     ) : model === 'holder' ? (
       <HolderPanel
@@ -492,8 +532,13 @@ export function App() {
             height={partHeight}
             minZ={model === 'painting' ? paintingTrayAssemblyMinZ(paintingTray) : 0}
             orbitTarget={model === 'painting' ? paintingHandleAxisCenter(paintingTray) : undefined}
-            round={model === 'stem' || (model === 'token' && token.shape === 'round') || (model === 'base' && !elongated)}
-            fitToPart={model !== 'base'}
+            round={
+              model === 'stem' ||
+              (model === 'token' && token.shape === 'round') ||
+              (model === 'base' && !elongated) ||
+              (model === 'adapter' && !isElongated(adapter.target.shape))
+            }
+            fitToPart={model !== 'base' && model !== 'adapter'}
           />
           {(error || exportError) && (
             <div

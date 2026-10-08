@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { zipSync } from 'fflate'
+import { adapterName } from '@/geometry/adapter'
 import { packPlates, to3mf, to3mfPlates, toStl } from '@/geometry/exporters'
 import { holderName, holderPlan } from '@/geometry/holder'
 import { movementTrayHeight, movementTrayName } from '@/geometry/movementTray'
@@ -9,6 +10,7 @@ import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, pai
 import { exportSegmentsFor } from '@/geometry/quality'
 import { stemName, stemOverallHeight } from '@/geometry/stem'
 import type {
+  AdapterConfig,
   BaseConfig,
   FlightStemConfig,
   HolderConfig,
@@ -30,8 +32,9 @@ interface BatchPart {
 }
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'movement' | 'painting' | 'stem' | 'token'
+  model: 'base' | 'adapter' | 'holder' | 'movement' | 'painting' | 'stem' | 'token'
   base: BaseConfig
+  adapter: AdapterConfig
   holder: HolderConfig
   movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
@@ -46,6 +49,7 @@ interface ExportOptions {
 export function useExport({
   model,
   base,
+  adapter,
   holder,
   movementTray,
   paintingTray,
@@ -61,27 +65,31 @@ export function useExport({
   const config: PartConfig =
     model === 'base'
       ? base
-      : model === 'holder'
-        ? holder
-        : model === 'movement'
-          ? movementTray
-          : model === 'painting'
-            ? paintingTray
-            : model === 'stem'
-              ? stem
-              : token
+      : model === 'adapter'
+        ? adapter
+        : model === 'holder'
+          ? holder
+          : model === 'movement'
+            ? movementTray
+            : model === 'painting'
+              ? paintingTray
+              : model === 'stem'
+                ? stem
+                : token
   const name =
     model === 'base'
       ? baseName(base)
-      : model === 'holder'
-        ? holderName(holder)
-        : model === 'movement'
-          ? movementTrayName(movementTray)
-          : model === 'painting'
-            ? paintingTrayName(paintingTray)
-            : model === 'stem'
-              ? stemName(stem)
-              : tokenName(token)
+      : model === 'adapter'
+        ? adapterName(adapter)
+        : model === 'holder'
+          ? holderName(holder)
+          : model === 'movement'
+            ? movementTrayName(movementTray)
+            : model === 'painting'
+              ? paintingTrayName(paintingTray)
+              : model === 'stem'
+                ? stemName(stem)
+                : tokenName(token)
 
   const run = async (
     format: ExportFormat,
