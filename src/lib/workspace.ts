@@ -138,30 +138,90 @@ export function defaultWorkspace(): WorkspaceState {
   })
 }
 
+const MIGRATIONS = [
+  migrateWorkspaceV1,
+  migrateWorkspaceV2,
+  migrateWorkspaceV3,
+  migrateWorkspaceV4,
+  migrateWorkspaceV5,
+  migrateWorkspaceV6,
+  migrateWorkspaceV7,
+]
+
+function migrateWorkspace(version: unknown, value: unknown): unknown {
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return undefined
+  return MIGRATIONS.slice(version - 1).reduce((migrated, migrate) => migrate(migrated), value)
+}
+
+function validWorkspace(value: unknown): WorkspaceState | undefined {
+  if (!isWorkspaceState(value, defaultWorkspace())) return undefined
+  const base = { ...value.base } as BaseConfig & { underside?: unknown }
+  delete base.underside
+  return synchronizeWorkspace({ ...value, base })
+}
+
 export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   try {
     const saved = storage.getItem(WORKSPACE_KEY)
     if (saved === null) return defaultWorkspace()
     const parsed = JSON.parse(saved) as { version?: unknown; workspace?: unknown }
-    const migrations = [
-      migrateWorkspaceV1,
-      migrateWorkspaceV2,
-      migrateWorkspaceV3,
-      migrateWorkspaceV4,
-      migrateWorkspaceV5,
-      migrateWorkspaceV6,
-      migrateWorkspaceV7,
-    ]
-    const version = parsed.version
-    if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > WORKSPACE_VERSION) return defaultWorkspace()
-    const workspace = migrations.slice(version - 1).reduce((value, migrate) => migrate(value), parsed.workspace)
-    if (!isWorkspaceState(workspace, defaultWorkspace())) return defaultWorkspace()
-    const base = { ...workspace.base } as BaseConfig & { underside?: unknown }
-    delete base.underside
-    return synchronizeWorkspace({ ...workspace, base })
+    return validWorkspace(migrateWorkspace(parsed.version, parsed.workspace)) ?? defaultWorkspace()
   } catch {
     return defaultWorkspace()
   }
+}
+
+export type WorkspacePart = 'base' | 'holder' | 'paintingTray' | 'stem' | 'token'
+
+const PARTS: readonly WorkspacePart[] = ['base', 'holder', 'paintingTray', 'stem', 'token']
+const PARTS_USING_SHARED = new Set<WorkspacePart>(['base', 'holder', 'paintingTray'])
+
+/** One generator's settings and the shared settings that shape it, as a share link carries them. */
+export interface WorkspaceSetup {
+  version: number
+  part: WorkspacePart
+  config: WorkspaceState[WorkspacePart]
+  shared?: SharedSettings
+}
+
+function magnetCountKeys(workspace: WorkspaceState, part: WorkspacePart): string[] {
+  if (part === 'base') return [footprintKey(workspace.base.shape, workspace.base.width, workspace.base.length)]
+  if (part === 'holder') return workspace.holder.groups.map((group) => footprintKey(group.shape, group.width, group.length))
+  return []
+}
+
+export function workspaceSetup(workspace: WorkspaceState, part: WorkspacePart): WorkspaceSetup {
+  const setup: WorkspaceSetup = { version: WORKSPACE_VERSION, part, config: workspace[part] }
+  if (!PARTS_USING_SHARED.has(part)) return setup
+  const keys = magnetCountKeys(workspace, part)
+  const magnetCounts = Object.fromEntries(Object.entries(workspace.shared.magnetCounts).filter(([key]) => keys.includes(key)))
+  return { ...setup, shared: { ...workspace.shared, magnetCounts } }
+}
+
+/**
+ * Lays an untrusted setup over a workspace through the same migrations and validation
+ * as saved state. Count overrides for the setup's own footprints are replaced, so an
+ * automatic count in the setup stays automatic; other footprints keep their overrides.
+ */
+export function applyWorkspaceSetup(
+  workspace: WorkspaceState,
+  setup: unknown,
+): { workspace: WorkspaceState; part: WorkspacePart } | undefined {
+  if (typeof setup !== 'object' || setup === null) return undefined
+  const { version, part, config, shared } = setup as Record<string, unknown>
+  const key = PARTS.find((candidate) => candidate === part)
+  if (!key) return undefined
+  const usesShared = PARTS_USING_SHARED.has(key)
+  const migrated = migrateWorkspace(version, { ...workspace, [key]: config, shared: usesShared ? shared : workspace.shared })
+  if (typeof migrated !== 'object' || migrated === null) return undefined
+  const incoming = migrated as Record<string, unknown>
+  const candidate = validWorkspace({ ...workspace, [key]: incoming[key], shared: usesShared ? incoming.shared : workspace.shared })
+  if (!candidate) return undefined
+  if (!usesShared) return { workspace: candidate, part: key }
+  const replaced = magnetCountKeys(candidate, key)
+  const kept = Object.entries(workspace.shared.magnetCounts).filter(([footprint]) => !replaced.includes(footprint))
+  const magnetCounts = { ...Object.fromEntries(kept), ...candidate.shared.magnetCounts }
+  return { workspace: synchronizeWorkspace({ ...candidate, shared: { ...candidate.shared, magnetCounts } }), part: key }
 }
 
 function migrateWorkspaceV7(value: unknown): unknown {

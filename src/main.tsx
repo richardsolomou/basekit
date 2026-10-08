@@ -3,10 +3,14 @@ import { PostHogIntegration } from 'ras-stack/posthog/react'
 import packageJson from '../package.json' with { type: 'json' }
 import { App } from './App'
 import { posthogEnvironment } from './lib/posthog'
+import { takeShareHash } from './lib/shareLink'
 import './styles.css'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing #root')
+
+// Taken before analytics starts, so a shared setup never reaches a captured URL.
+const sharedSetup = takeShareHash()
 
 createRoot(root).render(
   <PostHogIntegration
@@ -21,6 +25,6 @@ createRoot(root).render(
       },
     }}
   >
-    <App />
+    <App sharedSetup={sharedSetup} />
   </PostHogIntegration>,
 )

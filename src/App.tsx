@@ -1,4 +1,4 @@
-import { Box, Download, PanelLeft } from 'lucide-react'
+import { Box, Download, Link, PanelLeft } from 'lucide-react'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { BasePanel } from '@/components/panels/BasePanel'
 import { HolderPanel } from '@/components/panels/HolderPanel'
@@ -36,14 +36,15 @@ import { useExport } from '@/lib/useExport'
 import { useGenerator } from '@/lib/useGenerator'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import posthog from '@/lib/posthog'
-import { loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
+import { shareLink } from '@/lib/shareLink'
+import { applyWorkspaceSetup, loadWorkspace, saveWorkspace, synchronizeWorkspace, type WorkspaceState } from '@/lib/workspace'
 
 const MODELS = [
-  { value: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
-  { value: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
-  { value: 'painting' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
-  { value: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
-  { value: 'token' as const, label: 'Tokens', mobileLabel: 'Tokens', href: '/tokens' },
+  { value: 'base' as const, part: 'base' as const, label: 'Bases', mobileLabel: 'Bases', href: '/' },
+  { value: 'holder' as const, part: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
+  { value: 'painting' as const, part: 'paintingTray' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
+  { value: 'stem' as const, part: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
+  { value: 'token' as const, part: 'token' as const, label: 'Tokens', mobileLabel: 'Tokens', href: '/tokens' },
 ]
 type Generator = (typeof MODELS)[number]['value']
 
@@ -51,8 +52,20 @@ const modelForPath = (): Generator => MODELS.find((item) => item.href === window
 const modelLabel = (model: Generator) =>
   model === 'base' ? 'Base' : model === 'holder' ? 'Holder' : model === 'painting' ? 'Spray tray' : model === 'stem' ? 'Stem' : 'Token'
 
-export function App() {
-  const [workspace, setWorkspaceState] = useState(() => loadWorkspace(window.localStorage))
+const SHARE_NOTICE_MS = 5000
+
+/** `sharedSetup` is an unvalidated setup decoded from a share link, laid over the saved workspace. */
+export function App({ sharedSetup }: { sharedSetup?: unknown }) {
+  const [opened] = useState(() => {
+    const saved = loadWorkspace(window.localStorage)
+    const shared = sharedSetup === undefined ? undefined : applyWorkspaceSetup(saved, sharedSetup)
+    return {
+      workspace: shared?.workspace ?? saved,
+      model: shared ? MODELS.find((item) => item.part === shared.part)!.value : modelForPath(),
+      fromLink: shared !== undefined,
+    }
+  })
+  const [workspace, setWorkspaceState] = useState(opened.workspace)
   const config = workspace.base
   const holder = workspace.holder
   const paintingTray = workspace.paintingTray
@@ -80,7 +93,7 @@ export function App() {
     const { width, length } = footprint(workspace.base)
     return !SIZES_BY_SHAPE[workspace.base.shape].some((size) => size.width === width && (size.length ?? size.width) === length)
   })
-  const [model, setModel] = useState<Generator>(modelForPath)
+  const [model, setModel] = useState<Generator>(opened.model)
   const [tokenImageError, setTokenImageError] = useState<string>()
   const addTokenImage = async (file: File) => {
     setTokenImageError(undefined)
@@ -113,6 +126,29 @@ export function App() {
   const partConfig =
     model === 'base' ? config : model === 'holder' ? holder : model === 'painting' ? paintingTray : model === 'stem' ? stem : token
   const { preview, error } = useGenerator(partConfig)
+
+  useEffect(() => {
+    const href = MODELS.find((item) => item.value === opened.model)!.href
+    if (opened.fromLink && window.location.pathname !== href) window.history.replaceState(null, '', href)
+  }, [opened])
+
+  const [shareNotice, setShareNotice] = useState<{ text: string }>()
+  useEffect(() => {
+    if (!shareNotice) return
+    const timer = window.setTimeout(() => setShareNotice(undefined), SHARE_NOTICE_MS)
+    return () => window.clearTimeout(timer)
+  }, [shareNotice])
+  const copyLink = async () => {
+    const item = MODELS.find((entry) => entry.value === model)!
+    const { url, imageOmitted } = shareLink(`${window.location.origin}${item.href}`, workspace, item.part)
+    try {
+      await navigator.clipboard.writeText(url)
+      posthog.capture('share_link_copied', { generator: model, image_omitted: imageOmitted })
+      setShareNotice({ text: imageOmitted ? 'Link copied without the image, which would make it too long to share' : 'Link copied' })
+    } catch {
+      setShareNotice({ text: 'The browser blocked copying the link' })
+    }
+  }
 
   useEffect(() => {
     const syncRoute = () => setModel(modelForPath())
@@ -369,6 +405,10 @@ export function App() {
             <Box />
             <span className="max-sm:sr-only">{exporting === '3mf' ? 'Building 3MF' : 'Download 3MF'}</span>
           </Button>
+          <Button size="sm" variant="outline" onClick={() => void copyLink()}>
+            <Link />
+            <span className="max-sm:sr-only">Copy link</span>
+          </Button>
         </ButtonGroup>
       </header>
 
@@ -387,14 +427,16 @@ export function App() {
             round={model === 'stem' || model === 'token' || (model === 'base' && !elongated)}
             fitToPart={model !== 'base'}
           />
-          {(error || exportError) && (
-            <div
-              role="alert"
-              className="absolute inset-x-0 top-0 border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive"
-            >
-              {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
-            </div>
-          )}
+          <div className="absolute inset-x-0 top-0">
+            {(error || exportError) && (
+              <div role="alert" className="border-b border-destructive/50 bg-destructive/10 px-5 py-2 text-xs text-destructive">
+                {error ? `${error}. Showing the last model that built.` : `Export failed: ${exportError}`}
+              </div>
+            )}
+            <output className="block empty:hidden border-b border-measure/50 bg-measure/10 px-5 py-2 text-xs text-measure">
+              {shareNotice?.text}
+            </output>
+          </div>
           <TitleBlock config={partConfig} status={error ? 'blocked' : 'ready'} name={partName} />
         </main>
       </div>
