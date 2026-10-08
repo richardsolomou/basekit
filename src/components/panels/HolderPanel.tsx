@@ -184,7 +184,7 @@ export function HolderPanel({ holder, setHolder, holderSize, plan, maxSharedMagn
             onChange={(slotClearance) => setHolder({ ...holder, slotClearance })}
           />
           <ToggleSetting
-            label="Size labels"
+            label="Labels"
             checked={holder.engraving.enabled}
             defaultChecked={HOLDER_DEFAULTS.engraving.enabled}
             onChange={setSharedLabels}

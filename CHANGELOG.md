@@ -1,5 +1,11 @@
 # basekit
 
+## 0.6.0
+
+### Minor Changes
+
+- f668c4a: Show how many more of each holder miniature size fit in the modules already planned.
+
 ## 0.5.1
 
 ### Patch Changes
