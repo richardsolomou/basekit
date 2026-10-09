@@ -1,4 +1,3 @@
-import { defaultAdapterConfig, minAdapterHeight } from '../geometry/adapter'
 import { defaultHolderConfig } from '../geometry/holder'
 import { defaultMovementTrayConfig, minimumMovementTrayFloor } from '../geometry/movementTray'
 import {
@@ -12,7 +11,6 @@ import { defaultTokenConfig } from '../geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
 import { defaultFlightStemConfig } from '../geometry/stem'
 import type {
-  AdapterConfig,
   BaseConfig,
   FlightStemConfig,
   HolderConfig,
@@ -23,7 +21,7 @@ import type {
 } from '../geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 11
+const WORKSPACE_VERSION = 12
 
 const SHAPES = new Set<string>(['round', 'oval', 'pill', 'rect', 'polygon'])
 
@@ -34,7 +32,6 @@ interface SettingsStorage {
 
 export interface WorkspaceState {
   base: BaseConfig
-  adapter: AdapterConfig
   holder: HolderConfig
   movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
@@ -87,27 +84,6 @@ function sharedFromBase(base: BaseConfig): SharedSettings {
   }
 }
 
-/** Adapters follow the same per-footprint count as a base of their target footprint, without the legacy pattern. */
-function synchronizeAdapter(adapter: AdapterConfig, shared: SharedSettings): AdapterConfig {
-  const { shape, width, length } = adapter.target
-  const fiveCross = shared.magnets.layout === 'five-cross' && supportsFivePocketCross(shape, width)
-  const count = fiveCross
-    ? 5
-    : (shared.magnetCounts[footprintKey(shape, width, length)] ??
-      automaticMagnetCount(width, length, shared.magnets.maxCount, shared.magnets.diameter, shared.magnets.thickness))
-  const next = {
-    ...adapter,
-    magnets: {
-      ...adapter.magnets,
-      ...shared.magnets,
-      layout: fiveCross ? ('five-cross' as const) : ('balanced' as const),
-      count,
-      bossWall: shared.magnetBossWall,
-    },
-  }
-  return { ...next, height: Math.max(next.height, Math.ceil((minAdapterHeight(next) - 1e-6) * 10) / 10) }
-}
-
 export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
   const { shared } = state
   const legacyPattern = shared.magnets.patternVersion === 1
@@ -157,7 +133,6 @@ export function synchronizeWorkspace(state: WorkspaceState): WorkspaceState {
               : state.base.ribs.count,
       },
     },
-    adapter: synchronizeAdapter(state.adapter, shared),
     holder: {
       ...state.holder,
       baseWallThickness: shared.wallThickness,
@@ -187,7 +162,6 @@ export function defaultWorkspace(): WorkspaceState {
   const base = presetFor(DEFAULT_PRESET)
   return synchronizeWorkspace({
     base,
-    adapter: defaultAdapterConfig(),
     holder: defaultHolderConfig(),
     movementTray: defaultMovementTrayConfig(),
     paintingTray: defaultPaintingTrayConfig(),
@@ -220,6 +194,7 @@ const MIGRATIONS = [
   migrateWorkspaceV8,
   migrateWorkspaceV9,
   migrateWorkspaceV10,
+  migrateWorkspaceV11,
 ]
 
 function migrateWorkspace(version: unknown, value: unknown): unknown {
@@ -246,8 +221,8 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   }
 }
 
-const PARTS: readonly GeneratorSettings[] = ['base', 'adapter', 'holder', 'movementTray', 'paintingTray', 'stem', 'token']
-const PARTS_USING_SHARED = new Set<GeneratorSettings>(['base', 'adapter', 'holder', 'movementTray', 'paintingTray'])
+const PARTS: readonly GeneratorSettings[] = ['base', 'holder', 'movementTray', 'paintingTray', 'stem', 'token']
+const PARTS_USING_SHARED = new Set<GeneratorSettings>(['base', 'holder', 'movementTray', 'paintingTray'])
 
 /**
  * One generator's settings and the shared settings that shape it, as a share link carries them.
@@ -265,8 +240,6 @@ function magnetCountKeys(workspace: WorkspaceState, part: GeneratorSettings): st
   if (part === 'holder') return workspace.holder.groups.map((group) => footprintKey(group.shape, group.width, group.length))
   if (part === 'movementTray')
     return [footprintKey(workspace.movementTray.shape, workspace.movementTray.width, workspace.movementTray.length)]
-  if (part === 'adapter')
-    return [footprintKey(workspace.adapter.target.shape, workspace.adapter.target.width, workspace.adapter.target.length)]
   return []
 }
 
@@ -304,9 +277,15 @@ export function applyWorkspaceSetup(
   return { workspace: synchronizeWorkspace({ ...candidate, shared: { ...candidate.shared, magnetCounts } }), part: key }
 }
 
-function migrateWorkspaceV10(value: unknown): unknown {
+function migrateWorkspaceV11(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value
-  return { ...(value as Record<string, unknown>), adapter: defaultAdapterConfig() }
+  const { adapter: _adapter, ...workspace } = value as Record<string, unknown>
+  return workspace
+}
+
+/** Version 11 only added the adapter generator, which version 12 removed again. */
+function migrateWorkspaceV10(value: unknown): unknown {
+  return value
 }
 
 function migrateWorkspaceV9(value: unknown): unknown {
@@ -436,10 +415,6 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     SHAPES.has(workspace.base.shape) &&
     ['balanced', 'five-cross'].includes(workspace.shared.magnets.layout) &&
     [1, 2].includes(workspace.shared.magnets.patternVersion) &&
-    workspace.adapter.kind === 'adapter' &&
-    SHAPES.has(workspace.adapter.target.shape) &&
-    SHAPES.has(workspace.adapter.source.shape) &&
-    ['taper', 'straight', 'bevel', 'round'].includes(workspace.adapter.profile) &&
     workspace.stem.kind === 'stem' &&
     workspace.token.kind === 'token' &&
     ['round', 'square', 'hex'].includes(workspace.token.shape) &&

@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, rebasing adapters, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -29,12 +29,6 @@ Built-in presets cover common Games Workshop, The Old World, Kings of War, and h
 5. **Save an STL or 3MF** built at a 1µm chord tolerance for circular geometry.
 
 Rebasing an army usually means several sizes at once. Add the current size to the batch as often as you need it, adjust each quantity, and download them together: STLs arrive as one archive with one file per size and its quantity in the name, while a 3MF keeps one object per size and lays out every copy across as many build plates as it needs. Every size in a batch shares the current base settings and follows its own magnet count. The batch is saved with your other settings.
-
-## Base adapters 🔁
-
-Rebase a miniature without prying it off its old base. Pick the new footprint and the old one from any standard or exact size, and BaseKit cuts a recess the old base drops into, with an adjustable fit clearance and depth. A 25mm round becomes a 32mm round, or a round-based model joins a square-based regiment for The Old World. An elongated old base turns to follow the new base's long axis.
-
-The adapter keeps the base's top-edge profile and can carry magnet pockets in its underside, using the same magnet settings and per-footprint counts as a base of the new size. It prints upright on its underside with the recess opening upwards. An old base that would leave less than the minimum wall beside the recess blocks the build and names the sizes that clash. Exports are named after both sizes, such as `adapter-round-25mm-to-round-32mm`.
 
 ## Gridfinity holders 📦
 
@@ -59,11 +53,10 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 ## Designed for one job 🎯
 
 - Round, oval, pill, rectangle, and regular polygon bases.
-- Adapters that seat an old base inside a new footprint.
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
 - Round, square, and hex tokens with wrapped text and traced image silhouettes.
-- Shared magnet dimensions across bases, adapters, holders, movement trays, and spray trays.
+- Shared magnet dimensions across bases, holders, movement trays, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
