@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { footprintKey } from '../geometry/presets'
 import type { TokenImage } from '../geometry/types'
 import { MAX_SHARE_URL_LENGTH, readShareHash, shareLink } from './shareLink'
-import { applyWorkspaceSetup, defaultWorkspace, type GeneratorSettings, type WorkspaceState } from './workspace'
+import { applyWorkspaceSetup, defaultWorkspace, workspaceSetup, type GeneratorSettings, type WorkspaceState } from './workspace'
 
 const PAGE = 'https://basekit.example/tokens'
+const PARTS = Object.keys(defaultWorkspace()).filter((key) => key !== 'shared' && key !== 'batch') as GeneratorSettings[]
 
 const hashOf = (url: string) => url.slice(url.indexOf('#'))
 const opened = (from: WorkspaceState, part: GeneratorSettings, into = defaultWorkspace()) =>
@@ -90,18 +91,15 @@ describe('share links', () => {
     expect(applyWorkspaceSetup(defaultWorkspace(), setup)?.workspace.holder.edgeSpacing).toBe(1.5)
   })
 
-  it.each(Object.keys(defaultWorkspace()).filter((key) => key !== 'shared' && key !== 'batch') as GeneratorSettings[])(
-    'opens a %s link on its own generator',
-    (part) => {
-      expect(opened(defaultWorkspace(), part)?.part).toBe(part)
-    },
-  )
+  it.each(PARTS)('opens a %s link on its own generator', (part) => {
+    expect(opened(defaultWorkspace(), part)?.part).toBe(part)
+  })
 
-  it.each(['adapter', 'movementTray'] as const)('carries the shared magnets a %s uses', (part) => {
+  it('carries the shared magnets a movement tray uses', () => {
     const sender = defaultWorkspace()
     sender.shared.magnets.diameter = 6
 
-    expect(opened(sender, part)?.workspace[part].magnets.diameter).toBe(6)
+    expect(opened(sender, 'movementTray')?.workspace.movementTray.magnets.diameter).toBe(6)
   })
 
   it('replaces only the count override for a movement tray footprint', () => {
@@ -142,6 +140,23 @@ describe('share links', () => {
     )
 
     expect(applyWorkspaceSetup(recipient, setup)?.workspace).toMatchObject({ base: { height: 5 }, movementTray: { columns: 7 } })
+  })
+
+  it.each(PARTS)('opens a %s link made at workspace version 11', (part) => {
+    const setup = readShareHash(hashFor({ v: 1, ...workspaceSetup(defaultWorkspace(), part), version: 11 }))
+
+    expect(applyWorkspaceSetup(defaultWorkspace(), setup)?.part).toBe(part)
+  })
+
+  it('ignores a link for the removed adapter generator', () => {
+    const adapter = {
+      kind: 'adapter',
+      target: { shape: 'round', width: 32, length: 32 },
+      source: { shape: 'round', width: 25, length: 25 },
+    }
+    const setup = readShareHash(hashFor({ v: 1, version: 11, part: 'adapter', config: adapter, shared: defaultWorkspace().shared }))
+
+    expect(applyWorkspaceSetup(defaultWorkspace(), setup)).toBeUndefined()
   })
 
   it('ignores a hash that is not a share link', () => {

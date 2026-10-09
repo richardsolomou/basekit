@@ -141,7 +141,7 @@ test('starts every dimension on a value its own input accepts', async ({ page })
       .evaluateAll((inputs) =>
         inputs.filter((input) => !(input as HTMLInputElement).checkValidity()).map((input) => input.getAttribute('aria-label')),
       )
-  for (const name of ['Adapters', 'Holders', 'Movement trays', 'Spray tray', 'Stems', 'Tokens', 'Bases']) {
+  for (const name of ['Holders', 'Movement trays', 'Spray tray', 'Stems', 'Tokens', 'Bases']) {
     await visit(page, name)
     expect(await invalid(), name).toEqual([])
   }
@@ -345,6 +345,30 @@ test('opens a link on the generator it was copied from', async ({ page, browser 
   await expect(tall(recipient)).toHaveText('24')
 })
 
+test('opens the retired adapters address on bases with a saved workspace intact', async ({ page }) => {
+  await page.evaluate(() => {
+    const key = 'mini-bases.workspace'
+    const { workspace } = JSON.parse(window.localStorage.getItem(key)!)
+    workspace.base.height = 5
+    workspace.adapter = { kind: 'adapter', target: { shape: 'round', width: 32, length: 32 } }
+    window.localStorage.setItem(key, JSON.stringify({ version: 11, workspace }))
+  })
+  await page.goto('/adapters')
+  await settled(page)
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('link', { name: 'Bases' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByLabel('Base height in mm')).toHaveValue('5.0')
+  const generators = page.getByRole('navigation', { name: 'Generators' }).getByRole('link')
+  expect(await generators.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual([
+    'Bases',
+    'Holders',
+    'Movement trays',
+    'Spray tray',
+    'Stems',
+    'Tokens',
+  ])
+})
+
 test('ignores a garbled link and keeps the saved workspace', async ({ page }) => {
   await page.getByLabel('Base height in mm').fill('5')
   await page.getByLabel('Base height in mm').press('Enter')
@@ -483,55 +507,6 @@ test('builds a matching printable flying stem', async ({ page }) => {
   await expect(footer(page)).toContainText('flying-stem-20mm-ball')
   await expect(footer(page)).toContainText('Ball joint')
   await expect(footer(page)).toContainText('Ø4 mm')
-})
-
-test('builds a base adapter and blocks an old base that does not fit', async ({ page }) => {
-  await visit(page, 'Adapters')
-  await expect(page).toHaveURL(/\/adapters$/)
-  await expect(footer(page)).toContainText(/Filament/i)
-  await expect(across(page)).toHaveText('Ø32')
-  await expect(tall(page)).toHaveText('4')
-  await expect(footer(page)).toContainText('adapter-round-25mm-to-round-32mm')
-  await expect(footer(page)).toContainText('Ø25.5 × 2 mm')
-
-  await page.getByRole('combobox', { name: 'Old base size' }).click()
-  await sizeOption(page, '40').click()
-  await expect(footer(page)).toContainText(/blocked/i)
-  await expect(page.getByRole('alert')).toContainText('Ø40 does not fit inside Ø32 with a 1mm wall')
-
-  const blocked = await triangles(page)
-  await pickChoice(page, 'New base shape', 'Rectangle')
-  await page.getByRole('combobox', { name: 'New base size' }).click()
-  await sizeOption(page, '50×50').click()
-  await rebuilt(page, blocked)
-  await expect(across(page)).toHaveText('50 × 50')
-  await expect(page.getByRole('alert')).toHaveCount(0)
-
-  await page.getByRole('combobox', { name: 'Old base size' }).click()
-  await page.getByRole('option', { name: /^Custom\b/ }).click()
-  const diameter = page.getByLabel('Old base diameter in mm')
-  await diameter.fill('28.5')
-  await diameter.blur()
-  await expect(footer(page)).toContainText('adapter-round-28.5mm-to-rect-50x50mm')
-  await settled(page)
-
-  const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download STL' }).click()
-  const download = await pending
-  expect(download.suggestedFilename()).toBe('adapter-round-28.5mm-to-rect-50x50mm.stl')
-  const path = await download.path()
-  if (!path) throw new Error('download has no local path')
-  const stl = await readFile(path)
-  let low = Infinity
-  let high = -Infinity
-  for (let offset = 84; offset < stl.length; offset += 50) {
-    for (let vertex = 0; vertex < 3; vertex++) {
-      const z = stl.readFloatLE(offset + 20 + vertex * 12)
-      low = Math.min(low, z)
-      high = Math.max(high, z)
-    }
-  }
-  expect([low, high].map((value) => Number(value.toFixed(3)))).toEqual([0, 4])
 })
 
 const SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120">
