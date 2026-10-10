@@ -1,5 +1,11 @@
 # basekit
 
+## 0.16.0
+
+### Minor Changes
+
+- 54e22be: Allow negative token relief to engrave text and images for flat stacking.
+
 ## 0.15.0
 
 ### Minor Changes
