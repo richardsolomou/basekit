@@ -24,6 +24,13 @@ function image(pixel: (index: number) => number, side = 256): TokenImage {
 }
 
 describe('share links', () => {
+  it('keeps negative token relief', () => {
+    const sender = defaultWorkspace()
+    sender.token.emboss = -1
+
+    expect(opened(sender, 'token')?.workspace.token.emboss).toBe(-1)
+  })
+
   it('opens the shared generator with its settings', () => {
     const sender = defaultWorkspace()
     sender.base = { ...sender.base, width: 50, length: 50, height: 5 }

@@ -118,6 +118,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ...next,
           cornerRadius: Math.min(next.cornerRadius, next.size / 2),
           profileSize: Math.min(next.profileSize, maxTokenEdgeSize(next)),
+          emboss: Math.max(next.emboss, 1 - next.thickness),
         },
       }
     })

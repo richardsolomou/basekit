@@ -561,6 +561,40 @@ test('reshapes a token into a hex measured across its flats', async ({ page }) =
   expect((await download).suggestedFilename()).toBe('token-hex-25.4mm-1.stl')
 })
 
+test('engraves token artwork for stacking and saves its relief', async ({ page }) => {
+  await visit(page, 'Tokens')
+  await page.getByLabel('Token image').setInputFiles({ name: 'shield.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SHIELD_SVG) })
+  const relief = page.getByLabel('Relief height in mm')
+  await relief.fill('-1')
+  await relief.blur()
+  await expect(tall(page)).toHaveText('3')
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  const bytes = await readFile((await (await download).path())!)
+  const heights: number[] = []
+  for (let i = 0; i < bytes.readUInt32LE(80); i++) {
+    for (let vertex = 0; vertex < 3; vertex++) heights.push(bytes.readFloatLE(84 + i * 50 + 20 + vertex * 12))
+  }
+  expect(Math.max(...heights)).toBe(3)
+  expect(heights).toContain(2)
+
+  await page.reload()
+  await settled(page)
+  await expect(relief).toHaveValue('-1.0')
+  await expect(tall(page)).toHaveText('3')
+
+  await page.getByLabel('Thickness in mm').fill('1.5')
+  await page.getByLabel('Thickness in mm').blur()
+  await expect(relief).toHaveValue('-0.5')
+  await expect(tall(page)).toHaveText('1.5')
+
+  await relief.fill('0')
+  await relief.blur()
+  await expect(tall(page)).toHaveText('1.5')
+  await expect(page.getByRole('button', { name: 'Download STL' })).toBeEnabled()
+})
+
 test('keeps a long image name from widening the token panel', async ({ page }) => {
   await visit(page, 'Tokens')
 
@@ -570,6 +604,19 @@ test('keeps a long image name from widening the token panel', async ({ page }) =
   await rebuilt(page, named)
 
   await expect(page.getByRole('button', { name: 'Remove' })).toBeInViewport({ ratio: 1 })
+})
+
+test('edits engraved token relief in the phone drawer', async ({ page }) => {
+  await visit(page, 'Tokens')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Token settings' }).click()
+  const relief = page.getByLabel('Relief height in mm')
+  await relief.fill('-0.5')
+  await relief.blur()
+  await expect(tall(page)).toHaveText('3')
+  await expect(relief).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('[data-slot="sheet-content"]')).toHaveCSS('opacity', '1')
+  await page.screenshot({ path: test.info().outputPath('engraved-token-phone.png') })
 })
 
 test('builds a low-profile spray tray with an interleaved magnet grid', async ({ page }) => {

@@ -221,10 +221,11 @@ export interface TokenConfig {
   /** Requested cap height, shrunk to fit the flat top face. */
   textHeight: number
   image: TokenImage | null
-  /** Luminance, from 0 to 1, below which the image is raised. */
+  /** Luminance, from 0 to 1, below which pixels form the image silhouette. */
   threshold: number
-  /** Raise the light parts of the image instead of the dark ones. */
+  /** Use the light parts of the image instead of the dark ones. */
   invert: boolean
+  /** Positive raises the artwork; negative engraves it into the body. */
   emboss: number
   segments: number
 }

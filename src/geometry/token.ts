@@ -43,7 +43,7 @@ export function defaultTokenConfig(): TokenConfig {
 
 const hasArtwork = (config: TokenConfig) => Boolean(config.text.trim() || config.image)
 
-export const tokenHeight = (config: TokenConfig): number => config.thickness + (hasArtwork(config) ? config.emboss : 0)
+export const tokenHeight = (config: TokenConfig): number => config.thickness + (hasArtwork(config) ? Math.max(0, config.emboss) : 0)
 
 /** How far the flat top face the artwork may occupy sits inside the outline. */
 export const tokenFaceInset = (config: TokenConfig): number => (config.profile === 'straight' ? 0 : config.profileSize) + TOKEN_FACE_MARGIN
@@ -185,8 +185,8 @@ function decodeLuminance(image: TokenImage): Uint8Array {
 
 /**
  * Printed the way it is used: the table face on the build plate and the artwork
- * standing up from the top, so nothing overhangs. The edge treatment sits on the
- * top edge, where it is seen, rather than at the plate as on a base.
+ * raised above or engraved into the top, so nothing overhangs. The edge treatment
+ * sits on the top edge, where it is seen, rather than at the plate as on a base.
  */
 export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: Font): BuildResult {
   const { CrossSection, Manifold } = wasm
@@ -198,6 +198,9 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
 
   try {
     if (config.thickness < 1) throw new Error('Token must be at least 1 mm thick')
+    if (config.thickness + Math.min(0, config.emboss) < 1 - 1e-6) {
+      throw new Error('Engraving must leave at least 1 mm of material beneath the artwork')
+    }
     const outline = own(tokenOutline(wasm, config))
     const face = own(outline.offset(-tokenFaceInset(config), 'Miter', 2, config.segments))
     if (face.isEmpty()) throw new Error('Edge treatment leaves no flat face — reduce the edge size')
@@ -226,7 +229,7 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
       const { width, height } = config.image
       const loops = traceSilhouette(decodeLuminance(config.image), width, height, config.threshold, config.invert)
       const traced = loops.length > 0 ? own(CrossSection.ofPolygons(loops, 'EvenOdd')) : undefined
-      if (!traced || traced.isEmpty()) throw new Error('Image has nothing to raise — adjust the threshold or invert it')
+      if (!traced || traced.isEmpty()) throw new Error('Image has no silhouette — adjust the threshold or invert it')
       const { min, max } = traced.bounds()
       const centred = own(traced.translate([-(min[0] + max[0]) / 2, -(min[1] + max[1]) / 2]))
       const half = [(max[0] - min[0]) / 2, (max[1] - min[1]) / 2]
@@ -252,10 +255,11 @@ export function buildToken(wasm: ManifoldToplevel, config: TokenConfig, font?: F
       artwork.push(own(CrossSection.ofPolygons(place(best.block, best.scale, ...textBand), GLYPH_FILL)))
     }
 
-    if (artwork.length > 0 && config.emboss > 0) {
+    if (artwork.length > 0 && config.emboss !== 0) {
       // Offsetting can leave coincident points, which extrude into a pinched edge once a slicer welds vertices.
       const relief = own(own(CrossSection.union(artwork)).simplify(1e-3))
-      solid = own(solid.add(own(own(relief.extrude(config.emboss)).translate([0, 0, config.thickness]))))
+      const feature = own(own(relief.extrude(Math.abs(config.emboss))).translate([0, 0, config.thickness + Math.min(0, config.emboss)]))
+      solid = own(config.emboss < 0 ? solid.subtract(feature) : solid.add(feature))
     }
 
     const volume = solid.volume()
