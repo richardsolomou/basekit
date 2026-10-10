@@ -104,6 +104,53 @@ describe('buildToken', () => {
     expect(build({ text: '', image: discImage() }).stats.volume).toBeGreaterThan(build({ text: '' }).stats.volume)
   })
 
+  it.each([
+    ['text', { text: '1' }],
+    ['an image', { text: '', image: discImage() }],
+    ['text and an image', { text: '1', image: discImage() }],
+  ] as const)('engraves %s by the negative relief depth', (_, artwork) => {
+    const blank = build({ text: '' }).stats.volume
+    const added = build(artwork).stats.volume - blank
+    const engraved = blank - build({ ...artwork, emboss: -1 }).stats.volume
+
+    expect(engraved).toBeCloseTo(added, 3)
+  })
+
+  it('keeps engraved artwork within the body height', () => {
+    const mesh = build({ emboss: -1 }).mesh
+
+    expect(bounds(mesh)).toMatchObject({
+      min: [expect.any(Number), expect.any(Number), 0],
+      max: [expect.any(Number), expect.any(Number), 3],
+    })
+  })
+
+  it('cuts the engraving down from the top face', () => {
+    const { mesh } = build({ emboss: -0.7, profile: 'straight' })
+    const levels = new Set<number>()
+    for (let i = 2; i < mesh.vertProperties.length; i += mesh.numProp) levels.add(mesh.vertProperties[i])
+
+    expect([...levels].sort((a, b) => a - b)).toEqual([0, expect.closeTo(2.3, 5), 3])
+  })
+
+  it('leaves a plain body at zero relief', () => {
+    expect(build({ emboss: 0 }).stats.volume).toBeCloseTo(build({ text: '' }).stats.volume, 5)
+  })
+
+  it.each([1.2, 1.4, 3])('allows engraving that leaves exactly 1 mm of material in a %s mm body', (thickness) => {
+    const emboss = -Number((thickness - 1).toFixed(1))
+
+    expect(build({ thickness, emboss }).stats.volume).toBeLessThan(build({ thickness, text: '' }).stats.volume)
+  })
+
+  it('rejects engraving that leaves less than 1 mm of material', () => {
+    expect(() => build({ emboss: -2.1 })).toThrow(/leave at least 1 mm/)
+  })
+
+  it('rejects a body thinner than 1 mm even with raised artwork', () => {
+    expect(() => build({ thickness: 0.9 })).toThrow(/at least 1 mm thick/)
+  })
+
   it('keeps an oversized number on the flat top face', () => {
     expect(furthestBeyondFace({ ...defaultTokenConfig(), text: '88', textHeight: 60 })).toBeLessThanOrEqual(1e-3)
   })
@@ -149,7 +196,7 @@ describe('buildToken', () => {
   })
 
   it('refuses an image with nothing below the threshold', () => {
-    expect(() => build({ text: '', image: discImage(64, true) })).toThrow(/nothing to raise/)
+    expect(() => build({ text: '', image: discImage(64, true) })).toThrow(/no silhouette/)
   })
 
   it('insets the top edge rather than the table face', () => {
@@ -186,22 +233,25 @@ const ARTWORK: [string, Partial<TokenConfig>][] = [
 describe.each(SHAPES)('a %s token', (shape) => {
   const config = (changes: Partial<TokenConfig> = {}): TokenConfig => ({ ...defaultTokenConfig(), shape, ...changes })
 
-  it.each(PROFILES)('is a closed solid with no coincident vertices under a %s top edge', (profile) => {
-    const { mesh } = buildToken(wasm, config({ profile, profileSize: 1, text: 'Oath of Moment', image: discImage() }), font)
-    const positions = new Set<string>()
-    for (let i = 0; i < mesh.vertProperties.length; i += mesh.numProp) {
-      positions.add(`${mesh.vertProperties[i]},${mesh.vertProperties[i + 1]},${mesh.vertProperties[i + 2]}`)
-    }
-    const solid = new wasm.Manifold(mesh)
-    try {
-      expect({ status: solid.status(), unique: positions.size === mesh.vertProperties.length / mesh.numProp }).toEqual({
-        status: 'NoError',
-        unique: true,
-      })
-    } finally {
-      solid.delete()
-    }
-  })
+  it.each(PROFILES.flatMap((profile) => [1, -1].map((emboss) => ({ profile, emboss }))))(
+    'is a closed solid with no coincident vertices under a $profile top edge at $emboss mm relief',
+    ({ profile, emboss }) => {
+      const { mesh } = buildToken(wasm, config({ profile, emboss, profileSize: 1, text: 'Oath of Moment', image: discImage() }), font)
+      const positions = new Set<string>()
+      for (let i = 0; i < mesh.vertProperties.length; i += mesh.numProp) {
+        positions.add(`${mesh.vertProperties[i]},${mesh.vertProperties[i + 1]},${mesh.vertProperties[i + 2]}`)
+      }
+      const solid = new wasm.Manifold(mesh)
+      try {
+        expect({ status: solid.status(), unique: positions.size === mesh.vertProperties.length / mesh.numProp }).toEqual({
+          status: 'NoError',
+          unique: true,
+        })
+      } finally {
+        solid.delete()
+      }
+    },
+  )
 
   it.each(ARTWORK)('keeps %s inside the face outline', (_, changes) => {
     expect(furthestBeyondFace(config(changes))).toBeLessThanOrEqual(1e-3)
@@ -220,6 +270,16 @@ describe.each(SHAPES)('a %s token', (shape) => {
     const top = widthAbove(mesh, tokenConfig.thickness)
 
     expect(max[0] - min[0] - top).toBeGreaterThanOrEqual(2 * tokenConfig.profileSize - 1e-3)
+  })
+})
+
+describe('tokenHeight', () => {
+  it.each([-1, 0, 1])('includes only raised relief at %s mm', (emboss) => {
+    expect(tokenHeight({ ...defaultTokenConfig(), emboss })).toBe(emboss > 0 ? 4 : 3)
+  })
+
+  it('ignores relief when the token has no artwork', () => {
+    expect(tokenHeight({ ...defaultTokenConfig(), text: '' })).toBe(3)
   })
 })
 

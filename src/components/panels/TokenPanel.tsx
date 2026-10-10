@@ -111,27 +111,32 @@ export function TokenPanel({ token, patchToken, addTokenImage, tokenImageError, 
                 onChange={(threshold) => patchToken({ threshold: threshold / 100 })}
               />
               <ToggleSetting
-                label="Raise light areas"
+                label="Use light areas"
                 checked={token.invert}
                 defaultChecked={TOKEN_DEFAULTS.invert}
                 onChange={(invert) => patchToken({ invert })}
               />
             </>
           ) : (
-            <FieldDescription>Or drop one anywhere on the page. Dark areas are raised; high-contrast icons work best.</FieldDescription>
+            <FieldDescription>
+              Or drop one anywhere on the page. Dark areas form the silhouette; high-contrast icons work best.
+            </FieldDescription>
           )}
         </Section>
 
         <Section title="Relief" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(token.emboss)}mm</span>}>
           <Dimension
-            label="Raised by"
+            label="Relief height"
             value={token.emboss}
-            min={0.2}
+            min={Math.max(-3, 1 - token.thickness)}
             max={3}
             step={0.1}
             defaultValue={TOKEN_DEFAULTS.emboss}
             onChange={(emboss) => patchToken({ emboss })}
           />
+          <FieldDescription>
+            Positive raises the artwork; negative engraves it for stacking. At least 1mm remains beneath it.
+          </FieldDescription>
         </Section>
 
         <Section title="Body" aside={<span className="readout text-xs text-muted-foreground">{trimNumber(token.size)}mm</span>}>
@@ -189,7 +194,7 @@ export function TokenPanel({ token, patchToken, addTokenImage, tokenImageError, 
               onChange={(profileSize) => patchToken({ profileSize })}
             />
           )}
-          <FieldDescription>Print flat on the table face; the artwork stands up from the top.</FieldDescription>
+          <FieldDescription>Print flat on the table face with the artwork facing up.</FieldDescription>
         </Section>
 
         <PanelFooter resets={resets} />

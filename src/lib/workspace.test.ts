@@ -272,6 +272,14 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).token.text).toBe('6')
   })
 
+  it('keeps a saved engraved token', () => {
+    const storage = memoryStorage()
+    const workspace = defaultWorkspace()
+    saveWorkspace(storage, { ...workspace, token: { ...workspace.token, emboss: -1 } })
+
+    expect(loadWorkspace(storage).token.emboss).toBe(-1)
+  })
+
   it('keeps an uploaded token image', () => {
     const storage = memoryStorage()
     const workspace = defaultWorkspace()
