@@ -57,7 +57,7 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
 - Round, square, and hex tokens with wrapped text and traced image silhouettes.
 - Shared magnet dimensions across bases, holders, movement trays, and spray trays.
-- Balanced or five-pocket cross magnet arrangements for bases and holders.
+- Balanced or five-pocket cross magnet arrangements for bases and holders. Saved cross layouts keep one centre pocket and four outer pockets on both axes, including elongated footprints.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
 - Copyable links that open the current generator with the same settings.

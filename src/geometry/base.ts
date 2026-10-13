@@ -48,13 +48,20 @@ export function magnetPositions(
   options: MagnetPositionOptions = {},
 ): Circle[] {
   if (count <= 0) return []
+  const short = Math.min(halfWidth, halfLength)
+  const radius = Math.max(Math.min(short * 0.5, short - clear), 0)
   if (options.layout === 'five-cross') {
-    return [{ x: 0, y: 0, r: 0 }, ...magnetPositions(4, halfWidth, halfLength, clear, { ...options, layout: 'balanced' })]
+    return [
+      { x: 0, y: 0, r: 0 },
+      { x: 0, y: radius, r: radius },
+      { x: -radius, y: 0, r: radius },
+      { x: 0, y: -radius, r: radius },
+      { x: radius, y: 0, r: radius },
+    ]
   }
   if (count === 1) return [{ x: 0, y: 0, r: 0 }]
 
   const long = Math.max(halfWidth, halfLength)
-  const short = Math.min(halfWidth, halfLength)
   if (!magnetsRing(halfWidth, halfLength)) {
     const ellipseReach = long * Math.sqrt(Math.max(0, 1 - (clear / short) ** 2)) - clear
     const reach = Math.max(options.ellipticalRow ? ellipseReach : long - clear, 0)
@@ -65,7 +72,6 @@ export function magnetPositions(
     })
   }
 
-  const radius = Math.max(Math.min(short * 0.5, short - clear), 0)
   return Array.from({ length: count }, (_, i) => {
     const a = Math.PI / 2 + (2 * Math.PI * i) / count
     return { x: radius * Math.cos(a), y: radius * Math.sin(a), r: radius }

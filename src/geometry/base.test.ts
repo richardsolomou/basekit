@@ -197,6 +197,45 @@ describe('buildBase', () => {
     expect(positions.filter(({ x, y }) => Math.hypot(x, y) > 1e-6)).toHaveLength(4)
   })
 
+  it.each([
+    [83, 52.5],
+    [52.5, 83],
+  ])('keeps five-pocket crosses on both axes of an elongated %s × %s well', (halfWidth, halfLength) => {
+    expect(magnetPositions(5, halfWidth, halfLength, 4.9, { layout: 'five-cross', ellipticalRow: true })).toEqual([
+      { x: 0, y: 0, r: 0 },
+      { x: 0, y: 26.25, r: 26.25 },
+      { x: -26.25, y: 0, r: 26.25 },
+      { x: 0, y: -26.25, r: 26.25 },
+      { x: 26.25, y: 0, r: 26.25 },
+    ])
+  })
+
+  it('drills the legacy 170 × 109 oval cross on both axes', () => {
+    const base = presetFor({ shape: 'oval', width: 170, length: 109, label: '170×109', use: '' }, 8, 1)
+    const config = {
+      ...base,
+      wallThickness: 2,
+      magnets: { ...base.magnets, layout: 'five-cross' as const, count: 5, diameter: 6 },
+      ribs: { ...base.ribs, count: 4 },
+      segments: exportSegmentsFor(170),
+    }
+    const { mesh } = build(config)
+    const centers = [
+      [0, 0],
+      [0, 26.25],
+      [-26.25, 0],
+      [0, -26.25],
+      [26.25, 0],
+    ]
+    for (const [x, y] of centers) {
+      const pocket = pocketAt(mesh, x, y, 3.1)
+      expect(pocket.maxRadius).toBeCloseTo(3.1, 1)
+      expect(pocket.minZ).toBeCloseTo(config.height - config.magnets.thickness - config.magnets.depthClearance, 5)
+      expect(pocket.maxZ).toBeCloseTo(config.height, 5)
+    }
+    expect(duplicateVertices(mesh)).toBe(0)
+  })
+
   it.for([RECT_SIZES[0], RECT_SIZES[1], ROUND_SIZES[0], ROUND_SIZES[1]])('still fits a size label on a cramped $label base', (size) => {
     // The well of a small base is mostly boss and ribs, and the label used to be
     // dropped silently when the first direction tried had no room.
