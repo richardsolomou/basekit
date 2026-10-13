@@ -1,5 +1,11 @@
 # basekit
 
+## 0.16.1
+
+### Patch Changes
+
+- 1b9f577: Keep saved five-pocket magnet layouts in a cross on elongated bases and matching holders.
+
 ## 0.16.0
 
 ### Minor Changes
