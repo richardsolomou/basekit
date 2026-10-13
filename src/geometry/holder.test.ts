@@ -173,7 +173,13 @@ describe('holderLayout', () => {
     }
     const oval = holderGroup('oval', 1, { shape: 'oval', width: 60, length: 35 })
 
-    expect(holderSlotMagnetCenters(oval, settings)).toHaveLength(5)
+    expect(holderSlotMagnetCenters(oval, settings)).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 7.75 },
+      { x: -7.75, y: 0 },
+      { x: 0, y: -7.75 },
+      { x: 7.75, y: 0 },
+    ])
   })
 
   it('fits forty 32mm models within a 7×5 box without false overflow', () => {
