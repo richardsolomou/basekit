@@ -1,4 +1,4 @@
-import type { BuildConfig } from '@/geometry/types'
+import type { BuildConfig } from '@/core/geometry/types'
 import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
 /** Builds one mesh in an isolated worker, used by exports without replacing the preview. */

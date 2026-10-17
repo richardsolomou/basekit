@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { automaticMagnetCount, footprintKey, OVAL_SIZES, presetFor } from '../geometry/presets'
+import { automaticMagnetCount, footprintKey, OVAL_SIZES, presetFor } from '../core/geometry/presets'
 import { addToBatch, batchBaseConfig, batchFileName, batchName } from './batch'
 import { defaultWorkspace, synchronizeWorkspace, type BatchEntry } from './workspace'
 

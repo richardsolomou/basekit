@@ -1,7 +1,7 @@
 import { Choice, Dimension, Section, ToggleSetting } from '@/components/controls'
 import { FieldDescription } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { trimNumber } from '@/geometry/outline'
+import { trimNumber } from '@/core/geometry/outline'
 import {
   defaultPaintingTrayConfig,
   minimumPaintingTrayEdgeMargin,
@@ -10,8 +10,8 @@ import {
   paintingHandleDescription,
   paintingTrayMagnetPocketCount,
   type paintingTrayLayout,
-} from '@/geometry/paintingTray'
-import type { PaintingHandleShape, PaintingTrayConfig } from '@/geometry/types'
+} from '@/core/geometry/paintingTray'
+import type { PaintingHandleShape, PaintingTrayConfig } from '@/core/geometry/types'
 import { BASE_DEFAULTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const PAINTING_DEFAULTS = defaultPaintingTrayConfig()

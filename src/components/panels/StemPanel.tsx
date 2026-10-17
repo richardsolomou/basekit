@@ -1,9 +1,9 @@
 import { Choice, Dimension, Section } from '@/components/controls'
 import { FieldDescription } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { trimNumber } from '@/geometry/outline'
-import { CLASSIC_STEM_HEIGHTS, defaultFlightStemConfig, stemNeckDiameter, stemOverallHeight } from '@/geometry/stem'
-import type { FlightStemConfig } from '@/geometry/types'
+import { trimNumber } from '@/core/geometry/outline'
+import { CLASSIC_STEM_HEIGHTS, defaultFlightStemConfig, stemNeckDiameter, stemOverallHeight } from '@/core/geometry/stem'
+import type { FlightStemConfig } from '@/core/geometry/types'
 import posthog from '@/lib/posthog'
 import { PanelFooter, type ResetAction } from './shared'
 

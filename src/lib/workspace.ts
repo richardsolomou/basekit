@@ -1,15 +1,15 @@
-import { defaultHolderConfig } from '../geometry/holder'
-import { defaultMovementTrayConfig, minimumMovementTrayFloor } from '../geometry/movementTray'
+import { defaultHolderConfig } from '../core/geometry/holder'
+import { defaultMovementTrayConfig, minimumMovementTrayFloor } from '../core/geometry/movementTray'
 import {
   defaultPaintingTrayConfig,
   minimumPaintingTrayEdgeMargin,
   minimumPaintingTrayHeight,
   minimumPaintingTraySpacing,
-} from '../geometry/paintingTray'
-import { supportsFivePocketCross } from '../geometry/base'
-import { defaultTokenConfig } from '../geometry/token'
-import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../geometry/presets'
-import { defaultFlightStemConfig } from '../geometry/stem'
+} from '../core/geometry/paintingTray'
+import { supportsFivePocketCross } from '../core/geometry/base'
+import { defaultTokenConfig } from '../core/geometry/token'
+import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../core/geometry/presets'
+import { defaultFlightStemConfig } from '../core/geometry/stem'
 import type {
   BaseConfig,
   FlightStemConfig,
@@ -18,7 +18,7 @@ import type {
   ShapeKind,
   TokenConfig,
   PaintingTrayConfig,
-} from '../geometry/types'
+} from '../core/geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
 const WORKSPACE_VERSION = 12

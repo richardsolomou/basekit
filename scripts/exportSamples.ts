@@ -6,11 +6,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import type { Font } from 'opentype.js'
-import { buildBase } from '../src/geometry/base'
-import { toStl } from '../src/geometry/exporters'
-import { loadManifold } from '../src/geometry/manifold'
-import { buildMovementTray, defaultMovementTrayConfig, movementTrayName } from '../src/geometry/movementTray'
-import { baseName } from '../src/geometry/outline'
+import { buildBase } from '../src/core/geometry/base'
+import { toStl } from '../src/core/geometry/exporters'
+import { loadManifold } from '../src/core/geometry/manifold'
+import { buildMovementTray, defaultMovementTrayConfig, movementTrayName } from '../src/core/geometry/movementTray'
+import { baseName } from '../src/core/geometry/outline'
 import {
   buildPaintingHandle,
   buildPaintingTray,
@@ -18,8 +18,8 @@ import {
   paintingHandleConfig,
   paintingHandleName,
   paintingTrayName,
-} from '../src/geometry/paintingTray'
-import { OVAL_SIZES, presetFor, ROUND_SIZES } from '../src/geometry/presets'
+} from '../src/core/geometry/paintingTray'
+import { OVAL_SIZES, presetFor, ROUND_SIZES } from '../src/core/geometry/presets'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
 

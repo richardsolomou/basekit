@@ -1,11 +1,11 @@
 import { Badge } from '@/components/ui/badge'
-import { defaultLabel, trimNumber } from '@/geometry/outline'
-import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/geometry/paintingTray'
-import { movementTrayBaseLabel, movementTrayMagnetPocketCount } from '@/geometry/movementTray'
-import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/geometry/holder'
-import { stemOverallHeight } from '@/geometry/stem'
+import { defaultLabel, trimNumber } from '@/core/geometry/outline'
+import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/core/geometry/paintingTray'
+import { movementTrayBaseLabel, movementTrayMagnetPocketCount } from '@/core/geometry/movementTray'
+import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/core/geometry/holder'
+import { stemOverallHeight } from '@/core/geometry/stem'
 import { filamentEstimate } from '@/lib/filament'
-import type { PartConfig } from '@/geometry/types'
+import type { PartConfig } from '@/core/geometry/types'
 
 interface Props {
   config: PartConfig

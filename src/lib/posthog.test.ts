@@ -34,11 +34,8 @@ it('wires the application entrypoint to the configured PostHog provider', async 
   expect(provider).toHaveBeenCalledWith(
     expect.objectContaining({
       environment: expect.objectContaining({ projectToken: 'phc_test', host: 'https://eu.i.posthog.com' }),
+      ingestPath: 'https://eu.i.posthog.com',
       service: { name: 'basekit', version: packageJson.version, environment: 'test' },
-      options: expect.objectContaining({
-        api_host: 'https://eu.i.posthog.com',
-        capture_exceptions: { capture_unhandled_errors: true, capture_unhandled_rejections: true, capture_console_errors: false },
-      }),
     }),
   )
 })

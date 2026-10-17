@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { holderSlotMagnetCenters } from '../geometry/holder'
-import { footprintKey } from '../geometry/presets'
+import { holderSlotMagnetCenters } from '../core/geometry/holder'
+import { footprintKey } from '../core/geometry/presets'
 import {
   defaultWorkspace,
   loadWorkspace,

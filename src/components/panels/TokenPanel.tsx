@@ -6,9 +6,9 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { trimNumber } from '@/geometry/outline'
-import { defaultTokenConfig, maxTokenEdgeSize, MIN_TOKEN_TEXT_HEIGHT } from '@/geometry/token'
-import type { TokenConfig, TokenShape } from '@/geometry/types'
+import { trimNumber } from '@/core/geometry/outline'
+import { defaultTokenConfig, maxTokenEdgeSize, MIN_TOKEN_TEXT_HEIGHT } from '@/core/geometry/token'
+import type { TokenConfig, TokenShape } from '@/core/geometry/types'
 import { PanelFooter, PROFILES, type ResetAction } from './shared'
 
 const TOKEN_DEFAULTS = defaultTokenConfig()

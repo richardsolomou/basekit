@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { trimNumber } from '@/geometry/outline'
+import { trimNumber } from '@/core/geometry/outline'
 import { cn } from 'cn'
 import type { MeshData } from '@/worker/protocol'
 

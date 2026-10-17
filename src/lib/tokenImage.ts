@@ -1,4 +1,4 @@
-import type { TokenImage } from '@/geometry/types'
+import type { TokenImage } from '@/core/geometry/types'
 
 /** Longest side kept from an upload: about 0.14mm per pixel across a 40mm token, finer than any nozzle. */
 const MAX_SIDE = 256

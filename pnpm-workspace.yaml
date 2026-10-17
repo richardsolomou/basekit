@@ -9,5 +9,5 @@ allowBuilds:
   esbuild: true
 
 minimumReleaseAgeExclude:
-  - ras-stack-config@1.0.0
-  - ras-stack@3.0.0
+  - ras-stack-config@3.0.0
+  - ras-stack@4.0.0
