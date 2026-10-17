@@ -1,4 +1,4 @@
-import type { BuildConfig } from '@/geometry/types'
+import type { BuildConfig } from '@/core/geometry/types'
 
 export interface MeshData {
   positions: Float32Array

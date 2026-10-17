@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { zipSync } from 'fflate'
-import { packPlates, to3mf, to3mfPlates, toStl } from '@/geometry/exporters'
-import { holderName, holderPlan } from '@/geometry/holder'
-import { movementTrayHeight, movementTrayName } from '@/geometry/movementTray'
-import { tokenHeight, tokenName } from '@/geometry/token'
-import { baseName, footprint } from '@/geometry/outline'
-import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/geometry/paintingTray'
-import { exportSegmentsFor } from '@/geometry/quality'
-import { stemName, stemOverallHeight } from '@/geometry/stem'
+import { packPlates, to3mf, to3mfPlates, toStl } from '@/core/geometry/exporters'
+import { holderName, holderPlan } from '@/core/geometry/holder'
+import { movementTrayHeight, movementTrayName } from '@/core/geometry/movementTray'
+import { tokenHeight, tokenName } from '@/core/geometry/token'
+import { baseName, footprint } from '@/core/geometry/outline'
+import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/core/geometry/paintingTray'
+import { exportSegmentsFor } from '@/core/geometry/quality'
+import { stemName, stemOverallHeight } from '@/core/geometry/stem'
 import type {
   BaseConfig,
   FlightStemConfig,
@@ -16,7 +16,7 @@ import type {
   TokenConfig,
   PaintingTrayConfig,
   PartConfig,
-} from '@/geometry/types'
+} from '@/core/geometry/types'
 import posthog from '@/lib/posthog'
 import { batchFileName } from './batch'
 import { buildMesh } from './buildMesh'

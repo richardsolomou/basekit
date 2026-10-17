@@ -5,9 +5,9 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { supportsFivePocketCross } from '@/geometry/base'
-import { labelText } from '@/geometry/label'
-import { defaultLabel, footprint, isElongated, trimNumber } from '@/geometry/outline'
+import { supportsFivePocketCross } from '@/core/geometry/base'
+import { labelText } from '@/core/geometry/label'
+import { defaultLabel, footprint, isElongated, trimNumber } from '@/core/geometry/outline'
 import {
   defaultBaseHeight,
   defaultFloorThickness,
@@ -18,8 +18,8 @@ import {
   RIB_CHOICES,
   SIZES_BY_SHAPE,
   type SizePreset,
-} from '@/geometry/presets'
-import type { BaseConfig, ShapeKind } from '@/geometry/types'
+} from '@/core/geometry/presets'
+import type { BaseConfig, ShapeKind } from '@/core/geometry/types'
 import { addToBatch } from '@/lib/batch'
 import posthog from '@/lib/posthog'
 import type { ExportFormat } from '@/lib/useExport'

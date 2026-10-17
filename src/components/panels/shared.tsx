@@ -12,10 +12,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { maxHolderSlotDepth, minHolderHeight } from '@/geometry/holder'
-import { DEFAULT_PRESET, presetFor } from '@/geometry/presets'
-import { maxProfileSize } from '@/geometry/profile'
-import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout } from '@/geometry/types'
+import { maxHolderSlotDepth, minHolderHeight } from '@/core/geometry/holder'
+import { DEFAULT_PRESET, presetFor } from '@/core/geometry/presets'
+import { maxProfileSize } from '@/core/geometry/profile'
+import type { BaseConfig, EdgeProfile, HolderConfig, MagnetLayout } from '@/core/geometry/types'
 
 export const PROFILES: { value: EdgeProfile; label: string }[] = [
   { value: 'taper', label: 'Taper' },

@@ -20,20 +20,20 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { TitleBlock } from '@/components/TitleBlock'
 import { Viewer } from '@/components/Viewer'
-import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '@/geometry/holder'
-import { baseName, footprint, isElongated } from '@/geometry/outline'
-import { footprintKey, SIZES_BY_SHAPE } from '@/geometry/presets'
-import { movementTrayHeight, movementTrayLayout, movementTrayName } from '@/geometry/movementTray'
-import { maxTokenEdgeSize, tokenFootprint, tokenHeight, tokenName } from '@/geometry/token'
+import { holderLayout, holderName, holderPlan, maxHolderMagnetThickness } from '@/core/geometry/holder'
+import { baseName, footprint, isElongated } from '@/core/geometry/outline'
+import { footprintKey, SIZES_BY_SHAPE } from '@/core/geometry/presets'
+import { movementTrayHeight, movementTrayLayout, movementTrayName } from '@/core/geometry/movementTray'
+import { maxTokenEdgeSize, tokenFootprint, tokenHeight, tokenName } from '@/core/geometry/token'
 import {
   paintingHandleAxisCenter,
   paintingTrayAssemblyHeight,
   paintingTrayAssemblyMinZ,
   paintingTrayLayout,
   paintingTrayName,
-} from '@/geometry/paintingTray'
-import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/geometry/stem'
-import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/geometry/types'
+} from '@/core/geometry/paintingTray'
+import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/core/geometry/stem'
+import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/core/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
 import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'

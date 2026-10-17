@@ -15,15 +15,8 @@ const sharedSetup = takeShareHash()
 createRoot(root).render(
   <PostHogIntegration
     environment={posthogEnvironment}
+    ingestPath={posthogEnvironment?.host}
     service={{ name: 'basekit', version: packageJson.version, environment: import.meta.env.MODE }}
-    options={{
-      api_host: posthogEnvironment?.host,
-      capture_exceptions: {
-        capture_unhandled_errors: true,
-        capture_unhandled_rejections: true,
-        capture_console_errors: false,
-      },
-    }}
   >
     <App sharedSetup={sharedSetup} />
   </PostHogIntegration>,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PartConfig } from '@/geometry/types'
+import type { PartConfig } from '@/core/geometry/types'
 import type { MeshData, WorkerReply, WorkerRequest } from '@/worker/protocol'
 
 /**

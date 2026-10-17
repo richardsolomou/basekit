@@ -43,7 +43,7 @@ When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, t
 
 ## Layout
 
-- `src/geometry` — DOM-free geometry, presets, profile sampling, and STL/3MF exporters shared by the worker, Node tests, and sample script.
+- `src/core/geometry` — DOM-free geometry, presets, profile sampling, and STL/3MF exporters shared by the worker, Node tests, and sample script.
 - `src/worker` — the mesh-building worker and its config-in/mesh-out protocol.
 - `src/components` — app-specific controls, drawing annotations, and the three.js viewer.
 - `src/components/panels` — one settings panel per generator; `src/App.tsx` owns the workspace state and passes each panel what it edits.
@@ -54,7 +54,7 @@ When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, t
 
 ## Geometry model
 
-`src/geometry` stays free of browser APIs. Fonts and the Manifold WASM module are supplied by the caller, which keeps the builder identical in the browser, worker, tests, and sample exporter.
+`src/core/geometry` stays free of browser APIs. Fonts and the Manifold WASM module are supplied by the caller, which keeps the builder identical in the browser, worker, tests, and sample exporter.
 
 The body is the convex hull of the footprint offset at each height of the edge profile. This is exact for the supported convex shapes. Concave footprints need a different loft and are outside the current model.
 
@@ -76,4 +76,4 @@ Production setup and verification live in the [Cloudflare deployment guide](docs
 
 ## Shared infrastructure checks
 
-The shared Oxlint domain preset restricts Node and framework imports in `src/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
+The shared Oxlint domain preset restricts Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.

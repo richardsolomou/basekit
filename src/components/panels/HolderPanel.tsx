@@ -3,7 +3,7 @@ import { Choice, Dimension, Section, ToggleSetting } from '@/components/controls
 import { MiniatureGroupsEditor } from '@/components/MiniatureGroupsEditor'
 import { FieldDescription } from '@/components/ui/field'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { supportsFivePocketCross } from '@/geometry/base'
+import { supportsFivePocketCross } from '@/core/geometry/base'
 import {
   defaultHolderConfig,
   holderGroupLabel,
@@ -12,9 +12,9 @@ import {
   minHolderHeight,
   type holderLayout,
   type holderPlan,
-} from '@/geometry/holder'
-import { trimNumber } from '@/geometry/outline'
-import type { HolderConfig, HolderGroup } from '@/geometry/types'
+} from '@/core/geometry/holder'
+import { trimNumber } from '@/core/geometry/outline'
+import type { HolderConfig, HolderGroup } from '@/core/geometry/types'
 import { BASE_DEFAULTS, fitSlotDepth, MAGNET_LAYOUTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const HOLDER_DEFAULTS = defaultHolderConfig()

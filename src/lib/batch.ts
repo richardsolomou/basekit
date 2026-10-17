@@ -1,7 +1,7 @@
-import { baseName, footprint } from '../geometry/outline'
-import { footprintKey, resized } from '../geometry/presets'
-import { maxProfileSize } from '../geometry/profile'
-import type { BaseConfig } from '../geometry/types'
+import { baseName, footprint } from '../core/geometry/outline'
+import { footprintKey, resized } from '../core/geometry/presets'
+import { maxProfileSize } from '../core/geometry/profile'
+import type { BaseConfig } from '../core/geometry/types'
 import { synchronizeWorkspace, type BatchEntry, type WorkspaceState } from './workspace'
 
 const entryKey = (entry: Pick<BatchEntry, 'shape' | 'width' | 'length'>) => footprintKey(entry.shape, entry.width, entry.length)

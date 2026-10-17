@@ -1,7 +1,7 @@
 import { deflateSync, strToU8 } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { footprintKey } from '../geometry/presets'
-import type { TokenImage } from '../geometry/types'
+import { footprintKey } from '../core/geometry/presets'
+import type { TokenImage } from '../core/geometry/types'
 import { MAX_SHARE_URL_LENGTH, readShareHash, shareLink } from './shareLink'
 import { applyWorkspaceSetup, defaultWorkspace, workspaceSetup, type GeneratorSettings, type WorkspaceState } from './workspace'
 

@@ -7,10 +7,10 @@ import {
   MIN_MOVEMENT_TRAY_RIM,
   movementTrayFootprint,
   movementTrayMagnetPocketCount,
-} from '@/geometry/movementTray'
-import { trimNumber } from '@/geometry/outline'
-import { SIZES_BY_SHAPE } from '@/geometry/presets'
-import type { MovementTrayConfig, MovementTrayShape } from '@/geometry/types'
+} from '@/core/geometry/movementTray'
+import { trimNumber } from '@/core/geometry/outline'
+import { SIZES_BY_SHAPE } from '@/core/geometry/presets'
+import type { MovementTrayConfig, MovementTrayShape } from '@/core/geometry/types'
 import { BASE_DEFAULTS, PanelFooter, type ResetAction, type SharedMagnetChanges } from './shared'
 
 const MOVEMENT_DEFAULTS = defaultMovementTrayConfig()
