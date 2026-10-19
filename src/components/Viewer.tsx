@@ -398,7 +398,10 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
 
   return (
     <div className="relative h-full w-full">
-      <div ref={host} className="sheet relative h-full w-full" />
+      {/* Clipped because clientWidth rounds a fractional box up, so the canvas can
+          overhang it by a subpixel: enough to add a page scrollbar, resize the
+          host, remove the scrollbar and loop. */}
+      <div ref={host} className="sheet relative h-full w-full overflow-hidden" />
       {/* Registration marks rather than a frame: the sheet is trimmed to size. */}
       <div className="pointer-events-none absolute inset-5" aria-hidden>
         {CORNERS.map((corner) => (
