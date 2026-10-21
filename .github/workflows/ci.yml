@@ -17,7 +17,7 @@ jobs:
   check:
     uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v1
     with:
-      command: pnpm exec ras prepare && just check
+      command: just check
       just-version: '1.58.0'
 
   end-to-end:

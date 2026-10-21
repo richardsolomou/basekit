@@ -14,5 +14,5 @@
       }
     }
   ],
-  "ignorePatterns": ["dist/**", "node_modules/**", ".ras/**", ".pnpmfile.cjs"]
+  "ignorePatterns": ["dist/**", "node_modules/**", ".ras/**"]
 }
