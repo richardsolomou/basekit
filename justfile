@@ -4,6 +4,7 @@ default:
 install:
     corepack enable
     pnpm install
+    pnpm exec ras prepare
 
 dev:
     pnpm dev

@@ -77,3 +77,9 @@ Production setup and verification live in the [Cloudflare deployment guide](docs
 ## Shared infrastructure checks
 
 The shared Oxlint domain preset restricts Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
+
+## Managed dependencies and tools
+
+Select shared integrations and tools in `ras.config.ts`. RAS owns their tested versions; application code keeps its upstream imports. Compiler and linter overrides extend the generated `.ras` configuration. Keep application-specific dependencies in `package.json`.
+
+After changing RAS or its selections, run `pnpm exec ras install` and commit `ras.config.ts`, `ras.lock`, `.pnpmfile.cjs`, `.prettierignore`, and `pnpm-lock.yaml`. A normal frozen install restores the dependency graph, and `pnpm exec ras prepare` regenerates local configuration without changing the lockfile.

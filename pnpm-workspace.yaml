@@ -7,7 +7,10 @@ allowBuilds:
   '@posthog/cli': true
   core-js: true
   esbuild: true
+  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc#path:/packages/ras-stack: true
 
 minimumReleaseAgeExclude:
-  - ras-stack-config@3.0.0
-  - ras-stack@4.0.0
+  # Reviewed exact versions from the RAS candidate; retain the seven-day gate for other packages.
+  - '@posthog/browser-common@0.9.5'
+  - '@posthog/core@1.59.1'
+  - posthog-js@1.438.12
