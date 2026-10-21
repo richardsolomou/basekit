@@ -9,12 +9,8 @@ allowBuilds:
   esbuild: true
 
 minimumReleaseAgeExclude:
-  - ras-stack@5.0.0-next.0
+  - ras-stack@5.0.0-next.1
   # Reviewed exact versions from the RAS candidate; retain the seven-day gate for other packages.
   - '@posthog/browser-common@0.9.5'
   - '@posthog/core@1.59.1'
   - posthog-js@1.438.12
-
-configDependencies:
-  ras-stack: 5.0.0-next.0
-pnpmfile: node_modules/.pnpm-config/ras-stack/pnpmfile.cjs
