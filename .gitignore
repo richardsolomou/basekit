@@ -8,5 +8,4 @@ playwright-report
 *.local
 .DS_Store
 .ras/
-.ras-*/
 .ras-install.lock/
