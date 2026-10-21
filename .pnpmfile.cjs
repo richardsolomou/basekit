@@ -2,6 +2,8 @@
 const dependencies = {
   "@playwright/test": "1.64.0",
   "@posthog/react": "1.11.3",
+  "@posthog/rollup-plugin": "1.6.1",
+  "@tailwindcss/vite": "4.3.3",
   "@types/node": "26.2.0",
   "@types/react": "19.3.0",
   "@types/react-dom": "19.3.0",
@@ -13,6 +15,8 @@ const dependencies = {
   "posthog-js": "1.438.12",
   "react": "19.3.0",
   "react-dom": "19.3.0",
+  "tailwindcss": "4.3.3",
+  "tw-animate-css": "1.4.0",
   "typescript": "7.0.2",
   "vite": "8.3.4",
   "vitest": "5.0.3"

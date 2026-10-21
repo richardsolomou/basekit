@@ -80,6 +80,6 @@ The shared Oxlint domain preset restricts Node and framework imports in `src/cor
 
 ## Managed dependencies and tools
 
-Select shared integrations and tools in `ras.config.ts`. RAS owns their tested versions; application code keeps its upstream imports. Compiler and linter overrides extend the generated `.ras` configuration. Keep application-specific dependencies in `package.json`.
+Select configured integrations and tools in `ras.config.ts`. RAS owns their tested versions and supplies the Vite plugins, Tailwind imports, compiler settings, and linter presets for the selections. Keep app-specific Vite overrides in `defineViteConfig` from `ras-stack/vite`; the app still imports `src/styles.css`. Plain libraries such as Zod remain in `package.json`.
 
 After changing RAS or its selections, run `pnpm exec ras install` and commit `ras.config.ts`, `ras.lock`, `.pnpmfile.cjs`, and `pnpm-lock.yaml`. A normal frozen install restores the dependency graph, and `pnpm exec ras prepare` regenerates local configuration without changing the lockfile. Keep `/.pnpmfile.cjs` in the Oxfmt configuration's `ignorePatterns`: pnpm checksums the hook's exact bytes.
