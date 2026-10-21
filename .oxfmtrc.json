@@ -3,5 +3,5 @@
   "singleQuote": true,
   "semi": false,
   "printWidth": 140,
-  "ignorePatterns": ["dist/**", "pnpm-lock.yaml"]
+  "ignorePatterns": ["dist/**", "pnpm-lock.yaml", "/.pnpmfile.cjs"]
 }

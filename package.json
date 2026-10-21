@@ -41,7 +41,7 @@
     "lucide-react": "^1.55.0",
     "manifold-3d": "^3.5.4",
     "opentype.js": "^2.0.0",
-    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#88386db224c7550980746392855aa3053fb59afc&path:/packages/ras-stack",
+    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#eebc2bec147e93b679d301e25fb4e29e71b7c0a2&path:/packages/ras-stack",
     "three": "^0.186.1"
   },
   "devDependencies": {
