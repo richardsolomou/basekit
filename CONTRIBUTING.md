@@ -13,6 +13,8 @@ just dev
 
 Open `http://localhost:5173`. The app has no backend, database, account, or environment variables.
 
+Shared tool configuration and dependency maintenance are documented in the [RAS documentation](https://github.com/richardsolomou/ras-stack/blob/main/docs/README.md).
+
 ## Checks
 
 Run the complete local check suite with:
@@ -76,16 +78,4 @@ Production setup and verification live in the [Cloudflare deployment guide](docs
 
 ## Shared infrastructure checks
 
-The shared Oxlint domain preset restricts Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
-
-## Managed dependencies and tools
-
-Select configured integrations and tools in `ras.config.ts`. RAS owns their tested versions and supplies the Vite plugins, Tailwind imports, compiler settings, and linter presets for the selections. Keep app-specific Vite overrides in `defineViteConfig` from `ras-stack/vite`; the app still imports `src/styles.css`. Plain libraries such as Zod remain in `package.json`. Selected packages are ordinary application dependencies, with build/test tools and type definitions in development dependencies. RAS shares runtime SDKs through optional peers. `pnpm-lock.yaml` is the only lockfile.
-
-Run `pnpm exec ras sync` after changing selections. RAS writes exact runtime and development dependencies into the ordinary manifest, records their ownership in `ras.managedDependencies`, regenerates committed `.ras/` presets, maintains Dependabot ignores, and runs pnpm install. Commit the resulting manifest, configuration, policy files, and lockfile. Fresh clones and CI use ordinary `pnpm install --frozen-lockfile`; `ras sync --check` detects unsynchronized selections without writing.
-
-Upgrade the complete stack with `pnpm exec ras update`, optionally followed by a release version or tag. The command runs the target release's sync and native installation. Correct an installation failure and rerun the same command. Plain libraries remain application-owned. Consumer lockfiles pin transitives for frozen installs; deliberate application updates can still move shared transitives.
-
-Dependabot ignores RAS and selected package names through generated `Managed by RAS.` entries. Existing handwritten rules remain intact. These ignores cover the entire root npm rule, including the same names in other workspace manifests; independent upgrades for those names require a deliberate update. Vulnerability alerts remain visible, and managed security fixes require a coordinated RAS upgrade.
-
-This draft pins the published `ras-stack@5.0.0-next.1` candidate. Replace it with the stable v5 release and run `ras sync` before merging.
+Lint rules restrict Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
