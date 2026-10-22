@@ -9,7 +9,7 @@ allowBuilds:
   esbuild: true
 
 minimumReleaseAgeExclude:
-  - ras-stack@5.0.0-next.1
+  - ras-stack@5.0.0-next.2
   # Reviewed exact versions from the RAS candidate; retain the seven-day gate for other packages.
   - '@posthog/browser-common@0.9.5'
   - '@posthog/core@1.59.1'

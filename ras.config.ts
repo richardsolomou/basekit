@@ -2,5 +2,5 @@ import { defineConfig, posthog, typescript, oxlint, oxfmt, tailwind, vite, vites
 
 export default defineConfig({
   integrations: [posthog.react],
-  tooling: [typescript.tanstack, oxlint.application, oxlint.domain, oxfmt, tailwind.animations, posthog.build, vite, vitest, playwright],
+  tooling: [typescript, oxlint.domain, oxfmt, tailwind.animations, posthog.build, vite, vitest, playwright],
 })
