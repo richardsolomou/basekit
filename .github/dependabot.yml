@@ -7,7 +7,7 @@ updates:
     cooldown:
       default-days: 7
     allow:
-      - dependency-name: '*'
+      - dependency-type: direct
         update-types:
           - version-update:semver-minor
           - version-update:semver-patch
@@ -24,6 +24,28 @@ updates:
           - '*'
         update-types:
           - minor
+    ignore:
+      - dependency-name: ras-stack # Managed by RAS.
+      - dependency-name: '@playwright/test' # Managed by RAS.
+      - dependency-name: '@posthog/react' # Managed by RAS.
+      - dependency-name: '@posthog/rollup-plugin' # Managed by RAS.
+      - dependency-name: '@tailwindcss/vite' # Managed by RAS.
+      - dependency-name: '@types/node' # Managed by RAS.
+      - dependency-name: '@types/react' # Managed by RAS.
+      - dependency-name: '@types/react-dom' # Managed by RAS.
+      - dependency-name: '@vitejs/plugin-react' # Managed by RAS.
+      - dependency-name: '@vitest/coverage-v8' # Managed by RAS.
+      - dependency-name: oxfmt # Managed by RAS.
+      - dependency-name: oxlint # Managed by RAS.
+      - dependency-name: oxlint-tsgolint # Managed by RAS.
+      - dependency-name: posthog-js # Managed by RAS.
+      - dependency-name: react # Managed by RAS.
+      - dependency-name: react-dom # Managed by RAS.
+      - dependency-name: tailwindcss # Managed by RAS.
+      - dependency-name: tw-animate-css # Managed by RAS.
+      - dependency-name: typescript # Managed by RAS.
+      - dependency-name: vite # Managed by RAS.
+      - dependency-name: vitest # Managed by RAS.
   - package-ecosystem: github-actions
     directory: /
     schedule:

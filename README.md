@@ -72,7 +72,7 @@ The generator, 3D preview, fonts, and exporters all run locally in your browser.
 
 ## Development 🛠️
 
-Development requires Node 24.x and pnpm 10.33.0.
+Development requires Node 24.x and pnpm 12.13.0.
 
 ```sh
 pnpm install

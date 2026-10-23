@@ -4,7 +4,7 @@ Thanks for helping with BaseKit. We aim to keep the generator small, exact, and 
 
 ## Development setup
 
-Install Node 24.x, pnpm 11.15.0, and Just 1.58.0, then run:
+Install Node 24.x, pnpm 12.13.0, and Just 1.58.0, then run:
 
 ```sh
 just install
@@ -12,6 +12,8 @@ just dev
 ```
 
 Open `http://localhost:5173`. The app has no backend, database, account, or environment variables.
+
+Shared tool configuration and dependency maintenance are documented in the [RAS documentation](https://github.com/richardsolomou/ras-stack/blob/main/docs/README.md).
 
 ## Checks
 
@@ -76,4 +78,4 @@ Production setup and verification live in the [Cloudflare deployment guide](docs
 
 ## Shared infrastructure checks
 
-The shared Oxlint domain preset restricts Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. `ras changesets check` validates existing Changesets without requiring a release note for every change. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
+Lint rules restrict Node and framework imports in `src/core/geometry`; test files can still load real geometry fixtures. `.oxlintrc.json` is the active lint configuration. The PostHog wiring test imports the real application entrypoint and verifies the provider configuration passed by the app.
