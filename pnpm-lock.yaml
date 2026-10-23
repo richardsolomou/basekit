@@ -6,8 +6,8 @@ importers:
   .:
     configDependencies:
       ras-stack:
-        specifier: 5.0.0-next.3
-        version: 5.0.0-next.3
+        specifier: 5.0.0-next.4
+        version: 5.0.0-next.4
     packageManagerDependencies:
       pnpm:
         specifier: 12.13.0
@@ -97,8 +97,8 @@ packages:
     engines: {node: '>=18.*'}
     hasBin: true
 
-  ras-stack@5.0.0-next.3:
-    resolution: {integrity: sha512-WcJDNA7Qe+py+cpvBeUEGqBVEZ2yl0S9pjA23jzS245GHuUizO3d0uFr/p0LNILAfeOnKW4BZnhirFpbPr3NnQ==}
+  ras-stack@5.0.0-next.4:
+    resolution: {integrity: sha512-MWE2cB6pQ0ybrWWwcVWclXVuWR3hmt7X9i2F6oEjVwrYRura+noH4LwZ0/LUljc5yW9YnOlomNZ6UMj789hGcg==}
 
 snapshots:
 
@@ -161,7 +161,7 @@ snapshots:
       '@pnpm/exe.win32-arm64': 12.13.0
       '@pnpm/exe.win32-x64': 12.13.0
 
-  ras-stack@5.0.0-next.3: {}
+  ras-stack@5.0.0-next.4: {}
 
 ---
 lockfileVersion: '9.0'
@@ -210,8 +210,8 @@ importers:
         specifier: 1.438.12
         version: 1.438.12(@types/react@19.3.0)(react@19.3.0)
       ras-stack:
-        specifier: 5.0.0-next.3
-        version: 5.0.0-next.3(@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        specifier: 5.0.0-next.4
+        version: 5.0.0-next.4(@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -2987,8 +2987,8 @@ packages:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
 
-  ras-stack@5.0.0-next.3:
-    resolution: {integrity: sha512-WcJDNA7Qe+py+cpvBeUEGqBVEZ2yl0S9pjA23jzS245GHuUizO3d0uFr/p0LNILAfeOnKW4BZnhirFpbPr3NnQ==}
+  ras-stack@5.0.0-next.4:
+    resolution: {integrity: sha512-MWE2cB6pQ0ybrWWwcVWclXVuWR3hmt7X9i2F6oEjVwrYRura+noH4LwZ0/LUljc5yW9YnOlomNZ6UMj789hGcg==}
     engines: {node: '>=24 <25'}
     hasBin: true
     peerDependencies:
@@ -5760,7 +5760,7 @@ snapshots:
 
   range-parser@1.3.0: {}
 
-  ras-stack@5.0.0-next.3(@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
+  ras-stack@5.0.0-next.4(@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(posthog-js@1.438.12(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
     dependencies:
       '@changesets/parse': 1.0.0
       '@manypkg/get-packages': 3.1.0
