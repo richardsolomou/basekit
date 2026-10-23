@@ -10,6 +10,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - ras-stack@5.0.0
+  - ras-stack@5.1.0
   # Reviewed exact versions from the RAS candidate; retain the seven-day gate for other packages.
   - '@posthog/browser-common@0.9.5'
   - '@posthog/core@1.59.1'
