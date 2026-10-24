@@ -1,5 +1,11 @@
 # hobbykit
 
+## 0.17.0
+
+### Minor Changes
+
+- b8c345c: Add stepped paint racks that hold Citadel pots and Vallejo, AK and Army Painter droppers, laid out as interlocking modules, corners and stepped ends that download as separate pieces and print hollow, with no infill or supports.
+
 ## 0.16.1
 
 ### Patch Changes
