@@ -1,4 +1,4 @@
-# BaseKit — Agent Guide
+# HobbyKit — Agent Guide
 
 Read [README.md](README.md) first for what the app does and what the controls mean, then [CONTRIBUTING.md](CONTRIBUTING.md) for setup and layout. This file covers the parts that bite.
 

@@ -16,7 +16,7 @@ createRoot(root).render(
   <PostHogIntegration
     environment={posthogEnvironment}
     ingestPath={posthogEnvironment?.host}
-    service={{ name: 'basekit', version: packageJson.version, environment: import.meta.env.MODE }}
+    service={{ name: 'hobbykit', version: packageJson.version, environment: import.meta.env.MODE }}
   >
     <App sharedSetup={sharedSetup} />
   </PostHogIntegration>,

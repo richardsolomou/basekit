@@ -89,7 +89,7 @@ export function PanelFooter({ resets }: { resets: ResetAction[] }) {
         ))}
       </div>
       <a
-        href="https://github.com/richardsolomou/basekit"
+        href="https://github.com/richardsolomou/hobbykit"
         target="_blank"
         rel="noreferrer"
         className={buttonVariants({ variant: 'link', size: 'sm', className: 'text-muted-foreground' })}

@@ -35,7 +35,7 @@ it('wires the application entrypoint to the configured PostHog provider', async 
     expect.objectContaining({
       environment: expect.objectContaining({ projectToken: 'phc_test', host: 'https://eu.i.posthog.com' }),
       ingestPath: 'https://eu.i.posthog.com',
-      service: { name: 'basekit', version: packageJson.version, environment: 'test' },
+      service: { name: 'hobbykit', version: packageJson.version, environment: 'test' },
     }),
   )
 })
