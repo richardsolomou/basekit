@@ -33,6 +33,7 @@ just samples
 just samples oval
 just samples painting
 just samples movement
+just samples rack
 ```
 
 Load at least one affected export in a slicer or mesh checker. The geometry tests run against the same DOM-free builder as the browser, but an exported file is the final product.

@@ -141,7 +141,7 @@ test('starts every dimension on a value its own input accepts', async ({ page })
       .evaluateAll((inputs) =>
         inputs.filter((input) => !(input as HTMLInputElement).checkValidity()).map((input) => input.getAttribute('aria-label')),
       )
-  for (const name of ['Holders', 'Movement trays', 'Spray tray', 'Stems', 'Tokens', 'Bases']) {
+  for (const name of ['Holders', 'Movement trays', 'Spray tray', 'Paint racks', 'Stems', 'Tokens', 'Bases']) {
     await visit(page, name)
     expect(await invalid(), name).toEqual([])
   }
@@ -173,7 +173,7 @@ test('estimates solid filament weight for every generator', { tag: '@ci' }, asyn
   await rebuilt(page, before)
   await expect.poll(async () => Number((await filament.textContent())?.match(/[\d.]+/)?.[0])).toBeGreaterThan(1.6)
 
-  for (const generator of ['Holders', 'Spray tray', 'Stems', 'Tokens']) {
+  for (const generator of ['Holders', 'Spray tray', 'Paint racks', 'Stems', 'Tokens']) {
     await visit(page, generator)
     await expect(filament).toHaveText(/^[≈<][\d.]+ g solid PLA$/)
   }
@@ -364,6 +364,7 @@ test('opens the retired adapters address on bases with a saved workspace intact'
     'Holders',
     'Movement trays',
     'Spray tray',
+    'Paint racks',
     'Stems',
     'Tokens',
   ])
@@ -693,6 +694,56 @@ test('builds a rank-and-file movement tray with magnet pockets', async ({ page }
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download STL' }).click()
   expect((await pending).suggestedFilename()).toBe('movement-tray-6x4-round-32mm.stl')
+})
+
+test('builds a stepped paint rack', async ({ page }) => {
+  await visit(page, 'Paint racks')
+
+  await expect(page).toHaveURL(/\/paint-racks$/)
+  await expect(page.getByRole('complementary', { name: 'Paint rack settings' })).toBeVisible()
+  await expect(across(page)).toHaveText('193.35 × 132.33')
+  await expect(tall(page)).toHaveText('100')
+  await expect(footer(page)).toContainText('paint-rack-5x4')
+  await expect(footer(page)).toContainText('20 in 35 mm cells')
+
+  const five = await triangles(page)
+  await page.getByLabel('Columns of piece 1 in cols', { exact: true }).fill('3')
+  await page.getByLabel('Columns of piece 1 in cols', { exact: true }).press('Enter')
+  await rebuilt(page, five)
+  await expect(across(page)).toHaveText('123.35 × 132.33')
+
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  expect((await pending).suggestedFilename()).toBe('paint-rack-3x4.stl')
+})
+
+test('grows a paint rack round a corner and downloads one piece or all of them', async ({ page }) => {
+  await visit(page, 'Paint racks')
+
+  for (const name of ['Add a corner to the right', 'Add a module to the right', 'Add an end to the left', 'Add an end to the right']) {
+    const before = await triangles(page)
+    await page.getByRole('button', { name }).click()
+    await rebuilt(page, before)
+  }
+  await expect(page.getByRole('button', { name: 'Add a module to the right' })).toBeDisabled()
+  await expect(footer(page)).toContainText('end · 5×4 · corner · 5×4 · end')
+
+  const piece = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download piece 3' }).click()
+  expect((await piece).suggestedFilename()).toBe('3-paint-rack-corner-4-rows.stl')
+
+  const all = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download STL' }).click()
+  const saved = await all
+  const path = await saved.path()
+  if (!path) throw new Error('download has no local path')
+  expect(Object.keys(unzipSync(await readFile(path)))).toEqual([
+    '1-paint-rack-left-end-4-rows.stl',
+    '2-paint-rack-5x4.stl',
+    '3-paint-rack-corner-4-rows.stl',
+    '4-paint-rack-5x4.stl',
+    '5-paint-rack-right-end-4-rows.stl',
+  ])
 })
 
 test('aligns toggle and dimension reset columns', async ({ page }) => {

@@ -7,6 +7,7 @@ import { loadManifold } from '@/core/geometry/manifold'
 import { buildMovementTray } from '@/core/geometry/movementTray'
 import { buildToken } from '@/core/geometry/token'
 import { buildPaintingHandle, buildPaintingTray } from '@/core/geometry/paintingTray'
+import { buildPaintRack } from '@/core/geometry/paintRack'
 import { buildFlightStem } from '@/core/geometry/stem'
 import type { MeshData, WorkerReply, WorkerRequest } from './protocol'
 
@@ -38,11 +39,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             ? buildPaintingHandle(wasm, config)
             : config.kind === 'painting-tray'
               ? buildPaintingTray(wasm, config)
-              : config.kind === 'stem'
-                ? buildFlightStem(wasm, config)
-                : config.kind === 'token'
-                  ? buildToken(wasm, config, font)
-                  : buildBase(wasm, config, font)
+              : config.kind === 'paint-rack'
+                ? buildPaintRack(wasm, config)
+                : config.kind === 'stem'
+                  ? buildFlightStem(wasm, config)
+                  : config.kind === 'token'
+                    ? buildToken(wasm, config, font)
+                    : buildBase(wasm, config, font)
     const mesh = toMeshData(result)
     send({ id, kind: 'mesh', mesh, grams: result.stats.grams }, [mesh.positions.buffer, mesh.indices.buffer])
   } catch (error) {

@@ -140,16 +140,17 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     world.add(new THREE.HemisphereLight(0xdfeaf4, 0x14293f, 0.85))
 
     /*
-     * The key sits at ~45° and casts shadows. Everything that matters here —
+     * The key sits ~38° off vertical and casts shadows. Everything that matters here —
      * the size label, the ribs, the bosses — is a shallow step off a flat floor,
      * so from a plan view the emboss and the floor it sits on share a normal
      * and shade identically; lit from overhead the number disappears. Any
      * off-vertical light gives each step a cast shadow instead, which reads
-     * from any angle, and 45° is enough without throwing the well wall halfway
-     * across a small base.
+     * from any angle, and 38° is enough without throwing the well wall halfway
+     * across a small base. It sits about 25° round from the default camera,
+     * so every face seen from there is lit and none falls black.
      */
     const key = new THREE.DirectionalLight(0xffffff, 2.1)
-    key.position.copy(new THREE.Vector3(-0.42, -0.57, 0.71).normalize().multiplyScalar(SHADOW_DISTANCE))
+    key.position.copy(new THREE.Vector3(0.12, -0.6, 0.79).normalize().multiplyScalar(SHADOW_DISTANCE))
     key.castShadow = true
     key.shadow.mapSize.set(2048, 2048)
     key.shadow.camera.near = SHADOW_DISTANCE / 2

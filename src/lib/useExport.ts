@@ -6,6 +6,7 @@ import { movementTrayHeight, movementTrayName } from '@/core/geometry/movementTr
 import { tokenHeight, tokenName } from '@/core/geometry/token'
 import { baseName, footprint } from '@/core/geometry/outline'
 import { paintingHandleConfig, paintingHandleDimensions, paintingHandleName, paintingTrayName } from '@/core/geometry/paintingTray'
+import { paintRackLayout, paintRackName, paintRackPieceName } from '@/core/geometry/paintRack'
 import { exportSegmentsFor } from '@/core/geometry/quality'
 import { stemName, stemOverallHeight } from '@/core/geometry/stem'
 import type {
@@ -15,6 +16,7 @@ import type {
   MovementTrayConfig,
   TokenConfig,
   PaintingTrayConfig,
+  PaintRackConfig,
   PartConfig,
 } from '@/core/geometry/types'
 import posthog from '@/lib/posthog'
@@ -22,7 +24,7 @@ import { batchFileName } from './batch'
 import { buildMesh } from './buildMesh'
 import { asMeshLike, download } from './download'
 
-export type ExportFormat = 'stl' | '3mf' | 'batch-stl' | 'batch-3mf'
+export type ExportFormat = 'stl' | '3mf' | 'batch-stl' | 'batch-3mf' | 'piece-stl'
 
 interface BatchPart {
   config: BaseConfig
@@ -30,11 +32,12 @@ interface BatchPart {
 }
 
 interface ExportOptions {
-  model: 'base' | 'holder' | 'movement' | 'painting' | 'stem' | 'token'
+  model: 'base' | 'holder' | 'movement' | 'painting' | 'rack' | 'stem' | 'token'
   base: BaseConfig
   holder: HolderConfig
   movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
+  paintRack: PaintRackConfig
   stem: FlightStemConfig
   token: TokenConfig
   width: number
@@ -49,6 +52,7 @@ export function useExport({
   holder,
   movementTray,
   paintingTray,
+  paintRack,
   stem,
   token,
   width,
@@ -67,9 +71,11 @@ export function useExport({
           ? movementTray
           : model === 'painting'
             ? paintingTray
-            : model === 'stem'
-              ? stem
-              : token
+            : model === 'rack'
+              ? paintRack
+              : model === 'stem'
+                ? stem
+                : token
   const name =
     model === 'base'
       ? baseName(base)
@@ -79,9 +85,11 @@ export function useExport({
           ? movementTrayName(movementTray)
           : model === 'painting'
             ? paintingTrayName(paintingTray)
-            : model === 'stem'
-              ? stemName(stem)
-              : tokenName(token)
+            : model === 'rack'
+              ? paintRackName(paintRack)
+              : model === 'stem'
+                ? stemName(stem)
+                : tokenName(token)
 
   const run = async (
     format: ExportFormat,
@@ -97,7 +105,9 @@ export function useExport({
             ? tokenHeight(config)
             : config.kind === 'movement-tray'
               ? movementTrayHeight(config)
-              : config.height,
+              : config.kind === 'paint-rack'
+                ? paintRackLayout(config).height
+                : config.height,
     },
   ) => {
     setExporting(format)
@@ -134,8 +144,27 @@ export function useExport({
     ]
   }
 
+  const rackPieces = model === 'rack' ? paintRackLayout(paintRack).pieces : []
+  // Numbered left to right, which also keeps two modules of the same size from sharing a filename.
+  const buildRackPiece = async (index: number) => ({
+    mesh: asMeshLike(await buildMesh({ ...paintRack, piece: index, segments: exportSegmentsFor(Math.max(width, length)) })),
+    name: `${index + 1}-${paintRackPieceName(rackPieces[index])}`,
+  })
+  const buildRackPieces = () => Promise.all(rackPieces.map((_piece, index) => buildRackPiece(index)))
+  /** One piece on its own, for adding to a rack that is already printed. */
+  const exportRackPiece = (index: number) =>
+    run('piece-stl', async () => {
+      const part = await buildRackPiece(index)
+      download(`${part.name}.stl`, toStl(part.mesh, part.name))
+    })
+
   const exportStl = () =>
     run('stl', async () => {
+      if (rackPieces.length > 1) {
+        const parts = await buildRackPieces()
+        download(`${name}.zip`, zipSync(Object.fromEntries(parts.map((part) => [`${part.name}.stl`, toStl(part.mesh, part.name)]))))
+        return
+      }
       if (model === 'painting') {
         const parts = await buildPaintingParts()
         const files = Object.fromEntries(parts.map((part) => [`${part.name}.stl`, toStl(part.mesh, part.name)]))
@@ -160,6 +189,10 @@ export function useExport({
 
   const export3mf = () =>
     run('3mf', async () => {
+      if (rackPieces.length > 1) {
+        download(`${name}.3mf`, to3mf(await buildRackPieces(), true))
+        return
+      }
       if (model === 'painting') {
         download(`${name}.3mf`, to3mf(await buildPaintingParts(), true))
         return
@@ -226,5 +259,5 @@ export function useExport({
       batchProperties,
     )
 
-  return { exporting, error, exportStl, export3mf, exportBatchStl, exportBatch3mf }
+  return { exporting, error, exportStl, export3mf, exportBatchStl, exportBatch3mf, exportRackPiece }
 }

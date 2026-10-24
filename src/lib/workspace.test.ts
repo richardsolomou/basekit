@@ -178,6 +178,16 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage).stem).toMatchObject({ bodyHeight: 20, connection: 'peg', ballDiameter: 4 })
   })
 
+  it('adds the paint-rack generator to saved workspaces', () => {
+    const storage = memoryStorage()
+    const legacy = JSON.parse(JSON.stringify(defaultWorkspace()))
+    legacy.stem.bodyHeight = 20
+    delete legacy.paintRack
+    storage.setItem('mini-bases.workspace', JSON.stringify({ version: 12, workspace: legacy }))
+
+    expect(loadWorkspace(storage)).toMatchObject({ stem: { bodyHeight: 20 }, paintRack: defaultWorkspace().paintRack })
+  })
+
   it('drops the removed adapter generator from a version 11 workspace', () => {
     const storage = memoryStorage()
     storage.setItem('mini-bases.workspace', JSON.stringify({ version: 11, workspace: { ...defaultWorkspace(), adapter: SAVED_ADAPTER } }))
@@ -185,7 +195,7 @@ describe('workspace state', () => {
     expect(loadWorkspace(storage)).not.toHaveProperty('adapter')
   })
 
-  it.each([10, 11])('keeps every other setting of a version %i workspace', (version) => {
+  it.each([10, 11, 12])('keeps every other setting of a version %i workspace', (version) => {
     const storage = memoryStorage()
     const saved = defaultWorkspace()
     saved.base = { ...saved.base, height: 5 }
@@ -476,6 +486,7 @@ function customizedWorkspace() {
   state.holder = { ...state.holder, height: 30 }
   state.movementTray = { ...state.movementTray, columns: 8, ranks: 2 }
   state.paintingTray = { ...state.paintingTray, rows: 2, columns: 3 }
+  state.paintRack = { ...state.paintRack, leftEnd: true, rise: 20 }
   state.stem = { ...state.stem, bodyDiameter: 6 }
   state.token = { ...state.token, text: 'A', shape: 'hex', size: 32 }
   state.shared = { ...state.shared, labelsEnabled: false, magnets: { ...state.shared.magnets, diameter: 6 } }
@@ -484,13 +495,14 @@ function customizedWorkspace() {
 }
 
 describe('resetting settings', () => {
-  const parts = ['base', 'holder', 'movementTray', 'paintingTray', 'stem', 'token'] as const
+  const parts = ['base', 'holder', 'movementTray', 'paintingTray', 'paintRack', 'stem', 'token'] as const
 
   it.each([
     ['base', (state: WorkspaceState) => state.base.height],
     ['holder', (state: WorkspaceState) => state.holder.height],
     ['movementTray', (state: WorkspaceState) => [state.movementTray.columns, state.movementTray.ranks]],
     ['paintingTray', (state: WorkspaceState) => state.paintingTray.rows],
+    ['paintRack', (state: WorkspaceState) => state.paintRack],
     ['stem', (state: WorkspaceState) => state.stem],
     ['token', (state: WorkspaceState) => state.token],
   ] as const)('restores the %s settings to their defaults', (part, read) => {

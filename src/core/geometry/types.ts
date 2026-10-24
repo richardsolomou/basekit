@@ -175,6 +175,52 @@ export interface MovementTrayConfig {
   segments: number
 }
 
+export interface PaintRackItem {
+  id: string
+  /** A corner turns the rack a quarter round an inside corner, with the back rows against both walls. */
+  kind: 'module' | 'corner'
+  /** Ignored by a corner, whose size follows the rows. */
+  columns: number
+}
+
+export interface PaintRackConfig {
+  kind: 'paint-rack'
+  /**
+   * Pieces left to right as seen from the front. A rack grows from either end over time, so a piece never changes
+   * when another is added beside it.
+   */
+  items: PaintRackItem[]
+  /** Rows of every piece; corners join runs of the same depth. */
+  rows: number
+  /** Wings that add bottle cells at the rack's open ends, so each side steps back with the rows. */
+  leftEnd: boolean
+  rightEnd: boolean
+  /** Centre-to-centre distance across a row, which is also each cell's flat-to-flat size. */
+  pitch: number
+  /** Height gained by each row behind the front one. */
+  rise: number
+  /** Height of the front row's deck, below its pot pocket. */
+  frontHeight: number
+  /** Bore through each cell's deck that locates a dropper bottle; wider pots stand on the deck. */
+  seatDiameter: number
+  /** Depth of the bore, down to where its ledge meets the bore wall. */
+  seatDepth: number
+  /** Hole through the ledge, smaller than any bottle so it can push one out. */
+  holeDiameter: number
+  /** Round pocket above each deck that holds a wide pot. Zero leaves a flat deck that pots stand on. */
+  pocketDiameter: number
+  pocketDepth: number
+  wall: number
+  /**
+   * Holes in a corner's leftover cells. Each is a tube standing on the table, so it must clear the widest part of a
+   * handle that goes in, such as the triangular grip on Army Painter brushes.
+   */
+  brushDiameter: number
+  segments: number
+  /** Export-only: build this piece of the loadout on its own instead of the whole assembly. */
+  piece?: number
+}
+
 export interface PaintingHandleConfig {
   kind: 'painting-handle'
   handle: PaintingHandleSettings
@@ -234,5 +280,12 @@ export interface BasePartConfig extends BaseConfig {
   kind?: 'base'
 }
 
-export type PartConfig = BasePartConfig | HolderConfig | MovementTrayConfig | PaintingTrayConfig | FlightStemConfig | TokenConfig
+export type PartConfig =
+  | BasePartConfig
+  | HolderConfig
+  | MovementTrayConfig
+  | PaintingTrayConfig
+  | PaintRackConfig
+  | FlightStemConfig
+  | TokenConfig
 export type BuildConfig = PartConfig | PaintingHandleConfig

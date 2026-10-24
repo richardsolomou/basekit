@@ -4,6 +4,7 @@ import { BasePanel } from '@/components/panels/BasePanel'
 import { HolderPanel } from '@/components/panels/HolderPanel'
 import { isStandardMovementSize, MovementTrayPanel } from '@/components/panels/MovementTrayPanel'
 import { PaintingTrayPanel } from '@/components/panels/PaintingTrayPanel'
+import { PaintRackPanel } from '@/components/panels/PaintRackPanel'
 import {
   AUTOMATIC_MAGNET_COUNT,
   fitSlotDepth,
@@ -32,8 +33,17 @@ import {
   paintingTrayLayout,
   paintingTrayName,
 } from '@/core/geometry/paintingTray'
+import { paintRackLayout, paintRackName } from '@/core/geometry/paintRack'
 import { stemMaximumDiameter, stemName, stemOverallHeight } from '@/core/geometry/stem'
-import type { BaseConfig, FlightStemConfig, TokenConfig, HolderConfig, MovementTrayConfig, PaintingTrayConfig } from '@/core/geometry/types'
+import type {
+  BaseConfig,
+  FlightStemConfig,
+  TokenConfig,
+  HolderConfig,
+  MovementTrayConfig,
+  PaintingTrayConfig,
+  PaintRackConfig,
+} from '@/core/geometry/types'
 import { loadTokenImage } from '@/lib/tokenImage'
 import { batchBaseConfig, batchName } from '@/lib/batch'
 import { useExport } from '@/lib/useExport'
@@ -57,6 +67,7 @@ const MODELS = [
   { value: 'holder' as const, part: 'holder' as const, label: 'Holders', mobileLabel: 'Holders', href: '/holders' },
   { value: 'movement' as const, part: 'movementTray' as const, label: 'Movement trays', mobileLabel: 'Movement', href: '/movement-trays' },
   { value: 'painting' as const, part: 'paintingTray' as const, label: 'Spray tray', mobileLabel: 'Spray', href: '/spray-tray' },
+  { value: 'rack' as const, part: 'paintRack' as const, label: 'Paint racks', mobileLabel: 'Paints', href: '/paint-racks' },
   { value: 'stem' as const, part: 'stem' as const, label: 'Stems', mobileLabel: 'Stems', href: '/stems' },
   { value: 'token' as const, part: 'token' as const, label: 'Tokens', mobileLabel: 'Tokens', href: '/tokens' },
 ]
@@ -72,9 +83,11 @@ const modelLabel = (model: Generator) =>
         ? 'Movement tray'
         : model === 'painting'
           ? 'Spray tray'
-          : model === 'stem'
-            ? 'Stem'
-            : 'Token'
+          : model === 'rack'
+            ? 'Paint rack'
+            : model === 'stem'
+              ? 'Stem'
+              : 'Token'
 
 const SHARE_NOTICE_MS = 5000
 
@@ -93,6 +106,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
   const holder = workspace.holder
   const movementTray = workspace.movementTray
   const paintingTray = workspace.paintingTray
+  const paintRack = workspace.paintRack
   const stem = workspace.stem
   const token = workspace.token
   const setWorkspace = (next: WorkspaceState | ((current: WorkspaceState) => WorkspaceState)) =>
@@ -107,6 +121,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
       ...current,
       paintingTray: typeof next === 'function' ? next(current.paintingTray) : next,
     }))
+  const setPaintRack = (next: PaintRackConfig) => setWorkspace((current) => ({ ...current, paintRack: next }))
   const setStem = (next: FlightStemConfig | ((current: FlightStemConfig) => FlightStemConfig)) =>
     setWorkspace((current) => ({ ...current, stem: typeof next === 'function' ? next(current.stem) : next }))
   const patchToken = (changes: Partial<TokenConfig>) =>
@@ -166,9 +181,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ? movementTray
           : model === 'painting'
             ? paintingTray
-            : model === 'stem'
-              ? stem
-              : token
+            : model === 'rack'
+              ? paintRack
+              : model === 'stem'
+                ? stem
+                : token
   const { preview, grams, error } = useGenerator(partConfig)
 
   useEffect(() => {
@@ -210,9 +227,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
             ? 'Movement Trays'
             : model === 'painting'
               ? 'Spray Trays'
-              : model === 'stem'
-                ? 'Flying Stems'
-                : 'Tokens'
+              : model === 'rack'
+                ? 'Paint Racks'
+                : model === 'stem'
+                  ? 'Flying Stems'
+                  : 'Tokens'
     }`
   }, [model])
 
@@ -240,6 +259,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
   const holderSize = useMemo(() => holderLayout(holder), [holder])
   const paintingSize = useMemo(() => paintingTrayLayout(paintingTray), [paintingTray])
   const movementSize = useMemo(() => movementTrayLayout(movementTray), [movementTray])
+  const rackSize = useMemo(() => paintRackLayout(paintRack), [paintRack])
   const maxBaseMagnetThickness = Math.max(0.5, config.height - config.floorThickness) - config.magnets.depthClearance
   const maxSharedMagnetThickness = Math.max(0.5, Math.min(maxBaseMagnetThickness, Math.floor(maxHolderMagnetThickness(holder) * 10) / 10))
   const maxBaseDepthClearance = config.height - config.floorThickness - config.magnets.thickness
@@ -256,9 +276,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ? movementSize.width
           : model === 'painting'
             ? paintingSize.width
-            : model === 'stem'
-              ? stemDiameter
-              : tokenFootprint(token).width
+            : model === 'rack'
+              ? rackSize.width
+              : model === 'stem'
+                ? stemDiameter
+                : tokenFootprint(token).width
   const partLength =
     model === 'base'
       ? length
@@ -268,9 +290,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ? movementSize.length
           : model === 'painting'
             ? paintingSize.length
-            : model === 'stem'
-              ? stemDiameter
-              : tokenFootprint(token).length
+            : model === 'rack'
+              ? rackSize.length
+              : model === 'stem'
+                ? stemDiameter
+                : tokenFootprint(token).length
   const partHeight =
     model === 'base'
       ? config.height
@@ -280,9 +304,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ? movementTrayHeight(movementTray)
           : model === 'painting'
             ? paintingTrayAssemblyHeight(paintingTray)
-            : model === 'stem'
-              ? stemOverallHeight(stem)
-              : tokenHeight(token)
+            : model === 'rack'
+              ? rackSize.height
+              : model === 'stem'
+                ? stemOverallHeight(stem)
+                : tokenHeight(token)
   const partName =
     model === 'base'
       ? baseName(config)
@@ -292,9 +318,11 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
           ? movementTrayName(movementTray)
           : model === 'painting'
             ? paintingTrayName(paintingTray)
-            : model === 'stem'
-              ? stemName(stem)
-              : tokenName(token)
+            : model === 'rack'
+              ? paintRackName(paintRack)
+              : model === 'stem'
+                ? stemName(stem)
+                : tokenName(token)
   const batch = useMemo(
     () => workspace.batch.map((entry) => ({ config: batchBaseConfig(workspace, entry), quantity: entry.quantity })),
     [workspace],
@@ -306,12 +334,14 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
     export3mf,
     exportBatchStl,
     exportBatch3mf,
+    exportRackPiece,
   } = useExport({
     model,
     base: config,
     holder,
     movementTray,
     paintingTray,
+    paintRack,
     stem,
     token,
     width: partWidth,
@@ -440,6 +470,14 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
         maxSharedDepthClearance={maxSharedDepthClearance}
         setSharedMagnets={setSharedMagnets}
         resets={[resetPart('paintingTray', 'spray tray', true), resetSharedSettings]}
+      />
+    ) : model === 'rack' ? (
+      <PaintRackPanel
+        paintRack={paintRack}
+        setPaintRack={setPaintRack}
+        exporting={exporting !== undefined}
+        exportPiece={exportRackPiece}
+        resets={[resetPart('paintRack', 'paint rack', false)]}
       />
     ) : model === 'stem' ? (
       <StemPanel stem={stem} setStem={setStem} resets={[resetPart('stem', 'stem', false)]} />
