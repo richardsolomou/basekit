@@ -1,6 +1,6 @@
 /**
  * Writes a sample STL per preset size so the geometry can be inspected outside the
- * browser. Usage: pnpm samples [outDir] [round|oval|painting|movement]
+ * browser. Usage: pnpm samples [outDir] [round|oval|painting|movement|rack]
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -19,6 +19,7 @@ import {
   paintingHandleName,
   paintingTrayName,
 } from '../src/core/geometry/paintingTray'
+import { buildPaintRack, defaultPaintRackConfig, paintRackName } from '../src/core/geometry/paintRack'
 import { OVAL_SIZES, presetFor, ROUND_SIZES } from '../src/core/geometry/presets'
 
 const FONT_PATH = 'src/assets/fonts/oswald-700.woff'
@@ -43,6 +44,15 @@ if (family === 'painting') {
     writeFileSync(join(outDir, filename), toStl(mesh, filename))
     console.log(`${filename}  ${stats.triangles} tris  ${stats.volume.toFixed(0)}mm3  ${stats.grams.toFixed(2)}g`)
   }
+  process.exit(0)
+}
+
+if (family === 'rack') {
+  const config = defaultPaintRackConfig()
+  const { mesh, stats } = buildPaintRack(wasm, config)
+  const filename = `${paintRackName(config)}.stl`
+  writeFileSync(join(outDir, filename), toStl(mesh, filename))
+  console.log(`${filename}  ${stats.triangles} tris  ${stats.volume.toFixed(0)}mm3  ${stats.grams.toFixed(2)}g`)
   process.exit(0)
 }
 

@@ -7,6 +7,7 @@ import {
   minimumPaintingTraySpacing,
 } from '../core/geometry/paintingTray'
 import { supportsFivePocketCross } from '../core/geometry/base'
+import { defaultPaintRackConfig } from '../core/geometry/paintRack'
 import { defaultTokenConfig } from '../core/geometry/token'
 import { automaticMagnetCount, DEFAULT_PRESET, footprintKey, presetFor, ribCountFor } from '../core/geometry/presets'
 import { defaultFlightStemConfig } from '../core/geometry/stem'
@@ -15,13 +16,14 @@ import type {
   FlightStemConfig,
   HolderConfig,
   MovementTrayConfig,
+  PaintRackConfig,
   ShapeKind,
   TokenConfig,
   PaintingTrayConfig,
 } from '../core/geometry/types'
 
 const WORKSPACE_KEY = 'mini-bases.workspace'
-const WORKSPACE_VERSION = 12
+const WORKSPACE_VERSION = 13
 
 const SHAPES = new Set<string>(['round', 'oval', 'pill', 'rect', 'polygon'])
 
@@ -35,6 +37,7 @@ export interface WorkspaceState {
   holder: HolderConfig
   movementTray: MovementTrayConfig
   paintingTray: PaintingTrayConfig
+  paintRack: PaintRackConfig
   stem: FlightStemConfig
   token: TokenConfig
   /** Values exposed by multiple generators have one canonical owner. */
@@ -165,6 +168,7 @@ export function defaultWorkspace(): WorkspaceState {
     holder: defaultHolderConfig(),
     movementTray: defaultMovementTrayConfig(),
     paintingTray: defaultPaintingTrayConfig(),
+    paintRack: defaultPaintRackConfig(),
     stem: defaultFlightStemConfig(),
     token: defaultTokenConfig(),
     shared: sharedFromBase(base),
@@ -195,6 +199,7 @@ const MIGRATIONS = [
   migrateWorkspaceV9,
   migrateWorkspaceV10,
   migrateWorkspaceV11,
+  migrateWorkspaceV12,
 ]
 
 function migrateWorkspace(version: unknown, value: unknown): unknown {
@@ -221,7 +226,7 @@ export function loadWorkspace(storage: SettingsStorage): WorkspaceState {
   }
 }
 
-const PARTS: readonly GeneratorSettings[] = ['base', 'holder', 'movementTray', 'paintingTray', 'stem', 'token']
+const PARTS: readonly GeneratorSettings[] = ['base', 'holder', 'movementTray', 'paintingTray', 'paintRack', 'stem', 'token']
 const PARTS_USING_SHARED = new Set<GeneratorSettings>(['base', 'holder', 'movementTray', 'paintingTray'])
 
 /**
@@ -275,6 +280,11 @@ export function applyWorkspaceSetup(
   const kept = Object.entries(workspace.shared.magnetCounts).filter(([footprint]) => !replaced.includes(footprint))
   const magnetCounts = { ...Object.fromEntries(kept), ...candidate.shared.magnetCounts }
   return { workspace: synchronizeWorkspace({ ...candidate, shared: { ...candidate.shared, magnetCounts } }), part: key }
+}
+
+function migrateWorkspaceV12(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value
+  return { ...(value as Record<string, unknown>), paintRack: defaultPaintRackConfig() }
 }
 
 function migrateWorkspaceV11(value: unknown): unknown {
@@ -423,6 +433,9 @@ function isWorkspaceState(value: unknown, template: WorkspaceState): value is Wo
     workspace.movementTray.kind === 'movement-tray' &&
     ['round', 'rect'].includes(workspace.movementTray.shape) &&
     workspace.paintingTray.kind === 'painting-tray' &&
+    workspace.paintRack.kind === 'paint-rack' &&
+    workspace.paintRack.items.length > 0 &&
+    workspace.paintRack.items.every((item) => ['module', 'corner'].includes(item.kind)) &&
     ['round', 'oval', 'flared', 'pistol'].includes(workspace.paintingTray.handle.shape) &&
     ['peg', 'ball'].includes(workspace.stem.connection) &&
     workspace.holder.groups.every((group) => SHAPES.has(group.shape)) &&

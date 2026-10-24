@@ -3,6 +3,7 @@ import { defaultLabel, trimNumber } from '@/core/geometry/outline'
 import { paintingHandleDescription, paintingTrayLayout, paintingTrayMagnetPocketCount } from '@/core/geometry/paintingTray'
 import { movementTrayBaseLabel, movementTrayMagnetPocketCount } from '@/core/geometry/movementTray'
 import { holderGroupLabel, holderLayout, holderMagnetPocketCount, holderPlan } from '@/core/geometry/holder'
+import { paintRackLayout, paintRackLoadout } from '@/core/geometry/paintRack'
 import { stemOverallHeight } from '@/core/geometry/stem'
 import { filamentEstimate } from '@/lib/filament'
 import type { PartConfig } from '@/core/geometry/types'
@@ -50,6 +51,18 @@ function PartRows({ config }: { config: PartConfig }) {
         <Row truncate label="Text" value={config.text.trim() ? `“${config.text.trim()}”` : 'none'} />
         <Row truncate label="Image" value={config.image?.name ?? 'none'} />
         <Row label="Top edge" value={config.profile === 'straight' ? 'square' : `${trimNumber(config.profileSize)}mm ${config.profile}`} />
+      </>
+    )
+  }
+  if (config.kind === 'paint-rack') {
+    return (
+      <>
+        <Row label="Loadout" value={paintRackLoadout(config)} />
+        <Row label="Bottles" value={`${paintRackLayout(config).bottles} in ${trimNumber(config.pitch)} mm cells`} />
+        {paintRackLayout(config).brushes > 0 && (
+          <Row label="Brushes" value={`${paintRackLayout(config).brushes} × Ø${trimNumber(config.brushDiameter)} mm`} />
+        )}
+        <Row label="Rise" value={`${trimNumber(config.rise)} mm per row`} />
       </>
     )
   }

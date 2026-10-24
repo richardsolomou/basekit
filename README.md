@@ -10,7 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
+BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, stepped paint racks, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
@@ -46,6 +46,12 @@ Build a low-profile magnetic platform for batch priming and spray painting. Its 
 
 Choose a round, oval-barrel, flared, or pistol grip, then adjust its width, length, and lean angle. The default grip is 100mm long, and optional end softening and shallow ribs further tune the feel without adding supports. A shallow engraved `+` extends beyond the configured grip footprint on the tray underside, keeping the centre visible while the flat end is positioned for glue. STL downloads contain separate tray and handle files, while 3MF downloads put each support-free part on its own build plate.
 
+## Paint racks 🖌️
+
+Stand your paints in stepped rows so every label shows. Each bottle gets a hex cell capped by a flat deck: a round pocket above the deck holds a Citadel pot, label wrap and all, and a bore through the deck holds a 24.5mm dropper bottle such as Vallejo, AK or Army Painter on a ledge, with a hole beneath to push a stuck bottle out. Everything under the decks is hollow, with walls shared between neighbouring cells, so the rack prints without infill. Set the pocket depth to zero for flat decks that pots stand on, which prints faster.
+
+Build the rack from left to right and grow it from either side as your collection does: modules of any width, and corners that turn the rack 90° round an inside corner. Pieces already printed never change when you add another, and each piece downloads on its own. Where a corner's two runs meet, cells too narrow for a bottle are capped and filled with brush holes, each a tube standing on the table so a brush rests on its end. Set the hole size to clear the widest part of your brushes' handles, such as a triangular grip. Add an end at either side to step the rack's sides back with the rows, holding a few more bottles. The preview shows the whole loadout assembled, and every piece downloads separately: STLs arrive as one archive numbered left to right, and a 3MF puts each piece on its own build plate. Neighbouring modules interlock along their zigzag edges with a small clearance. Cell size, deck heights, pockets, seats, and wall thickness apply to the whole loadout. Every piece prints upright with supports off; each deck bridges a few millimetres between the walls and its bore.
+
 ## Tokens 🪙
 
 Make a round, square, or hex token for objectives, Oath of Moment, or anything else a game tracks. Every shape is sized across its flats: a round's diameter, a square's width, and a hex's flat-to-flat distance, so a 25.4mm hex fills a one-inch hex grid cell. Squares can round their corners. Type a word, a phrase, or a number and it wraps and scales to fill the face; drop in an image and its dark areas are traced into a silhouette, above the text when the token has both. Adjust the threshold or use the light areas instead to suit the artwork, then set the size, thickness, relief height, and top edge. Positive relief raises the text and image; negative relief engraves them into the face so tokens stack flat. Zero relief leaves a plain body. Engraving always leaves at least 1mm of material beneath the artwork, and reducing the body thickness limits the depth to keep that floor. Tokens print flat on the table face with the artwork facing up, so nothing needs supports.
@@ -56,13 +62,14 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 - Hollow undersides with automatic ribs and magnet layouts.
 - Printable 15, 20, 30, and 35mm flying stems with adjustable peg or ball-joint connections.
 - Round, square, and hex tokens with wrapped text and traced image silhouettes.
+- Stepped honeycomb paint racks for dropper bottles and pots.
 - Shared magnet dimensions across bases, holders, movement trays, and spray trays.
 - Balanced or five-pocket cross magnet arrangements for bases and holders. Saved cross layouts keep one centre pocket and four outer pockets on both axes, including elongated footprints.
 - Exact size labels, filenames, dimensions, and high-quality exports.
 - Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
 - Copyable links that open the current generator with the same settings.
 
-BaseKit generates bases and accessories for using them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
+BaseKit generates bases and the hobby accessories around them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
 ## Private by design 🔒
 
