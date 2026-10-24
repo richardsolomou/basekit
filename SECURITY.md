@@ -10,6 +10,6 @@ In the private report, include the affected deployment or commit, browser and op
 
 ## Supported versions
 
-Security fixes are made against the latest version deployed at [hobbykit.ras.sh](https://hobbykit.ras.sh) and the current `main` branch.
+Security fixes are made against the latest version deployed at [hobbykit.app](https://hobbykit.app) and the current `main` branch.
 
 HobbyKit has no backend, accounts, database, or uploaded files. Geometry and exports stay in the browser. Reports about crafted configuration values, browser-side file generation, bundled dependencies, or deployment configuration are still welcome.

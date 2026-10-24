@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
-- 0d57a14: Rename BaseKit to HobbyKit, now at hobbykit.ras.sh, since it makes paint racks, trays, holders, and tokens as well as bases.
+- 0d57a14: Rename BaseKit to HobbyKit, now at hobbykit.app, since it makes paint racks, trays, holders, and tokens as well as bases.
 - 9cf0c04: Restyle the app on a graphite sheet with a red accent, and shorten the paint rack panel's notes.
 
 ## 0.17.0
