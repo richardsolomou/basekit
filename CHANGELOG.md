@@ -1,5 +1,11 @@
 # hobbykit
 
+## 0.18.1
+
+### Patch Changes
+
+- baa3640: Replace the sprue icon with a red miniature base and its magnet.
+
 ## 0.18.0
 
 ### Minor Changes
