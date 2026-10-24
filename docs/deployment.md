@@ -19,9 +19,9 @@ Pages creates a preview deployment for pull requests and a production deployment
 
 ## Custom domain
 
-`hobbykit.app` is a Custom Domain on the `basekit` Worker, under **Domains & Routes**. Cloudflare manages the `hobbykit.app` zone, so it creates the DNS record.
+`hobbykit.app` is a Custom Domain on the `hobbykit` Worker, under **Domains & Routes**. Cloudflare manages the `hobbykit.app` zone, so it creates the DNS record.
 
-`basekit.ras.sh`, the app's former domain, stays attached to the Worker so its DNS record remains, and a Single Redirect in the `ras.sh` zone sends `*://basekit.ras.sh/*` to `https://hobbykit.app/${2}` with a 301, preserving the query string, so old links and bookmarks keep working. The redirect does not move browser storage: settings saved on the old domain stay there. The Worker in `wrangler.jsonc` keeps the name `basekit`, because Workers Builds is connected to the Worker by that name.
+`basekit.ras.sh`, the app's former domain, stays attached to the Worker so its DNS record remains, and a Single Redirect in the `ras.sh` zone sends `*://basekit.ras.sh/*` to `https://hobbykit.app/${2}` with a 301, preserving the query string, so old links and bookmarks keep working. The redirect does not move browser storage: settings saved on the old domain stay there.
 
 ## Production verification
 
