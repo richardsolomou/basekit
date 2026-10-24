@@ -5,7 +5,7 @@ import type { TokenImage } from '../core/geometry/types'
 import { MAX_SHARE_URL_LENGTH, readShareHash, shareLink } from './shareLink'
 import { applyWorkspaceSetup, defaultWorkspace, workspaceSetup, type GeneratorSettings, type WorkspaceState } from './workspace'
 
-const PAGE = 'https://basekit.example/tokens'
+const PAGE = 'https://hobbykit.example/tokens'
 const PARTS = Object.keys(defaultWorkspace()).filter((key) => key !== 'shared' && key !== 'batch') as GeneratorSettings[]
 
 const hashOf = (url: string) => url.slice(url.indexOf('#'))

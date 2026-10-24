@@ -105,11 +105,7 @@ export function PaintRackPanel({ paintRack, setPaintRack, exporting, exportPiece
             })}
           </ol>
           <AddPieces side="right" paintRack={paintRack} patch={patch} />
-          <FieldDescription>
-            Pieces run left to right as seen from the front and interlock along their zigzag edges. Grow the rack from either side as you
-            need it; existing pieces never change, so download just the new one. A corner turns the rack round an inside corner and fills it
-            with bottles and brush holes; an end steps the open side back with the rows.
-          </FieldDescription>
+          <FieldDescription>Add pieces as you need them. Printed pieces never change, so download only the new one.</FieldDescription>
         </Section>
 
         <Section title="Cells">
@@ -131,10 +127,7 @@ export function PaintRackPanel({ paintRack, setPaintRack, exporting, exportPiece
             defaultValue={RACK_DEFAULTS.brushDiameter}
             onChange={(brushDiameter) => patch({ brushDiameter })}
           />
-          <FieldDescription>
-            Cells are measured across the flats; rows interlock by half a cell, so they tile as a honeycomb. Brush holes fill a corner's
-            leftover cells and must clear the widest part of a handle, such as a triangular grip.
-          </FieldDescription>
+          <FieldDescription>Brush holes must clear the widest part of a handle.</FieldDescription>
         </Section>
 
         <Section
@@ -192,10 +185,7 @@ export function PaintRackPanel({ paintRack, setPaintRack, exporting, exportPiece
             defaultValue={RACK_DEFAULTS.pocketDiameter}
             onChange={(pocketDiameter) => patch({ pocketDiameter })}
           />
-          <FieldDescription>
-            Sized for Citadel pots, including the overlap where the label wraps. Zero depth leaves a flat deck that pots stand on, which
-            prints about 50 minutes faster on a 5 × 4.
-          </FieldDescription>
+          <FieldDescription>Sized for Citadel pots. Zero depth leaves a flat deck that prints faster.</FieldDescription>
         </Section>
 
         <Section
@@ -238,10 +228,7 @@ export function PaintRackPanel({ paintRack, setPaintRack, exporting, exportPiece
             defaultValue={RACK_DEFAULTS.wall}
             onChange={(wall) => patch({ wall, frontHeight: Math.max(paintRack.frontHeight, paintRack.seatDepth + wall) })}
           />
-          <FieldDescription>
-            Sized for 24.5mm dropper bottles such as Vallejo, AK and Army Painter, which drop into the bore onto a 45° ledge. Print with
-            supports off: each deck bridges a few millimetres to its bore. Walls two nozzle widths thick print fastest.
-          </FieldDescription>
+          <FieldDescription>Sized for Vallejo, AK and Army Painter droppers. Print with supports off.</FieldDescription>
         </Section>
 
         <PanelFooter resets={resets} />

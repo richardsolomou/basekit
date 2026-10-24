@@ -66,7 +66,7 @@ test.beforeEach(async ({ page }) => {
 test('builds the default base on load', { tag: '@ci' }, async ({ page }) => {
   const panel = page.getByRole('complementary', { name: 'Base settings' }).locator('xpath=ancestor::*[@data-slot="scroll-area"]')
   await expect.poll(async () => (await panel.boundingBox())?.width).toBe(344.25)
-  await expect(page.getByRole('heading', { name: 'BaseKit' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'HobbyKit' })).toBeVisible()
   await expect(across(page)).toHaveText('Ø32')
   await expect(tall(page)).toHaveText('4')
   await expect(footer(page)).toContainText('base-round-32mm')
@@ -131,7 +131,7 @@ test('keeps a separate camera view for each generator', async ({ page }) => {
 })
 
 test('links to the source repository', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/basekit')
+  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/hobbykit')
 })
 
 test('starts every dimension on a value its own input accepts', async ({ page }) => {
@@ -886,7 +886,7 @@ test('frames every slot in a tall holder', async ({ page }) => {
 test('loads the Gridfinity holder directly from its route', { tag: '@ci' }, async ({ page }) => {
   await page.goto('/holders')
   await settled(page)
-  await expect(page).toHaveTitle('BaseKit — Holders')
+  await expect(page).toHaveTitle('HobbyKit — Holders')
   await expect(page.getByRole('link', { name: 'Holders' })).toHaveAttribute('aria-current', 'page')
   await expect(footer(page)).toContainText('holder-1x4-5x-round-32mm')
 })

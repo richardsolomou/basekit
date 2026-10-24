@@ -137,7 +137,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     controls.dampingFactor = 0.08
     controls.target.set(0, 0, 2)
 
-    world.add(new THREE.HemisphereLight(0xdfeaf4, 0x14293f, 0.85))
+    world.add(new THREE.HemisphereLight(0xe9ebef, 0x1c1d22, 0.85))
 
     /*
      * The key sits ~38° off vertical and casts shadows. Everything that matters here —
@@ -161,13 +161,13 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     world.add(key)
     shadowLight.current = key
 
-    const fill = new THREE.DirectionalLight(0x8fb4d0, 0.4)
+    const fill = new THREE.DirectionalLight(0xc4c7cd, 0.4)
     fill.position.set(50, 30, 14)
     world.add(fill)
 
     // Orbiting under the part is allowed, and the sky-to-ground hemisphere leaves
     // downward faces almost black. A weak bounce keeps the print surface readable.
-    const bounce = new THREE.DirectionalLight(0x9fb8cf, 0.5)
+    const bounce = new THREE.DirectionalLight(0xb7bac0, 0.5)
     bounce.position.set(24, 40, -60)
     world.add(bounce)
 
@@ -315,7 +315,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     // off the wall and flatten the embossed number. Flat shading keeps them crisp.
     const solid = new THREE.Mesh(
       geometry,
-      new THREE.MeshStandardMaterial({ color: themeColor('--part', '#cbc6bb'), roughness: 0.85, metalness: 0, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: themeColor('--part', '#cbced3'), roughness: 0.85, metalness: 0, flatShading: true }),
     )
     // The part is the only thing in the scene, so it shadows itself: the well
     // wall onto the floor, the label and the bosses onto the floor under them.
@@ -337,7 +337,7 @@ export function Viewer({ viewKey, mesh, width, length, height, minZ = 0, orbitTa
     // Ink edges are what make it read as a drawn part rather than a render.
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry, 32),
-      new THREE.LineBasicMaterial({ color: themeColor('--measure', '#7fd0f0'), transparent: true, opacity: 0.3 }),
+      new THREE.LineBasicMaterial({ color: themeColor('--measure', '#fa6863'), transparent: true, opacity: 0.3 }),
     )
     group.add(edges)
 

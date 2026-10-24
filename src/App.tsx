@@ -218,7 +218,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
   }, [])
 
   useEffect(() => {
-    document.title = `BaseKit — ${
+    document.title = `HobbyKit — ${
       model === 'base'
         ? 'Bases'
         : model === 'holder'
@@ -513,7 +513,7 @@ export function App({ sharedSetup }: { sharedSetup?: unknown }) {
             </Sheet>
           )}
           <h1 className="shrink-0 py-3 text-sm font-medium tracking-[0.18em] uppercase max-sm:hidden">
-            Base<span className="text-measure">Kit</span>
+            Hobby<span className="text-measure">Kit</span>
           </h1>
           {/* Scrolls sideways on a phone rather than running under the export buttons. */}
           <nav ref={generators} aria-label="Generators" className="flex min-w-0 self-stretch overflow-x-auto [scrollbar-width:none]">

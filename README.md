@@ -1,22 +1,22 @@
 <div align="center">
-  <img src="public/favicon.svg" width="80" alt="BaseKit logo" />
+  <img src="public/favicon.svg" width="80" alt="HobbyKit logo" />
 
-# BaseKit
+# HobbyKit
 
-**Printable miniature bases sized, magnetised, and marked exactly how you need them.**
+**Printable bases, trays, holders, and paint racks for the tabletop hobby, sized exactly how you need them.**
 
-[basekit.ras.sh](https://basekit.ras.sh)
+[hobbykit.ras.sh](https://hobbykit.ras.sh)
 
-[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/basekit/ci.yml?branch=main)](https://github.com/richardsolomou/basekit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/basekit)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/hobbykit/ci.yml?branch=main)](https://github.com/richardsolomou/hobbykit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/hobbykit)](LICENSE)
 </div>
 
-BaseKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, stepped paint racks, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
+HobbyKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, stepped paint racks, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.
 
 Everything runs in the browser. Models are built locally and nothing is uploaded.
 
 ## Who is it for? 👋
 
-BaseKit is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD.
+HobbyKit is for hobbyists who need replacement, conversion, display, or movement-tray bases without searching for the right STL or redrawing the same part in CAD.
 
 Built-in presets cover common Games Workshop, The Old World, Kings of War, and historical sizes. Custom footprints from 15–180mm work too.
 
@@ -32,13 +32,13 @@ Rebasing an army usually means several sizes at once. Add the current size to th
 
 ## Gridfinity holders 📦
 
-Add miniature groups, choose the available rows and columns, and BaseKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints. Miniature and holder-edge spacing are independently adjustable, with the edge spacing defaulting to half the miniature spacing.
+Add miniature groups, choose the available rows and columns, and HobbyKit packs matching slots into printable Gridfinity modules. Groups can use standard or custom round, oval, pill, rectangle, and hex footprints. Miniature and holder-edge spacing are independently adjustable, with the edge spacing defaulting to half the miniature spacing.
 
 Modules export as separate STL files in one archive or separate build plates in one 3MF. You can combine groups into one holder, engrave sizes in each slot or once per module, and add matching magnet pockets. Requests that do not fit report the omitted models without blocking the rest of the plan, and groups with spare slots show how many more fit without adding or resizing a module.
 
 ## Movement trays 🛡️
 
-Move a rank-and-file unit for The Old World, Kings of War, or historical games as one. Pick a rectangular or round base size, set the columns and ranks, and BaseKit cuts a recess for each base with your chosen clearance and depth. Rectangular bases share one recess so ranks stay in base contact; round bases each get their own slot. Adjust the floor thickness and rim width, and add magnet pockets under every slot that match the base magnet pattern so magnetised bases hold. The tray prints flat with its slots facing up, so nothing needs supports.
+Move a rank-and-file unit for The Old World, Kings of War, or historical games as one. Pick a rectangular or round base size, set the columns and ranks, and HobbyKit cuts a recess for each base with your chosen clearance and depth. Rectangular bases share one recess so ranks stay in base contact; round bases each get their own slot. Adjust the floor thickness and rim width, and add magnet pockets under every slot that match the base magnet pattern so magnetised bases hold. The tray prints flat with its slots facing up, so nothing needs supports.
 
 ## Spray trays 🎨
 
@@ -69,13 +69,13 @@ Make a round, square, or hex token for objectives, Oath of Moment, or anything e
 - Browser-saved settings with shared base and holder preferences, and a confirmed reset for each generator or for the shared settings.
 - Copyable links that open the current generator with the same settings.
 
-BaseKit generates bases and the hobby accessories around them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
+HobbyKit generates bases and the hobby accessories around them. It does not sculpt miniatures, add textures or heightmaps, slice models, or control a printer.
 
 ## Private by design 🔒
 
-The generator, 3D preview, fonts, and exporters all run locally in your browser. BaseKit has no backend, accounts, database, or file uploads.
+The generator, 3D preview, fonts, and exporters all run locally in your browser. HobbyKit has no backend, accounts, database, or file uploads.
 
-**Copy link** packs the current generator's settings, plus the shared magnet and wall settings it uses, into the part of the address after `#`, which browsers never send to a server. Opening the link applies those settings over your saved ones for that generator, then tidies the address so a reload uses your saved settings again. A token image travels with the link only while the link stays under about 8KB; otherwise the link is copied without it and BaseKit says so. A base link leaves the batch export list behind, so opening one keeps your own.
+**Copy link** packs the current generator's settings, plus the shared magnet and wall settings it uses, into the part of the address after `#`, which browsers never send to a server. Opening the link applies those settings over your saved ones for that generator, then tidies the address so a reload uses your saved settings again. A token image travels with the link only while the link stays under about 8KB; otherwise the link is copied without it and HobbyKit says so. A base link leaves the batch export list behind, so opening one keeps your own.
 
 ## Development 🛠️
 
