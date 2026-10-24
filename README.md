@@ -7,7 +7,7 @@
 
 [hobbykit.app](https://hobbykit.app)
 
-[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/hobbykit/ci.yml?branch=main)](https://github.com/richardsolomou/hobbykit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/hobbykit)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/hobbykit.app/ci.yml?branch=main)](https://github.com/richardsolomou/hobbykit.app/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/hobbykit.app)](LICENSE)
 </div>
 
 HobbyKit makes support-free STL and 3MF files for tabletop miniature bases, matching flying stems, Gridfinity holders, movement trays, low-profile spray trays, stepped paint racks, and gaming tokens. Pick a standard footprint or enter an exact one, choose the magnets you have, and export a model ready for the slicer. A base's size is embossed inside, so a loose print still tells you what it is: a `28.5` base says `28.5`, not `29`. Type your own label instead, such as a unit name or squad number; text that cannot fit the base is reported rather than dropped, and the filename still names the size.

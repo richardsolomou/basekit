@@ -4,11 +4,11 @@
   "private": true,
   "description": "Parametric generator for tabletop hobby prints: magnetised miniature bases, holders, trays, paint racks, and tokens.",
   "homepage": "https://hobbykit.app",
-  "bugs": "https://github.com/richardsolomou/hobbykit/issues",
+  "bugs": "https://github.com/richardsolomou/hobbykit.app/issues",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/richardsolomou/hobbykit.git"
+    "url": "https://github.com/richardsolomou/hobbykit.app.git"
   },
   "type": "module",
   "scripts": {
