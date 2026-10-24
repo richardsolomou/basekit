@@ -5,7 +5,7 @@
 
 **Printable bases, trays, holders, and paint racks for the tabletop hobby, sized exactly how you need them.**
 
-[hobbykit.ras.sh](https://hobbykit.ras.sh)
+[hobbykit.app](https://hobbykit.app)
 
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/hobbykit/ci.yml?branch=main)](https://github.com/richardsolomou/hobbykit/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/hobbykit)](LICENSE)
 </div>

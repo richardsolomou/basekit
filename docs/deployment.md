@@ -19,15 +19,15 @@ Pages creates a preview deployment for pull requests and a production deployment
 
 ## Custom domain
 
-Add `hobbykit.ras.sh` under the Pages project's **Custom domains** settings. If Cloudflare manages the `ras.sh` zone, it creates the DNS record. Otherwise, add the CNAME target Cloudflare provides at the authoritative DNS provider.
+`hobbykit.app` is a Custom Domain on the `hobbykit` Worker, under **Domains & Routes**. Cloudflare manages the `hobbykit.app` zone, so it creates the DNS record.
 
-`basekit.ras.sh`, the app's former name, stays on the zone with a Redirect Rule sending every request to `https://hobbykit.ras.sh` with the same path and query, so old links and bookmarks keep working. The redirect does not move browser storage: settings saved on the old domain stay there. The Worker in `wrangler.jsonc` keeps the name `basekit`, because Workers Builds is connected to the Worker by that name.
+`basekit.ras.sh`, the app's former domain, stays attached to the Worker so its DNS record remains, and a Single Redirect in the `ras.sh` zone sends `*://basekit.ras.sh/*` to `https://hobbykit.app/${2}` with a 301, preserving the query string, so old links and bookmarks keep working. The redirect does not move browser storage: settings saved on the old domain stay there.
 
 ## Production verification
 
 After the first production deploy:
 
-1. Open `https://hobbykit.ras.sh` and confirm the worker installs a mesh without console errors.
+1. Open `https://hobbykit.app` and confirm the worker installs a mesh without console errors.
 2. Change the footprint and verify the triangle count changes before inspecting the updated model.
 3. Export one STL and one 3MF, then load both in a slicer or mesh checker.
 4. Confirm the favicon, HobbyKit title, font, and Manifold WASM asset load from the custom domain.

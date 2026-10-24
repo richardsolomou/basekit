@@ -29,7 +29,7 @@ body:
     attributes:
       label: Environment
       options:
-        - mini-bases.ras.sh
+        - hobbykit.app
         - Local development
         - Other deployment
     validations:
