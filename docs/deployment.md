@@ -4,7 +4,7 @@ HobbyKit is a static Vite app. It needs no backend, database, runtime secrets, s
 
 ## Cloudflare Pages
 
-Create a Pages project from the `richardsolomou/hobbykit` GitHub repository with these settings:
+Create a Pages project from the `richardsolomou/hobbykit.app` GitHub repository with these settings:
 
 | Setting           | Value        |
 | ----------------- | ------------ |

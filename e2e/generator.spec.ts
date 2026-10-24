@@ -131,7 +131,7 @@ test('keeps a separate camera view for each generator', async ({ page }) => {
 })
 
 test('links to the source repository', async ({ page }) => {
-  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/hobbykit')
+  await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/richardsolomou/hobbykit.app')
 })
 
 test('starts every dimension on a value its own input accepts', async ({ page }) => {
