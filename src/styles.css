@@ -6,9 +6,8 @@
 @import '@fontsource/azeret-mono/500.css';
 
 /*
- * Blueprint: a deep navy ground with chalk-white lettering and pale cyan
- * linework, the way a print reads. Dark, but nothing like a neutral black
- * dashboard — the sheet is blue and the drawing sits on it.
+ * Workshop: a graphite sheet with chalk lettering and a red accent for
+ * anything that measures or is selected, the way a red pen marks up a print.
  *
  * There is one theme, so the tokens live on :root with no `dark` class and no
  * light counterpart. The 3D scene reads the same custom properties.
@@ -17,37 +16,37 @@
   font-size: 17px;
   --radius: 0.125rem;
 
-  --background: oklch(0.2006 0.0338 251.48);
-  --foreground: oklch(0.9428 0.0121 247.95);
-  --card: oklch(0.2434 0.0454 252.39);
+  --background: oklch(0.17 0.006 270);
+  --foreground: oklch(0.94 0.006 270);
+  --card: oklch(0.205 0.007 270);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.2434 0.0454 252.39);
+  --popover: oklch(0.205 0.007 270);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.7779 0.0972 228.49);
-  --primary-foreground: oklch(0.2082 0.0439 249.08);
-  --secondary: oklch(0.303 0.0587 251.13);
+  --primary: oklch(0.64 0.2 25);
+  --primary-foreground: oklch(0.98 0.005 25);
+  --secondary: oklch(0.26 0.008 270);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.303 0.0587 251.13);
-  --muted-foreground: oklch(0.72 0.0455 246.33);
-  --accent: oklch(0.3489 0.0673 250.99);
+  --muted: oklch(0.26 0.008 270);
+  --muted-foreground: oklch(0.7 0.01 270);
+  --accent: oklch(0.3 0.01 270);
   --accent-foreground: var(--foreground);
-  --destructive: oklch(0.7149 0.1187 45.3);
-  --destructive-foreground: oklch(0.2082 0.0439 249.08);
-  --border: oklch(0.3794 0.0652 247.12);
-  --input: oklch(0.3794 0.0652 247.12);
-  --ring: oklch(0.7779 0.0972 228.49);
+  --destructive: oklch(0.7 0.19 25);
+  --destructive-foreground: oklch(0.17 0.006 270);
+  --border: oklch(0.32 0.01 270);
+  --input: oklch(0.32 0.01 270);
+  --ring: oklch(0.64 0.2 25);
 
   /* Dimension linework and anything reporting a measurement. */
-  --measure: oklch(0.8172 0.0911 225.35);
+  --measure: oklch(0.7 0.18 25);
   /* Reserved for magnets, so a copper mark always means the same thing. */
   --magnet: oklch(0.7345 0.1099 64.65);
   /* A setting that has moved away from its original value. */
-  --modified: oklch(0.75 0.16 48);
-  /* The part, drawn as pale stock against the blue. */
-  --part: oklch(0.8503 0.0159 248.02);
+  --modified: oklch(0.84 0.15 90);
+  /* The part, drawn as pale stock against the sheet. */
+  --part: oklch(0.85 0.008 270);
   /* The sheet's ruled grid, a shade above the paper. */
-  --grid-minor: oklch(0.2752 0.0492 251.04);
-  --grid-major: oklch(0.3434 0.0631 248.71);
+  --grid-minor: oklch(0.235 0.007 270);
+  --grid-major: oklch(0.285 0.01 270);
 }
 
 @theme {
